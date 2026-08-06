@@ -74,6 +74,19 @@ test('a discovered device carries a price feature and an update feature', () => 
   assert.equal(params.distance_km, '1.2');
 });
 
+test('every feature declares a min and a max', () => {
+  // `min` and `max` are NOT NULL in Gladys for every feature, text ones
+  // included: without them, pressing "Add to Gladys" answered HTTP 422 and the
+  // station was never created.
+  const gladys = createFakeGladys();
+  const [device] = buildDiscoveredDevices(gladys, config, [createStation()]);
+
+  for (const feature of device.features) {
+    assert.equal(typeof feature.min, 'number', `${feature.name} must declare a min`);
+    assert.equal(typeof feature.max, 'number', `${feature.name} must declare a max`);
+  }
+});
+
 test('a discovered device declares no poll_frequency', () => {
   // Gladys only accepts the millisecond enum of DEVICE_POLL_FREQUENCIES, capped
   // at one minute: publishing the configured interval (seconds, up to 24 h)

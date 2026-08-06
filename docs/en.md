@@ -27,6 +27,12 @@ For **every station you add**, a device with two read-only features:
 The address, the brand, the GPS coordinates and the distance to the postal
 code are stored in the device parameters.
 
+A device is named after the brand of the station and its city, e.g.
+`Total Access - Oullins-Pierre-Bénite - SP98`. The national price feed does not
+publish that brand, so it is read from a reference dataset of the same
+information system; a station that reference dataset does not know keeps a name
+built from its street.
+
 ## Configuration
 
 1. Open the **Configuration** tab of the integration.

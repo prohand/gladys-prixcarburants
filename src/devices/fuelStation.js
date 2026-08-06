@@ -119,6 +119,12 @@ export function buildDevice(gladys, { station, country, fuel }) {
         external_id: ids.feature(FEATURE.UPDATED_AT),
         category: DEVICE_FEATURE_CATEGORIES.TEXT,
         type: DEVICE_FEATURE_TYPES.TEXT.TEXT,
+        // `min` and `max` are NOT NULL in Gladys for EVERY feature, including
+        // the ones that hold text and have no range: omitting them made the
+        // whole device creation fail with "HTTP 422 - min cannot be null" the
+        // moment the user pressed "Add to Gladys". A text feature ignores them.
+        min: 0,
+        max: 0,
         read_only: true,
         has_feedback: false,
         keep_history: false, // a timestamp curve would say nothing

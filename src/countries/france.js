@@ -22,6 +22,8 @@
 import { createLogger } from '@gladysassistant/integration-sdk';
 import { centroid, distanceKm, isValidPoint } from '../geo.js';
 import { FUEL_KEYS } from '../fuels.js';
+import { cleanText } from '../text.js';
+import { buildStationName, resolveStationNames } from './franceNames.js';
 
 const logger = createLogger({ name: 'provider-fr' });
 
@@ -60,12 +62,11 @@ const NESTED_FUEL_NAMES = {
 /** Postal codes in France are always 5 digits. */
 const POSTAL_CODE_PATTERN = /^\d{5}$/;
 
-// The dataset has no "station name" column: what a driver reads on the roadside
-// sign is the BRAND — "Auchan", "TotalEnergies", "Leclerc". It is also the one
-// column the mirrors of the dataset disagree on the most (the raw
-// prix-carburants.gouv.fr export does not publish it at all, the portals expose
-// it as `marque`, `brand` or `enseigne`), which is why the discovery tab used to
-// show a bare city name. Try every known spelling, in this order.
+// What a driver reads on the roadside sign is the BRAND — "Auchan",
+// "TotalEnergies", "Leclerc". The national feed does NOT publish it (see
+// franceNames.js, which fetches it from a reference dataset), but the mirrors of
+// the dataset do not all drop it, and a column we can read straight from the
+// record saves a remote lookup. Try every known spelling, in this order.
 const BRAND_COLUMNS = [
   'marque',
   'brand',
@@ -153,7 +154,9 @@ export const france = {
     }
 
     stations.sort(compareByRelevance);
-    return stations.slice(0, limit);
+    // Only the stations we are about to show are worth a name lookup: the
+    // radius search can bring back three hundred of them, the user sees twenty.
+    return resolveStationNames(stations.slice(0, limit));
   },
 
   /**
@@ -169,7 +172,9 @@ export const france = {
       const where = batch.map((id) => `id = "${id}"`).join(' OR ');
       stations.push(...(await queryStations(where, PAGE_SIZE)));
     }
-    return stations;
+    // Names are cached after the first lookup, so refreshing the prices of a
+    // station already discovered costs no extra request.
+    return resolveStationNames(stations);
   },
 };
 
@@ -310,20 +315,6 @@ export function parseBrand(record) {
 }
 
 /**
- * The name shown in the Discovery tab and in the "Preview the nearby stations"
- * result: the brand first — that is the sign the driver looks for — then the
- * city, which tells two Auchan apart. Without a brand we fall back to the
- * street, so a station stays distinguishable from the three others of the same
- * city instead of being listed as a bare city name.
- *
- * @param {{ id: string, brand: string, city: string, address: string }} station
- * @returns {string}
- */
-function buildStationName({ id, brand, city, address }) {
-  return [brand || address, city].filter(Boolean).join(' - ') || `Station ${id}`;
-}
-
-/**
  * The coordinates arrive either as a geo point column or as two numeric
  * columns, and the historical export expresses them in hundred-thousandths of
  * a degree (4811833 == 48.11833). Normalize everything to decimal degrees.
@@ -429,15 +420,4 @@ function sanitizeId(value) {
   return String(value ?? '')
     .trim()
     .replace(/[^A-Za-z0-9_-]/g, '');
-}
-
-/**
- * @param {unknown} value
- * @returns {string}
- */
-function cleanText(value) {
-  if (value === null || value === undefined) {
-    return '';
-  }
-  return String(value).replace(/\s+/g, ' ').trim();
 }

@@ -28,6 +28,12 @@ Pour **chaque station que vous ajoutez**, un appareil avec deux mesures :
 L'adresse, la marque, les coordonnées GPS et la distance au code postal sont
 enregistrées dans les paramètres de l'appareil.
 
+L'appareil porte le nom de l'enseigne de la station et de sa commune, par
+exemple `Total Access - Oullins-Pierre-Bénite - SP98`. Le flux national des prix
+ne publie pas cette enseigne : elle est lue dans un jeu de données de référence
+du même système d'information. Une station que ce jeu de données ne connaît pas
+garde un nom construit à partir de sa rue.
+
 ## Configuration
 
 1. Ouvrez l'onglet **Configuration** de l'intégration.
