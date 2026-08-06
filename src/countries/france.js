@@ -60,6 +60,28 @@ const NESTED_FUEL_NAMES = {
 /** Postal codes in France are always 5 digits. */
 const POSTAL_CODE_PATTERN = /^\d{5}$/;
 
+// The dataset has no "station name" column: what a driver reads on the roadside
+// sign is the BRAND — "Auchan", "TotalEnergies", "Leclerc". It is also the one
+// column the mirrors of the dataset disagree on the most (the raw
+// prix-carburants.gouv.fr export does not publish it at all, the portals expose
+// it as `marque`, `brand` or `enseigne`), which is why the discovery tab used to
+// show a bare city name. Try every known spelling, in this order.
+const BRAND_COLUMNS = [
+  'marque',
+  'brand',
+  'enseigne',
+  'enseignes',
+  'nom_station',
+  'station_name',
+  'nom',
+  'name',
+  'raison_sociale',
+];
+
+// Last resort: any column whose NAME mentions a brand, so the day the publisher
+// renames the column the station name survives on its own.
+const BRAND_COLUMN_PATTERN = /marque|brand|enseigne/i;
+
 export const france = {
   code: 'FR',
   label: { en: 'France', fr: 'France' },
@@ -231,7 +253,7 @@ export function parseStation(record) {
   const { latitude, longitude } = parseCoordinates(record);
   const address = cleanText(record.adresse ?? record.address);
   const city = cleanText(record.ville ?? record.city);
-  const brand = cleanText(record.marque ?? record.brand ?? record.enseigne ?? record.nom);
+  const brand = parseBrand(record);
   const nested = parseNestedPrices(record);
 
   /** @type {Record<string, number|null>} */
@@ -246,9 +268,7 @@ export function parseStation(record) {
 
   return {
     id,
-    // The dataset has no station name: the brand plus the city is the closest
-    // thing to what a driver reads on the roadside sign.
-    name: [brand, city].filter(Boolean).join(' - ') || address || `Station ${id}`,
+    name: buildStationName({ id, brand, city, address }),
     brand,
     address,
     city,
@@ -258,6 +278,49 @@ export function parseStation(record) {
     prices,
     updatedAt,
   };
+}
+
+/**
+ * The brand of the station ("Auchan", "TotalEnergies", …), whatever the column
+ * carrying it is called on the portal we are talking to. An empty column is not
+ * an answer: we keep looking instead of stopping on it, which is what `??` on a
+ * chain of columns used to do.
+ *
+ * @param {Record<string, unknown>} record
+ * @returns {string} the brand, or '' when the record really carries none
+ */
+export function parseBrand(record) {
+  for (const column of BRAND_COLUMNS) {
+    const brand = cleanText(record[column]);
+    if (brand) {
+      return brand;
+    }
+  }
+  // Unknown column name: accept any scalar column that claims to hold a brand.
+  for (const [column, value] of Object.entries(record)) {
+    if (typeof value === 'object' || !BRAND_COLUMN_PATTERN.test(column)) {
+      continue;
+    }
+    const brand = cleanText(value);
+    if (brand) {
+      return brand;
+    }
+  }
+  return '';
+}
+
+/**
+ * The name shown in the Discovery tab and in the "Preview the nearby stations"
+ * result: the brand first — that is the sign the driver looks for — then the
+ * city, which tells two Auchan apart. Without a brand we fall back to the
+ * street, so a station stays distinguishable from the three others of the same
+ * city instead of being listed as a bare city name.
+ *
+ * @param {{ id: string, brand: string, city: string, address: string }} station
+ * @returns {string}
+ */
+function buildStationName({ id, brand, city, address }) {
+  return [brand || address, city].filter(Boolean).join(' - ') || `Station ${id}`;
 }
 
 /**

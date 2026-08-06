@@ -85,9 +85,34 @@ test('parseStation drops the (0, 0) placeholder coordinates', () => {
   assert.equal(station.longitude, null);
 });
 
+test('parseStation names the station after its brand, whatever the column', () => {
+  const columns = ['marque', 'brand', 'enseigne', 'nom_station', 'nom', 'name'];
+  for (const column of columns) {
+    const station = parseStation({ id: '42', cp: '35000', ville: 'Rennes', [column]: 'Auchan' });
+    assert.equal(station.brand, 'Auchan', `${column} should be read as the brand`);
+    assert.equal(station.name, 'Auchan - Rennes', `${column} should appear in the name`);
+  }
+});
+
+test('parseStation skips an empty brand column and keeps looking', () => {
+  const station = parseStation({ id: '42', ville: 'Rennes', marque: '  ', enseigne: 'Auchan' });
+  assert.equal(station.name, 'Auchan - Rennes');
+});
+
+test('parseStation falls back to any column that claims to hold a brand', () => {
+  const station = parseStation({ id: '42', ville: 'Rennes', marque_station: 'Auchan' });
+  assert.equal(station.brand, 'Auchan');
+  assert.equal(station.name, 'Auchan - Rennes');
+});
+
 test('parseStation always produces a usable name', () => {
   assert.equal(parseStation({ id: '42', adresse: 'Route de Lorient' }).name, 'Route de Lorient');
   assert.equal(parseStation({ id: '42' }).name, 'Station 42');
+  assert.equal(
+    parseStation({ id: '42', ville: 'Rennes', adresse: 'Route de Lorient' }).name,
+    'Route de Lorient - Rennes',
+    'without a brand, the street tells two stations of the same city apart',
+  );
 });
 
 test('parseStation ignores a record without an id', () => {
