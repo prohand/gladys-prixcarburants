@@ -79,17 +79,25 @@ export function parseDeviceExternalId(externalId) {
 /**
  * Discovery payload of one (station, fuel) pair.
  *
+ * No `poll_frequency` here, on purpose. Gladys can drive the polling itself,
+ * but its `poll_frequency` is an ENUM of millisecond values capped at ONE
+ * MINUTE (1s, 2s, 10s, 15s, 30s, 60s) — sized for a plug or a lamp. A national
+ * fuel price feed refreshed every ~10 minutes, and a user asking for "once an
+ * hour", simply do not fit in it: any other value makes Gladys reject the WHOLE
+ * discovery payload (`poll_frequency: invalid poll frequency`), which is why
+ * the Discovery tab used to stay empty. The refresh interval therefore lives in
+ * the integration's own loop (src/refresh.js), which honours the seconds the
+ * user configured.
+ *
  * @param {object} gladys SDK instance
- * @param {{ station: object, country: string, fuel: string, config: object }} context
+ * @param {{ station: object, country: string, fuel: string }} context
  */
-export function buildDevice(gladys, { station, country, fuel, config }) {
+export function buildDevice(gladys, { station, country, fuel }) {
   const ids = gladys.externalIds(DEVICE_TYPE, platformId({ country, stationId: station.id, fuel }));
 
   return {
     name: `${station.name} - ${fuelLabel(fuel, 'en')}`,
     external_id: ids.device,
-    // Gladys calls onPoll at this interval (seconds).
-    poll_frequency: config.poll_frequency,
     // Params are upserted on every re-publish, so the address and the distance
     // stay up to date even on a device the user created weeks ago.
     params: buildParams(station, country, fuel),

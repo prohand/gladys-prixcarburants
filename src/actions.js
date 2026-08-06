@@ -7,13 +7,10 @@
 // return anything?" and "refresh my prices now".
 // -----------------------------------------------------------------------------
 
-import { createLogger } from '@gladysassistant/integration-sdk';
 import { getProvider } from './countries/index.js';
 import { fuelLabel } from './fuels.js';
 import { isConfigReady } from './config.js';
-import { parseTargets, pollDevice } from './devices/index.js';
-
-const logger = createLogger({ name: 'actions' });
+import { refreshAllDevices } from './refresh.js';
 
 // How many stations the search result message lists before summarizing.
 const PREVIEW_SIZE = 8;
@@ -75,36 +72,24 @@ export async function searchStations(gladys, { config, store }) {
  * @param {{ config: object, store: object }} context
  */
 export async function refreshPrices(gladys, { config, store }) {
-  const devices = await gladys.getDevices();
-  const targets = parseTargets(devices);
-  if (targets.length === 0) {
+  // `force`: the user pressed a button, they expect a real read, not the cache.
+  const { total, updated, failures } = await refreshAllDevices(gladys, {
+    config,
+    store,
+    force: true,
+  });
+
+  if (total === 0) {
     return {
       en: 'No station added yet: add one from the Discovery tab first.',
       fr: "Aucune station ajoutée : ajoutez-en une depuis l'onglet Découverte.",
     };
   }
 
-  // Drop the cache so the refresh really hits the provider.
-  store.invalidate();
-
-  let updated = 0;
-  const failures = [];
-  for (const { device } of targets) {
-    try {
-      const { price } = await pollDevice(gladys, { device, config, store });
-      if (price !== null) {
-        updated += 1;
-      }
-    } catch (err) {
-      logger.error(`Refresh failed for ${device.external_id}`, err);
-      failures.push(device.name ?? device.external_id);
-    }
-  }
-
   const failureSuffix = failures.length > 0 ? ` (${failures.length} failed)` : '';
   return {
-    en: `${updated}/${targets.length} price(s) refreshed${failureSuffix}.`,
-    fr: `${updated}/${targets.length} prix rafraîchi(s)${failureSuffix}.`,
+    en: `${updated}/${total} price(s) refreshed${failureSuffix}.`,
+    fr: `${updated}/${total} prix rafraîchi(s)${failureSuffix}.`,
   };
 }
 

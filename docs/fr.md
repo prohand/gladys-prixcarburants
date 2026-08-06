@@ -56,8 +56,11 @@ Seules les combinaisons réellement disponibles sont proposées : une station
 qui ne vend pas de GPLc n'apparaît pas dans la liste GPLc.
 
 Une fois ajoutée, la station publie son prix immédiatement, puis à chaque
-rafraîchissement (une fois par heure par défaut). Le bouton **Rafraîchir les
-prix maintenant** force une lecture sans attendre.
+rafraîchissement (une fois par heure par défaut). Le rythme est celui de
+l'**Intervalle de rafraîchissement** de l'onglet Configuration : l'intégration
+gère elle-même son minuteur, l'appareil n'affiche donc pas d'option
+d'interrogation côté Gladys. Le bouton **Rafraîchir les prix maintenant** force
+une lecture sans attendre.
 
 ## Supprimer des stations
 
