@@ -58,7 +58,6 @@ test('a discovered device carries a price feature and an update feature', () => 
     createStation(),
   ]);
 
-  assert.equal(device.poll_frequency, 3600);
   assert.deepEqual(
     device.features.map((f) => f.external_id.split(':').pop()),
     [FEATURE.PRICE, FEATURE.UPDATED_AT],
@@ -73,6 +72,22 @@ test('a discovered device carries a price feature and an update feature', () => 
   assert.equal(params.fuel, 'gazole');
   assert.equal(params.address, '1 rue de Nantes 35000 Rennes');
   assert.equal(params.distance_km, '1.2');
+});
+
+test('a discovered device declares no poll_frequency', () => {
+  // Gladys only accepts the millisecond enum of DEVICE_POLL_FREQUENCIES, capped
+  // at one minute: publishing the configured interval (seconds, up to 24 h)
+  // makes it reject the WHOLE payload and the Discovery tab stays empty.
+  // Refreshing is src/refresh.js's job.
+  const gladys = createFakeGladys();
+  const devices = buildDiscoveredDevices(gladys, config, [createStation()]);
+  const created = buildCreatedDevices(gladys, config, [{ external_id: devices[0].external_id }], {
+    peek: () => null,
+  });
+
+  for (const device of [...devices, ...created]) {
+    assert.ok(!('poll_frequency' in device), `${device.name} must not declare a poll_frequency`);
+  }
 });
 
 test('polling publishes the price and the update date of the right fuel', async () => {

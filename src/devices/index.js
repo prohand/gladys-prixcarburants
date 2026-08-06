@@ -55,7 +55,7 @@ export function buildDiscoveredDevices(gladys, config, stations) {
       if (station.prices?.[fuel] === null || station.prices?.[fuel] === undefined) {
         continue;
       }
-      devices.push(buildDevice(gladys, { station, country, fuel, config }));
+      devices.push(buildDevice(gladys, { station, country, fuel }));
     }
   }
   return devices;
@@ -101,7 +101,7 @@ export function buildCreatedDevices(gladys, config, createdDevices, store) {
       prices: {},
       updatedAt: {},
     };
-    const payload = buildDevice(gladys, { station, country, fuel, config });
+    const payload = buildDevice(gladys, { station, country, fuel });
     // A created device keeps the name the user gave it; do not fight over it.
     return { ...payload, name: device.name ?? payload.name };
   });

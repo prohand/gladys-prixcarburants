@@ -54,8 +54,10 @@ Only the combinations that really exist are offered: a station that does not
 sell LPG never shows up in the LPG list.
 
 Once added, the station publishes its price straight away, then at every
-refresh (once an hour by default). The **Refresh the prices now** button
-forces a read without waiting.
+refresh (once an hour by default). The pace is the **Refresh interval** of the
+Configuration tab: the integration runs its own timer, so the device shows no
+polling option on the Gladys side. The **Refresh the prices now** button forces
+a read without waiting.
 
 ## Removing stations
 

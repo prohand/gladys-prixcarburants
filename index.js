@@ -3,7 +3,8 @@
 //
 // Role of this file: wire the SDK to the rest of the code. It holds no business
 // logic — searching stations lives in src/countries/, building devices in
-// src/devices/, caching in src/stationStore.js. This file only:
+// src/devices/, caching in src/stationStore.js, refreshing in src/refresh.js.
+// This file only:
 //   1. instantiates the SDK (connection, auth, reconnection: handled for you);
 //   2. registers the event handlers BEFORE connect();
 //   3. connects, then publishes the stations found around the postal code.
@@ -19,6 +20,7 @@ import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
 import { isConfigReady, normalizeConfig } from './src/config.js';
 import { createStationStore } from './src/stationStore.js';
 import { parseTargets, pollDevice, publishDiscovery } from './src/devices/index.js';
+import { createRefreshLoop } from './src/refresh.js';
 import { ACTIONS } from './src/actions.js';
 
 const gladys = new GladysIntegration();
@@ -30,16 +32,32 @@ let config = normalizeConfig();
 // devices polling one after the other cost one HTTP request, not ten.
 const store = createStationStore();
 
+// The prices are refreshed by our own timer: Gladys' `poll_frequency` tops out
+// at one minute, which says nothing useful about a feed updated every ~10 min.
+// See src/refresh.js.
+const refreshLoop = createRefreshLoop(gladys, { store });
+
 // --- Discovery: Gladys asks for the list of devices --------------------------
 // The user opens the Discovery tab: search the stations around the configured
 // postal code and publish one device per (station, fuel). Adding and removing
 // them is then plain Gladys: add from Discovery, delete from the device page.
 gladys.onScanRequest(async () => {
   logger.info('onScanRequest -> searching stations');
-  await runDiscovery();
+  // A scan handler has no ack: the SDK swallows whatever it throws, and the
+  // Discovery tab would just stay empty without a word. Log it ourselves.
+  try {
+    await runDiscovery();
+  } catch (err) {
+    logger.error('Discovery failed, the Discovery tab will stay empty', err);
+    throw err;
+  }
 });
 
 // --- Polling: Gladys asks to refresh a device --------------------------------
+// The devices declare no `poll_frequency` (see src/refresh.js), so Gladys does
+// not poll them — refreshing is our timer's job. The handler stays registered
+// because answering "not implemented" to a poll Gladys does decide to send
+// would be a lie: reading one device on demand costs nothing.
 gladys.onPoll(async (device) => {
   await pollDevice(gladys, { device, config, store });
 });
@@ -86,6 +104,9 @@ gladys.onConfigUpdated(async (newConfig) => {
   // The postal code, the radius or the fuel list may all have changed: drop the
   // cached stations and republish a discovery list built from the new criteria.
   store.invalidate();
+  // The refresh interval may have changed too: re-arm the loop so the value the
+  // user just saved applies without waiting for the next tick.
+  refreshLoop.start(config);
   await runDiscovery();
 });
 
@@ -104,7 +125,13 @@ gladys.on('connected', async () => {
     // 3) Publish the discovery list (and re-publish the created devices).
     await runDiscovery();
 
-    // 4) Report the application-level status, shown in the Configuration
+    // 4) Arm our own refresh timer and publish a first round of prices right
+    //    away, so a restarted container does not leave the dashboard waiting a
+    //    full interval.
+    refreshLoop.start(config);
+    await refreshLoop.runNow(config);
+
+    // 5) Report the application-level status, shown in the Configuration
     //    screen. Distinct from the container state: the integration can be
     //    RUNNING and still unable to reach the open data API.
     await gladys.setConnectionStatus(true);
@@ -112,11 +139,17 @@ gladys.on('connected', async () => {
     logger.error('Post-connection initialization failed', err);
     await gladys
       .setConnectionStatus(false, {
-        en: 'Could not reach the fuel prices open data API, check the integration logs.',
-        fr: "Impossible de joindre l'API open data des prix carburants, consultez les logs de l'intégration.",
+        en: 'Initialization failed, check the integration logs.',
+        fr: "L'initialisation a échoué, consultez les logs de l'intégration.",
       })
       .catch(() => {});
   }
+});
+
+// Stop refreshing while Gladys is unreachable: the SDK reconnects on its own
+// and the `connected` handler re-arms the loop.
+gladys.on('disconnected', () => {
+  refreshLoop.stop();
 });
 
 /**
@@ -143,6 +176,7 @@ async function syncTrackedStations() {
 // --- Graceful shutdown -------------------------------------------------------
 gladys.handleShutdown((signal) => {
   logger.info(`Received ${signal} -> graceful shutdown`);
+  refreshLoop.stop();
 });
 
 // --- Startup -----------------------------------------------------------------
