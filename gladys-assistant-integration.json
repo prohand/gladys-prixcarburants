@@ -1,0 +1,139 @@
+{
+  "manifest_version": 1,
+  "type": "device",
+  "name": "Prix carburants",
+  "description": {
+    "en": "Follow the price of your fuel at the petrol stations near you, from official open data.",
+    "fr": "Suivez le prix de votre carburant dans les stations-service proches de chez vous."
+  },
+  "version": "1.0.0",
+  "docker_image": "ghcr.io/prohand/gladys-prixcarburants:1.0.0",
+  "gladys_version": ">=4.62.0",
+  "cover_image": "https://raw.githubusercontent.com/prohand/gladys-prixcarburants/main/cover.png",
+  "config_schema": [
+    {
+      "key": "intro",
+      "type": "section",
+      "label": { "en": "How it works", "fr": "Comment ça marche" },
+      "description": {
+        "en": "Choose your country, your postal code and the fuel you use, then open the Discovery tab: the petrol stations around you appear there with their current price. Add the ones you want to follow, delete them when you no longer need them. Data comes from the official open data, no account and no API key needed.",
+        "fr": "Choisissez votre pays, votre code postal et votre carburant, puis ouvrez l'onglet Découverte : les stations-service proches y apparaissent avec leur prix actuel. Ajoutez celles que vous voulez suivre, supprimez-les quand vous n'en avez plus besoin. Les données viennent de l'open data officiel, sans compte ni clé d'API."
+      },
+      "links": [
+        {
+          "url": "https://www.prix-carburants.gouv.fr/rubrique/opendata/",
+          "label": {
+            "en": "France: prix-carburants.gouv.fr open data",
+            "fr": "France : open data prix-carburants.gouv.fr"
+          }
+        },
+        {
+          "url": "https://data.economie.gouv.fr/explore/dataset/prix-des-carburants-en-france-flux-instantane-v2/",
+          "label": {
+            "en": "France: the dataset queried by this integration",
+            "fr": "France : le jeu de données interrogé par cette intégration"
+          }
+        }
+      ]
+    },
+    {
+      "key": "country",
+      "type": "select",
+      "label": { "en": "Country", "fr": "Pays" },
+      "description": {
+        "en": "Country whose open data is queried. More countries will be added in future versions.",
+        "fr": "Pays dont l'open data est interrogé. D'autres pays seront ajoutés dans de prochaines versions."
+      },
+      "required": true,
+      "default": "FR",
+      "options": [{ "value": "FR", "label": { "en": "France", "fr": "France" } }]
+    },
+    {
+      "key": "postal_code",
+      "type": "string",
+      "label": { "en": "Postal code", "fr": "Code postal" },
+      "description": {
+        "en": "Stations are searched around this postal code. In France, 5 digits.",
+        "fr": "Les stations sont recherchées autour de ce code postal. En France, 5 chiffres."
+      },
+      "required": true,
+      "placeholder": { "en": "35000", "fr": "35000" }
+    },
+    {
+      "key": "search_radius_km",
+      "type": "number",
+      "label": { "en": "Search radius (km)", "fr": "Rayon de recherche (km)" },
+      "description": {
+        "en": "Also look for stations around the postal code. 0 keeps only the stations of the postal code itself.",
+        "fr": "Cherche aussi des stations autour du code postal. 0 ne garde que les stations du code postal lui-même."
+      },
+      "required": false,
+      "default": 10,
+      "min": 0,
+      "max": 50
+    },
+    {
+      "key": "fuel_type",
+      "type": "multi_select",
+      "label": { "en": "Fuel type", "fr": "Type de carburant" },
+      "description": {
+        "en": "One device is offered per station AND per selected fuel, so you can follow several fuels at the same station.",
+        "fr": "Un appareil est proposé par station ET par carburant sélectionné, ce qui permet de suivre plusieurs carburants dans la même station."
+      },
+      "required": true,
+      "default": ["gazole"],
+      "options": [
+        { "value": "gazole", "label": { "en": "Diesel", "fr": "Gazole" } },
+        { "value": "sp95", "label": { "en": "SP95", "fr": "SP95" } },
+        { "value": "sp98", "label": { "en": "SP98", "fr": "SP98" } },
+        { "value": "e10", "label": { "en": "E10 (SP95-E10)", "fr": "E10 (SP95-E10)" } },
+        { "value": "e85", "label": { "en": "E85 (Superethanol)", "fr": "E85 (Superéthanol)" } },
+        { "value": "gplc", "label": { "en": "LPG", "fr": "GPLc" } }
+      ]
+    },
+    {
+      "key": "max_stations",
+      "type": "number",
+      "label": {
+        "en": "Maximum number of stations",
+        "fr": "Nombre maximum de stations"
+      },
+      "description": {
+        "en": "How many stations the Discovery tab may list. Lower it in a dense city, raise it in the countryside.",
+        "fr": "Nombre de stations que l'onglet Découverte peut lister. Baissez-le en ville dense, augmentez-le à la campagne."
+      },
+      "required": false,
+      "default": 20,
+      "min": 1,
+      "max": 50
+    },
+    {
+      "key": "poll_frequency",
+      "type": "number",
+      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "description": {
+        "en": "How often the price of each added station is refreshed. The French feed is updated about every 10 minutes; once an hour is plenty.",
+        "fr": "Fréquence de rafraîchissement du prix de chaque station ajoutée. Le flux français est mis à jour environ toutes les 10 minutes ; une fois par heure suffit largement."
+      },
+      "required": false,
+      "default": 3600,
+      "min": 600,
+      "max": 86400
+    }
+  ],
+  "actions": [
+    {
+      "key": "search_stations",
+      "label": {
+        "en": "Preview the nearby stations",
+        "fr": "Prévisualiser les stations proches"
+      },
+      "timeout_seconds": 30
+    },
+    {
+      "key": "refresh_prices",
+      "label": { "en": "Refresh the prices now", "fr": "Rafraîchir les prix maintenant" },
+      "timeout_seconds": 60
+    }
+  ]
+}
