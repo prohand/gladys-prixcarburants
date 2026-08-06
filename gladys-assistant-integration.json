@@ -107,9 +107,7 @@
         "fr": "Un appareil est proposé par station ET par carburant sélectionné, ce qui permet de suivre plusieurs carburants dans la même station."
       },
       "required": true,
-      "default": [
-        "gazole"
-      ],
+      "default": ["gazole"],
       "options": [
         {
           "value": "gazole",
