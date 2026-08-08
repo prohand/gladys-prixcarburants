@@ -119,7 +119,9 @@ test('polling publishes the price and the update date of the right fuel', async 
     { featureExternalId: `${external_id}:price`, state: 1.699 },
     {
       featureExternalId: `${external_id}:updated_at`,
-      state: { text: '2026-08-06T07:12:00+02:00' },
+      // Readable on a dashboard tile, and still the wall-clock time declared by
+      // the station — not the container's timezone.
+      state: { text: '2026-08-06 07:12' },
     },
   ]);
 });

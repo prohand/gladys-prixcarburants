@@ -123,7 +123,7 @@ test('a tick refreshes the prices', async () => {
     { featureExternalId: gladys.devices[0].external_id + ':price', state: 1.699 },
     {
       featureExternalId: gladys.devices[0].external_id + ':updated_at',
-      state: { text: '2026-08-06T07:12:00+02:00' },
+      state: { text: '2026-08-06 07:12' },
     },
   ]);
 });

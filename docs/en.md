@@ -20,9 +20,12 @@ For **every station you add**, a device with two read-only features:
 
 - **Price** — the price per litre of the chosen fuel, in euros. History is
   kept, so Gladys charts the price over time.
-- **Last price update** — when the station declared that price (the national
-  feed refreshes about every 10 minutes, but a given station does not change
-  its prices every day).
+- **Last price update** — when the station declared that price, shown as
+  `2026-08-06 07:12` in the station's own local time. The national feed
+  refreshes about every 10 minutes, but a given station does not change its
+  prices every day: this date tells you how old the price above really is.
+  It is read per station **and** per fuel, so the diesel and the SP98 of the
+  same station each carry their own date.
 
 The address, the brand, the GPS coordinates and the distance to the postal
 code are stored in the device parameters.

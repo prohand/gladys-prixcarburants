@@ -21,9 +21,13 @@ Pour **chaque station que vous ajoutez**, un appareil avec deux mesures :
 
 - **Prix** — le prix au litre du carburant choisi, en euros. L'historique est
   conservé : Gladys trace la courbe du prix dans le temps.
-- **Dernière mise à jour** — la date à laquelle la station a déclaré ce prix
-  (le flux national est rafraîchi toutes les 10 minutes environ, mais une
-  station donnée ne change pas ses prix tous les jours).
+- **Dernière mise à jour** — la date à laquelle la station a déclaré ce prix,
+  affichée sous la forme `2026-08-06 07:12`, à l'heure locale de la station.
+  Le flux national est rafraîchi toutes les 10 minutes environ, mais une
+  station donnée ne change pas ses prix tous les jours : cette date vous dit
+  quel âge a réellement le prix affiché au-dessus. Elle est relevée par station
+  **et** par carburant : le gazole et le SP98 d'une même station ont chacun la
+  leur.
 
 L'adresse, la marque, les coordonnées GPS et la distance au code postal sont
 enregistrées dans les paramètres de l'appareil.
