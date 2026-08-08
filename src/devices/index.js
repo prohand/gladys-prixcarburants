@@ -22,6 +22,7 @@ import { createLogger } from '@gladysassistant/integration-sdk';
 import { getProvider } from '../countries/index.js';
 import { fuelLabel } from '../fuels.js';
 import { buildDevice, parseDeviceExternalId } from './fuelStation.js';
+import { buildIntegrationDevice } from './integration.js';
 
 const logger = createLogger({ name: 'devices' });
 
@@ -34,6 +35,15 @@ export {
   platformId,
   pollDevice,
 } from './fuelStation.js';
+
+export {
+  DEVICE_TYPE as INTEGRATION_DEVICE_TYPE,
+  FEATURE as INTEGRATION_FEATURE,
+  buildIntegrationDevice,
+  integrationExternalId,
+  isIntegrationDevice,
+  publishIntegrationState,
+} from './integration.js';
 
 /**
  * Turn a list of stations into the discovery payload.
@@ -119,10 +129,20 @@ export async function publishDiscovery(gladys, { config, store, createdDevices =
   const discovered = buildDiscoveredDevices(gladys, config, stations);
   const existing = buildCreatedDevices(gladys, config, createdDevices, store);
 
+  // The integration device is always offered, even when the search comes back
+  // empty: "when was the feed last read" is exactly what a user with no station
+  // in their Discovery tab wants to know. `parseTargets` ignores it (it is no
+  // station), so its name is preserved here rather than in buildCreatedDevices.
+  const integration = buildIntegrationDevice(gladys);
+  const createdIntegration = createdDevices.find((d) => d.external_id === integration.external_id);
+  if (createdIntegration?.name) {
+    integration.name = createdIntegration.name;
+  }
+
   // Merge, created devices last so their payload (and their user-chosen name)
   // wins over the freshly discovered one for the same external_id.
   const byExternalId = new Map();
-  for (const device of [...discovered, ...existing]) {
+  for (const device of [...discovered, ...existing, integration]) {
     byExternalId.set(device.external_id, device);
   }
   const devices = [...byExternalId.values()];

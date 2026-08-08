@@ -22,7 +22,7 @@ Pour **chaque station que vous ajoutez**, un appareil avec deux mesures :
 - **Prix** — le prix au litre du carburant choisi, en euros. L'historique est
   conservé : Gladys trace la courbe du prix dans le temps.
 - **Dernière mise à jour** — la date à laquelle la station a déclaré ce prix,
-  affichée sous la forme `2026-08-06 07:12`, à l'heure locale de la station.
+  affichée sous la forme `06/08/2026 à 07:12`, à l'heure locale de la station.
   Le flux national est rafraîchi toutes les 10 minutes environ, mais une
   station donnée ne change pas ses prix tous les jours : cette date vous dit
   quel âge a réellement le prix affiché au-dessus. Elle est relevée par station
@@ -31,6 +31,26 @@ Pour **chaque station que vous ajoutez**, un appareil avec deux mesures :
 
 L'adresse, la marque, les coordonnées GPS et la distance au code postal sont
 enregistrées dans les paramètres de l'appareil.
+
+### L'appareil « Fuel prices - Data update »
+
+En plus des stations, l'onglet Découverte propose **un appareil unique, commun
+à toute l'intégration**, avec une seule mesure :
+
+- **Last data refresh** — la date et l'heure, au format `08/08/2026 à 21:00`,
+  auxquelles l'intégration a lu le flux open data pour la dernière fois **avec
+  succès**.
+
+C'est une information différente de la « Dernière mise à jour » d'une station :
+celle-ci vous dit quand la station a bougé ses prix (ce qui peut remonter à une
+semaine, tout à fait normalement), celle-là vous dit si l'intégration arrive
+encore à joindre l'API nationale. Si cette date se met à vieillir alors que
+votre intervalle de rafraîchissement est d'une heure, c'est que la source de
+données ne répond plus.
+
+Cet appareil est facultatif : ne l'ajoutez pas et l'intégration fonctionne
+exactement pareil. Ajouté, il est mis à jour à la fin de chaque
+rafraîchissement, et il reste vide tant qu'aucune lecture n'a encore réussi.
 
 L'appareil porte le nom de l'enseigne de la station et de sa commune, par
 exemple `Total Access - Oullins-Pierre-Bénite - SP98`. Le flux national des prix

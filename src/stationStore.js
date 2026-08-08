@@ -37,9 +37,19 @@ export function createStationStore({
   /** @type {Map<string, Promise<void>>} in-flight refresh per country */
   const refreshes = new Map();
 
+  // When a provider call last SUCCEEDED, whatever it brought back. This is the
+  // integration-wide "the data you see is this old" answer, and the only one
+  // the per-station dates cannot give: a station that has not moved its prices
+  // in a week legitimately shows a week-old date, so a stale date there says
+  // nothing about the feed being reachable. Failed calls leave it untouched —
+  // the point is precisely to let it age when the API is down.
+  /** @type {number|null} */
+  let lastFetchAt = null;
+
   function remember(country, stations) {
+    lastFetchAt = now();
     for (const station of stations) {
-      cache.set(cacheKey(country, station.id), { station, fetchedAt: now() });
+      cache.set(cacheKey(country, station.id), { station, fetchedAt: lastFetchAt });
     }
   }
 
@@ -165,6 +175,10 @@ export function createStationStore({
     invalidate,
     get trackedStations() {
       return [...tracked.values()];
+    },
+    /** Epoch (ms) of the last successful provider call, `null` before the first one. */
+    get lastFetchAt() {
+      return lastFetchAt;
     },
   };
 }

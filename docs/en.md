@@ -21,7 +21,7 @@ For **every station you add**, a device with two read-only features:
 - **Price** — the price per litre of the chosen fuel, in euros. History is
   kept, so Gladys charts the price over time.
 - **Last price update** — when the station declared that price, shown as
-  `2026-08-06 07:12` in the station's own local time. The national feed
+  `06/08/2026 à 07:12` in the station's own local time. The national feed
   refreshes about every 10 minutes, but a given station does not change its
   prices every day: this date tells you how old the price above really is.
   It is read per station **and** per fuel, so the diesel and the SP98 of the
@@ -29,6 +29,24 @@ For **every station you add**, a device with two read-only features:
 
 The address, the brand, the GPS coordinates and the distance to the postal
 code are stored in the device parameters.
+
+### The "Fuel prices - Data update" device
+
+Besides the stations, the Discovery tab offers **one single device, shared by
+the whole integration**, with one feature:
+
+- **Last data refresh** — the date and time, as `08/08/2026 à 21:00`, of the
+  last **successful** read of the open data feed by the integration.
+
+This is not the same information as a station's "Last price update": that one
+tells you when the station moved its prices (a week ago is perfectly normal),
+this one tells you whether the integration can still reach the national API. A
+date that starts ageing while your refresh interval is one hour means the data
+source stopped answering.
+
+The device is optional: leave it out and the integration behaves exactly the
+same. Added, it is updated at the end of every refresh pass, and stays empty
+until a first read has succeeded.
 
 A device is named after the brand of the station and its city, e.g.
 `Total Access - Oullins-Pierre-Bénite - SP98`. The national price feed does not

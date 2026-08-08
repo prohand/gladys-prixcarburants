@@ -67,6 +67,17 @@ devices Gladys holds, publishes discovery, arms the refresh loop and reports
 - **A (station, fuel) pair with no price is never published** — the dataset covers every pump
   in the country, so offering "LPG at a station that sells none" creates devices that can
   never publish a state.
+- **Exactly one device is not a station**: `src/devices/integration.js`
+  (`ext:<selector>:integration:status`), publishing when the feed was last read _successfully_.
+  Its platform id is a constant so changing country or postal code never orphans it, it is
+  always appended by `publishDiscovery` even when the search is empty, and `parseTargets`
+  ignores it — every station code path must keep ignoring it (route it with
+  `isIntegrationDevice` first, as `onPoll`/`onDeviceCreated` do). Distinct from a station's
+  `updated_at`, which is the date the STATION declared its price: a stale one there is normal,
+  a stale one here means the API stopped answering, so a failed pass must leave it ageing.
+- **Dates are displayed as `08/08/2026 à 21:00`**, via `formatDateTime` (feed strings, parsed
+  TEXTUALLY so the container timezone cannot shift a declared wall-clock time) and
+  `formatInstant` (instants we observed, in container-local time) in `src/text.js`.
 - **Devices carry no `poll_frequency`.** Gladys' `poll_frequency` is an enum capped at 60s;
   any other value makes it reject the _entire_ discovery payload (the Discovery tab silently
   stays empty). The 10 min–24 h interval the user configures is honoured by

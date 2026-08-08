@@ -121,7 +121,7 @@ test('polling publishes the price and the update date of the right fuel', async 
       featureExternalId: `${external_id}:updated_at`,
       // Readable on a dashboard tile, and still the wall-clock time declared by
       // the station — not the container's timezone.
-      state: { text: '2026-08-06 07:12' },
+      state: { text: '06/08/2026 à 07:12' },
     },
   ]);
 });
@@ -165,7 +165,7 @@ test('devices already created stay published even outside the current search', a
   const result = await publishDiscovery(gladys, { config, store, createdDevices });
 
   assert.equal(result.found, 0);
-  assert.equal(result.published, 1);
+  assert.equal(result.published, 2, 'the created station, plus the integration device');
   const [published] = gladys.discovered;
   assert.equal(published[0].external_id, external_id);
   assert.equal(published[0].name, 'Station du bureau', 'the name chosen by the user is kept');
@@ -183,8 +183,8 @@ test('discovery does not duplicate a station the user already added', async () =
   await publishDiscovery(gladys, { config, store, createdDevices: [{ external_id }] });
 
   const [published] = gladys.discovered;
-  assert.equal(published.length, 2, 'gazole (already added) + sp98, not three entries');
-  assert.equal(new Set(published.map((d) => d.external_id)).size, 2);
+  assert.equal(published.length, 3, 'gazole (already added) + sp98 + the integration device');
+  assert.equal(new Set(published.map((d) => d.external_id)).size, 3);
 });
 
 test('parseTargets keeps only our own devices', () => {
