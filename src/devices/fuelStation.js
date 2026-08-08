@@ -12,6 +12,10 @@
 //                  draws the price curve;
 //   - updated_at : when the station last declared that price (the feed
 //                  refreshes every ~10 min, a given station much less often).
+//                  The date comes from the feed itself, per station AND per
+//                  fuel — the diesel and the SP98 of one station are not
+//                  updated at the same moment — so it belongs here rather than
+//                  on some integration-wide "last update" device.
 // -----------------------------------------------------------------------------
 
 import {
@@ -21,6 +25,7 @@ import {
   DEVICE_FEATURE_UNITS,
 } from '@gladysassistant/integration-sdk';
 import { fuelLabel } from '../fuels.js';
+import { formatDateTime } from '../text.js';
 
 export const DEVICE_TYPE = 'fuel-station';
 
@@ -190,7 +195,10 @@ export async function pollDevice(gladys, { device, store }) {
   const ids = gladys.externalIds(DEVICE_TYPE, platformId(target));
   await gladys.publishState(ids.feature(FEATURE.PRICE), price);
 
-  const updatedAt = station.updatedAt[target.fuel];
+  // When the station declared that price. It is a per-(station, fuel) date —
+  // two pumps of the same station are updated at different times — so it
+  // belongs on the device itself, next to the price it dates.
+  const updatedAt = formatDateTime(station.updatedAt?.[target.fuel]);
   if (updatedAt) {
     await gladys.publishState(ids.feature(FEATURE.UPDATED_AT), { text: updatedAt });
   }

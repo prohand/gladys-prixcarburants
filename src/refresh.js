@@ -16,7 +16,7 @@
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
-import { parseTargets, pollDevice } from './devices/index.js';
+import { parseTargets, pollDevice, publishIntegrationState } from './devices/index.js';
 
 const logger = createLogger({ name: 'refresh' });
 
@@ -36,8 +36,12 @@ const logger = createLogger({ name: 'refresh' });
  * @returns {Promise<{ total: number, updated: number, failures: string[] }>}
  */
 export async function refreshAllDevices(gladys, { config, store, force = false }) {
-  const targets = parseTargets(await gladys.getDevices());
+  const devices = await gladys.getDevices();
+  const targets = parseTargets(devices);
   if (targets.length === 0) {
+    // Still worth a status publish: the user may hold the integration device
+    // alone, and a previous search already dated the last read of the feed.
+    await publishIntegrationState(gladys, { store, devices });
     return { total: 0, updated: 0, failures: [] };
   }
 
@@ -63,6 +67,11 @@ export async function refreshAllDevices(gladys, { config, store, force = false }
       failures.push(device.name ?? device.external_id);
     }
   }
+
+  // Last, so it reports the read this very pass just did. A pass where every
+  // station failed leaves `store.lastFetchAt` where it was: the date then ages
+  // on the dashboard, which is precisely the signal.
+  await publishIntegrationState(gladys, { store, devices });
 
   return { total: targets.length, updated, failures };
 }

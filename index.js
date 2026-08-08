@@ -19,7 +19,13 @@
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
 import { isConfigReady, normalizeConfig } from './src/config.js';
 import { createStationStore } from './src/stationStore.js';
-import { parseTargets, pollDevice, publishDiscovery } from './src/devices/index.js';
+import {
+  isIntegrationDevice,
+  parseTargets,
+  pollDevice,
+  publishDiscovery,
+  publishIntegrationState,
+} from './src/devices/index.js';
 import { createRefreshLoop } from './src/refresh.js';
 import { ACTIONS } from './src/actions.js';
 
@@ -59,6 +65,12 @@ gladys.onScanRequest(async () => {
 // because answering "not implemented" to a poll Gladys does decide to send
 // would be a lie: reading one device on demand costs nothing.
 gladys.onPoll(async (device) => {
+  // The integration device holds no station: it reports when the feed was last
+  // read, which the store already knows.
+  if (isIntegrationDevice(gladys, device.external_id)) {
+    await publishIntegrationState(gladys, { store, devices: [device] });
+    return;
+  }
   await pollDevice(gladys, { device, config, store });
 });
 
@@ -66,6 +78,11 @@ gladys.onPoll(async (device) => {
 // Track it right away and publish a first price, so the device is not empty
 // until the first poll fires.
 gladys.onDeviceCreated(async (device) => {
+  if (isIntegrationDevice(gladys, device.external_id)) {
+    logger.info('Integration device added: publishing the last read time');
+    await publishIntegrationState(gladys, { store, devices: [device] });
+    return;
+  }
   const [target] = parseTargets([device]);
   if (!target) {
     return;
