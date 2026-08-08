@@ -32,12 +32,13 @@ Pour **chaque station que vous ajoutez**, un appareil avec deux mesures :
 L'adresse, la marque, les coordonnées GPS et la distance au code postal sont
 enregistrées dans les paramètres de l'appareil.
 
-### L'appareil « Fuel prices - Data update »
+### L'appareil « Prix carburants - Mise à jour des données »
 
 En plus des stations, l'onglet Découverte propose **un appareil unique, commun
 à toute l'intégration**, avec une seule mesure :
 
-- **Last data refresh** — la date et l'heure, au format `08/08/2026 à 21:00`,
+- **Dernière lecture des données** — la date et l'heure, au format
+  `08/08/2026 à 21:00`,
   auxquelles l'intégration a lu le flux open data pour la dernière fois **avec
   succès**.
 

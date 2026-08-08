@@ -16,7 +16,9 @@
 // care simply never adds it, and the integration works exactly the same.
 //
 // Feature, read-only:
-//   - last_refresh : when the open data feed was last read successfully.
+//   - last_refresh : when the open data feed was last read successfully
+//                    ("Dernière lecture des données" — user-facing names of
+//                    this device are in French, the language of its users).
 // -----------------------------------------------------------------------------
 
 import {
@@ -69,11 +71,14 @@ export function buildIntegrationDevice(gladys) {
   const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_ID);
 
   return {
-    name: 'Fuel prices - Data update',
+    // In French, like the audience of a French open data feed. A device name is
+    // a plain string in Gladys — no `{ en, fr }` object like the action
+    // results — so it is picked once here, and the user renames it if they want.
+    name: 'Prix carburants - Mise à jour des données',
     external_id: ids.device,
     features: [
       {
-        name: 'Last data refresh',
+        name: 'Dernière lecture des données',
         external_id: ids.feature(FEATURE.LAST_REFRESH),
         category: DEVICE_FEATURE_CATEGORIES.TEXT,
         type: DEVICE_FEATURE_TYPES.TEXT.TEXT,

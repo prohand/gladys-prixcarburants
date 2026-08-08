@@ -30,13 +30,15 @@ For **every station you add**, a device with two read-only features:
 The address, the brand, the GPS coordinates and the distance to the postal
 code are stored in the device parameters.
 
-### The "Fuel prices - Data update" device
+### The "Prix carburants - Mise à jour des données" device
 
 Besides the stations, the Discovery tab offers **one single device, shared by
 the whole integration**, with one feature:
 
-- **Last data refresh** — the date and time, as `08/08/2026 à 21:00`, of the
-  last **successful** read of the open data feed by the integration.
+- **Dernière lecture des données** — the date and time, as
+  `08/08/2026 à 21:00`, of the last **successful** read of the open data feed
+  by the integration. The device and its feature are named in French, like the
+  data source they report on.
 
 This is not the same information as a station's "Last price update": that one
 tells you when the station moved its prices (a week ago is perfectly normal),

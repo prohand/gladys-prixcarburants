@@ -41,6 +41,14 @@ test('the integration device is a single device, independent of the configuratio
   assert.ok(!('poll_frequency' in device), 'the refresh loop owns the schedule');
 });
 
+test('the integration device is named in French', () => {
+  const gladys = createFakeGladys();
+  const device = buildIntegrationDevice(gladys);
+
+  assert.equal(device.name, 'Prix carburants - Mise à jour des données');
+  assert.equal(device.features[0].name, 'Dernière lecture des données');
+});
+
 test('the integration device is not mistaken for a station', () => {
   const gladys = createFakeGladys();
   const externalId = integrationExternalId(gladys);
