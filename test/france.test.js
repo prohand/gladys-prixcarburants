@@ -7,6 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { france, parsePrice, parseStation } from '../src/countries/france.js';
+import { resetGeocodeCache } from '../src/countries/franceGeocode.js';
 
 test('parsePrice reads a decimal price', () => {
   assert.equal(parsePrice(1.699), 1.699);
@@ -133,7 +134,11 @@ test('searchStations refuses an invalid postal code before any HTTP call', async
   );
 });
 
-/** Scripted HTTP answers, one per `fetch` call, in order. */
+/**
+ * Scripted HTTP answers, one per `fetch` call, in order; the last one is
+ * repeated for every extra call. `results` answers like the price API, `body`
+ * lets a test answer like any other endpoint (the geocoder).
+ */
 function mockFetch(t, answers) {
   const urls = [];
   let call = 0;
@@ -143,9 +148,17 @@ function mockFetch(t, answers) {
     if (answer.status) {
       return { ok: false, status: answer.status, statusText: 'Bad Request' };
     }
-    return { ok: true, status: 200, json: async () => ({ results: answer.results }) };
+    const body = 'body' in answer ? answer.body : { results: answer.results };
+    return { ok: true, status: 200, json: async () => body };
   });
   return urls;
+}
+
+/** The radii, in km, of the `within_distance` circles the search asked for. */
+function radiusQueries(urls) {
+  return urls
+    .filter((url) => url.includes('within_distance'))
+    .map((url) => decodeURIComponent(url).match(/([\d.]+)km\)/)[1]);
 }
 
 test('searchStations widens the search around the postal code', async (t) => {
@@ -182,6 +195,122 @@ test('a failing radius search still returns the stations of the postal code', as
     stations.map((s) => s.id),
     ['1'],
   );
+});
+
+test('searchStations searches around a postal code that has no station of its own', async (t) => {
+  resetGeocodeCache();
+  const urls = mockFetch(t, [
+    // Nothing carries cp = 67750: the feed alone cannot say where it is.
+    { results: [] },
+    {
+      body: {
+        features: [
+          {
+            geometry: { type: 'Point', coordinates: [7.4009, 48.2802] },
+            properties: { postcode: '67750', city: 'Scherwiller' },
+          },
+        ],
+      },
+    },
+    {
+      results: [
+        {
+          id: '67600001',
+          cp: '67600',
+          ville: 'Sélestat',
+          marque: 'Leclerc',
+          latitude: 48.26,
+          longitude: 7.45,
+        },
+      ],
+    },
+  ]);
+
+  const stations = await france.searchStations({ postalCode: '67750', radiusKm: 10, limit: 20 });
+
+  assert.deepEqual(
+    stations.map((s) => s.id),
+    ['67600001'],
+    'the neighbouring station is found even though the postal code has none',
+  );
+  assert.match(urls[1], /api-adresse\.data\.gouv\.fr/, 'the postal code is geocoded');
+  assert.ok(stations[0].distanceKm < 10, 'the distance is measured from the geocoded centre');
+});
+
+test('a postal code the geocoder cannot place returns an empty list, not an error', async (t) => {
+  resetGeocodeCache();
+  mockFetch(t, [{ results: [] }, { status: 500 }]);
+
+  const stations = await france.searchStations({ postalCode: '67750', radiusKm: 10, limit: 20 });
+
+  assert.deepEqual(stations, []);
+});
+
+test('the radius search stops on the first complete circle that holds enough stations', async (t) => {
+  const around = Array.from({ length: 3 }, (_, i) => ({
+    id: `n${i}`,
+    cp: '35200',
+    ville: 'Rennes',
+    marque: 'TotalEnergies',
+    latitude: 48.11 + i / 100,
+    longitude: -1.68,
+  }));
+  const urls = mockFetch(t, [
+    {
+      results: [
+        {
+          id: '1',
+          cp: '35000',
+          ville: 'Rennes',
+          marque: 'Total',
+          latitude: 48.11,
+          longitude: -1.68,
+        },
+      ],
+    },
+    { results: around },
+  ]);
+
+  await france.searchStations({ postalCode: '35000', radiusKm: 40, limit: 3 });
+
+  assert.deepEqual(
+    radiusQueries(urls),
+    ['5'],
+    'a complete 5 km circle already holds the nearest stations: no wider query',
+  );
+});
+
+test('the radius search widens up to the configured radius when stations are scarce', async (t) => {
+  const urls = mockFetch(t, [
+    {
+      results: [
+        {
+          id: '1',
+          cp: '35000',
+          ville: 'Rennes',
+          marque: 'Total',
+          latitude: 48.11,
+          longitude: -1.68,
+        },
+      ],
+    },
+    {
+      results: [
+        {
+          id: '2',
+          cp: '35135',
+          ville: 'Chantepie',
+          marque: 'Total',
+          latitude: 48.09,
+          longitude: -1.61,
+        },
+      ],
+    },
+  ]);
+
+  await france.searchStations({ postalCode: '35000', radiusKm: 20, limit: 20 });
+
+  assert.deepEqual(radiusQueries(urls), ['5', '10', '20']);
 });
 
 test('searchStations honours the maximum number of stations', async (t) => {

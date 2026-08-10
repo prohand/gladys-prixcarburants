@@ -24,6 +24,7 @@ import { centroid, distanceKm, isValidPoint } from '../geo.js';
 import { FUEL_KEYS } from '../fuels.js';
 import { cleanText } from '../text.js';
 import { buildStationName, resolveStationNames } from './franceNames.js';
+import { geocodePostalCode } from './franceGeocode.js';
 
 const logger = createLogger({ name: 'provider-fr' });
 
@@ -36,6 +37,15 @@ const REQUEST_TIMEOUT_MS = 15_000;
 // A `where` clause with too many OR terms is rejected: refresh prices by
 // batches of ids instead of one giant query.
 const IDS_PER_QUERY = 25;
+
+// How many records one radius query may bring back. The API answers in dataset
+// order, NOT by distance, so anything beyond this is not "the farthest stations"
+// but an arbitrary slice: a truncated circle silently drops stations that are
+// right next door. Hence the concentric search below, which is built to stop
+// well before this cap ever bites.
+const RADIUS_MAX_RECORDS = PAGE_SIZE * 5;
+// Radius of the first circle, then doubled until the one the user configured.
+const FIRST_RING_KM = 5;
 
 // Flat columns of the v2 model, per fuel key.
 const PRICE_COLUMNS = {
@@ -104,7 +114,7 @@ export const france = {
    * Two steps, because the dataset has no "distance to a postal code" filter:
    *   1. every station whose `cp` column equals the postal code;
    *   2. if a radius is asked for, the stations within that radius of the
-   *      centre of the ones found in step 1.
+   *      centre of the postal code.
    * The union is de-duplicated, sorted by distance and truncated.
    *
    * @param {{ postalCode: string, radiusKm?: number, limit?: number }} options
@@ -119,20 +129,20 @@ export const france = {
     const inPostalCode = await queryStations(`cp = "${cp}"`, PAGE_SIZE);
     logger.debug(`${inPostalCode.length} station(s) in postal code ${cp}`);
 
-    const center = centroid(inPostalCode);
     const byId = new Map(inPostalCode.map((station) => [station.id, station]));
+    // The stations of the postal code give us its position for free. When it
+    // has none — a village whose pumps are all in the next town — the feed
+    // cannot say where the user lives, so the geocoder does: without it, a
+    // postal code with no station of its own returned nothing at all, at any
+    // radius.
+    const center = centroid(inPostalCode) ?? (radiusKm > 0 ? await geocodePostalCode(cp) : null);
 
     if (radiusKm > 0 && center) {
-      // `within_distance` is the Opendatasoft geo filter; `geom` is the point
-      // column of the dataset. Widening the search is a bonus, not the
-      // request: if the publisher renames that column, the user must still get
-      // the stations of their own postal code rather than an empty list.
+      // Widening the search is a bonus, not the request: if the publisher
+      // renames the geo column, the user must still get the stations of their
+      // own postal code rather than an empty list.
       try {
-        const where =
-          `within_distance(geom, geom'POINT(${center.longitude.toFixed(5)} ` +
-          `${center.latitude.toFixed(5)})', ${radiusKm}km)`;
-        const around = await queryStations(where, PAGE_SIZE * 3);
-        logger.debug(`${around.length} station(s) within ${radiusKm} km`);
+        const around = await searchAround(center, radiusKm, limit);
         for (const station of around) {
           if (!byId.has(station.id)) {
             byId.set(station.id, station);
@@ -142,7 +152,7 @@ export const france = {
         logger.warn(`Radius search failed, keeping the ${cp} stations only: ${err.message}`);
       }
     } else if (radiusKm > 0) {
-      logger.warn(`No station found in postal code ${cp}: cannot widen the search around it`);
+      logger.warn(`Cannot locate the postal code ${cp}: searching around it is impossible`);
     }
 
     const stations = [...byId.values()];
@@ -177,6 +187,81 @@ export const france = {
     return resolveStationNames(stations);
   },
 };
+
+/**
+ * The stations around a point, searched in CONCENTRIC circles rather than in
+ * one query of the full radius.
+ *
+ * The reason is the shape of the API: it answers a `within_distance` filter in
+ * dataset order, and the dataset is ordered by station id — which in France
+ * starts with the postal code. Asking for "everything within 10 km of Lyon" and
+ * keeping the first few hundred records therefore does not drop the FARTHEST
+ * stations, it drops the ones with the highest postal codes: an Auchan in 69230
+ * disappeared while 69100 stations came through, and raising the radius made it
+ * worse by adding competitors to the same truncated answer.
+ *
+ * Starting small and doubling fixes it without a bigger download: in a city the
+ * first circle already holds more stations than the user asked for, and it is
+ * complete, so the nearest ones are guaranteed to be among them. In the country
+ * the circles grow until the configured radius, where few stations live anyway.
+ *
+ * @param {{ latitude: number, longitude: number }} center
+ * @param {number} radiusKm the radius the user configured
+ * @param {number} limit how many stations the caller will keep
+ * @returns {Promise<Station[]>}
+ */
+async function searchAround(center, radiusKm, limit) {
+  const byId = new Map();
+
+  for (const ringKm of searchRings(radiusKm)) {
+    const found = await queryStations(withinDistance(center, ringKm), RADIUS_MAX_RECORDS);
+    for (const station of found) {
+      byId.set(station.id, station);
+    }
+    logger.debug(`${found.length} station(s) within ${ringKm} km`);
+
+    if (found.length >= RADIUS_MAX_RECORDS) {
+      // Growing the circle can only bring back a differently truncated answer.
+      logger.warn(`More than ${RADIUS_MAX_RECORDS} stations within ${ringKm} km: list truncated`);
+      break;
+    }
+    if (found.length >= limit) {
+      // The circle is complete and already holds more stations than the caller
+      // keeps, so every station it will keep is inside it: a wider circle would
+      // only add stations that the distance sort throws away.
+      break;
+    }
+  }
+
+  return [...byId.values()];
+}
+
+/**
+ * The successive radii to try, from `FIRST_RING_KM` up to the configured one.
+ * @param {number} radiusKm
+ * @returns {number[]}
+ */
+function searchRings(radiusKm) {
+  const rings = [];
+  for (let ring = FIRST_RING_KM; ring < radiusKm; ring *= 2) {
+    rings.push(ring);
+  }
+  rings.push(radiusKm);
+  return rings;
+}
+
+/**
+ * The Opendatasoft geo filter, on the `geom` point column of the dataset.
+ * @param {{ latitude: number, longitude: number }} center
+ * @param {number} radiusKm
+ * @returns {string} an ODSQL `where` clause
+ */
+function withinDistance(center, radiusKm) {
+  return (
+    `within_distance(geom, geom'POINT(${center.longitude.toFixed(5)} ` +
+    `${center.latitude.toFixed(5)})', ${radiusKm}km)`
+  );
+}
 
 /**
  * Stations of the requested postal code first, then by distance, then by name

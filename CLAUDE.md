@@ -109,6 +109,16 @@ of the container, falling back to an address-based name. ODSQL `where` clauses a
 string concatenation, so every id goes through the sanitizers before interpolation, and id
 batches are capped at 25 terms.
 
+Two things shape the search itself, and both come from the API answering `within_distance` in
+DATASET order (by id, hence by postal code) rather than by distance. First, a truncated circle
+drops the highest postal codes, not the farthest stations — so `searchAround` queries concentric
+circles from 5 km, doubling up to the configured radius, and stops on the first COMPLETE circle
+holding at least `limit` stations, which is then guaranteed to hold the nearest ones. Second,
+the circle needs a centre: the average position of the stations of the postal code when it has
+any, and otherwise `franceGeocode.js`, which asks the Base Adresse Nationale where the postal
+code is — without it, a postal code with no station of its own returned nothing at any radius.
+Best effort like the names: no centre means the stations of the postal code only, never an error.
+
 ### The manifest is part of the contract
 
 `gladys-assistant-integration.json` declares the config schema and the action buttons.

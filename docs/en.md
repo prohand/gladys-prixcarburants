@@ -63,7 +63,9 @@ built from its street.
 3. Fill in your **postal code** (5 digits in France, e.g. `35000`). Stations
    are searched around it.
 4. Set the **search radius**: `0` keeps only the stations of the postal code
-   itself, `10` km widens the search to the neighbouring towns.
+   itself, `10` km widens the search to the neighbouring towns. A postal code
+   with no petrol station of its own is fine: the search is centred on your
+   town anyway, so the pumps of the next one show up.
 5. Tick the **fuel type(s)** you care about: Diesel, SP95, SP98, E10, E85,
    LPG.
 6. Save.
@@ -128,10 +130,20 @@ integration keeps the last known value instead of leaving a hole in the chart.
 bounds the discovery list (20 by default, 50 max). In a dense city, lower it
 and shrink the radius.
 
+**One particular station is missing.** The list keeps the NEAREST stations, up
+to that maximum: in a city, twenty of them fit in a couple of kilometres, so a
+station 5 km away is left out even with a 10 km radius. Raise **Maximum number
+of stations** rather than the radius. A station that declares no price for the
+fuel you ticked is not offered either, since the device would have nothing to
+publish.
+
 ## Data and licence
 
 The French data is published by the Ministry of the Economy under the
 [Etalab open licence](https://www.etalab.gouv.fr/licence-ouverte-open-licence).
 The integration queries the
 ["flux instantané" dataset](https://data.economie.gouv.fr/explore/dataset/prix-des-carburants-en-france-flux-instantane-v2/)
-and only fetches the stations around your postal code.
+and only fetches the stations around your postal code. When that dataset knows
+no station in your postal code, the position of your town is read from the
+[Base Adresse Nationale](https://adresse.data.gouv.fr/), the official French
+address service — the postal code is the only thing sent to it.

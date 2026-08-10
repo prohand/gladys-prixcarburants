@@ -66,7 +66,9 @@ garde un nom construit à partir de sa rue.
 3. Renseignez votre **code postal** (5 chiffres en France, par exemple
    `35000`). C'est autour de lui que les stations sont cherchées.
 4. Réglez le **rayon de recherche** : `0` ne garde que les stations du code
-   postal lui-même, `10` km élargit aux communes voisines.
+   postal lui-même, `10` km élargit aux communes voisines. Un code postal sans
+   station-service ne pose pas de problème : la recherche est quand même
+   centrée sur votre commune, les pompes de la commune d'à côté apparaissent.
 5. Cochez le ou les **types de carburant** qui vous intéressent : Gazole,
    SP95, SP98, E10, E85, GPLc.
 6. Enregistrez.
@@ -138,10 +140,21 @@ courbe.
 la liste de découverte (20 par défaut, 50 au maximum). En ville dense,
 baissez-le et réduisez le rayon.
 
+**Une station précise n'apparaît pas.** La liste retient les stations les plus
+PROCHES, dans la limite de ce maximum : en ville, vingt stations tiennent dans
+deux kilomètres, une station à 5 km est donc écartée même avec un rayon de
+10 km. Augmentez le **Nombre maximum de stations** plutôt que le rayon. Une
+station qui ne déclare aucun prix pour le carburant coché n'est pas proposée
+non plus, l'appareil n'aurait rien à publier.
+
 ## Données et licence
 
 Les données sont publiées par le ministère de l'Économie sous
 [licence Etalab](https://www.etalab.gouv.fr/licence-ouverte-open-licence).
 L'intégration interroge le
 [jeu de données « flux instantané »](https://data.economie.gouv.fr/explore/dataset/prix-des-carburants-en-france-flux-instantane-v2/)
-et ne récupère que les stations autour de votre code postal.
+et ne récupère que les stations autour de votre code postal. Quand ce jeu de
+données ne connaît aucune station dans votre code postal, la position de votre
+commune est lue dans la
+[Base Adresse Nationale](https://adresse.data.gouv.fr/), le service d'adresses
+officiel — seul le code postal lui est transmis.
