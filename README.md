@@ -121,6 +121,17 @@ API from the one-poll-per-device pattern (`test/stationStore.test.js`), the
 discovery/merge rules (`test/devices.test.js`) and the manifest ↔ code
 consistency (`test/manifest.test.js`). They use fakes, never the network.
 
+## Catalog categories
+
+The manifest declares `"categories": ["energy"]` — the shelf of the store
+catalog this integration sits on (without it, the integration would only show
+under "All" and in the search). One to three keys are allowed, among `climate`,
+`lighting`, `energy`, `security`, `multimedia`, `appliances`, `environment`,
+`protocols`, `network`, `notifications`, `assistants`, `services`. The field
+only exists since Gladys 4.86, and an older core rejects a manifest carrying
+unknown fields: `categories` and `"gladys_version": ">=4.86.0"` therefore move
+together, which `test/manifest.test.js` checks.
+
 ## Validate before publishing
 
 ```bash
