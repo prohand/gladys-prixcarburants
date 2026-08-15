@@ -6,11 +6,13 @@
     "en": "Follow the price of your fuel at the petrol stations near you, from official open data.",
     "fr": "Suivez le prix de votre carburant dans les stations-service proches de chez vous."
   },
-  "version": "1.0.3",
-  "docker_image": "ghcr.io/prohand/gladys-prixcarburants:1.0.3",
+  "version": "1.0.4",
+  "docker_image": "ghcr.io/prohand/gladys-prixcarburants:1.0.4",
   "gladys_version": ">=4.86.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-prixcarburants/main/cover.png",
-  "categories": ["energy"],
+  "categories": [
+    "energy"
+  ],
   "config_schema": [
     {
       "key": "intro",
@@ -108,7 +110,9 @@
         "fr": "Un appareil est proposé par station ET par carburant sélectionné, ce qui permet de suivre plusieurs carburants dans la même station."
       },
       "required": true,
-      "default": ["gazole"],
+      "default": [
+        "gazole"
+      ],
       "options": [
         {
           "value": "gazole",
