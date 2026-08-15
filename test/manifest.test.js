@@ -88,6 +88,42 @@ test('the postal code is required, since nothing can be searched without it', ()
   assert.equal(field('postal_code').default, undefined, 'no country-neutral default exists');
 });
 
+test('the catalog categories stay within what Gladys knows, and require 4.86', () => {
+  // The store shelves the integration under these keys; without them it only
+  // appears under "All" and in the search. The field itself only exists since
+  // Gladys 4.86 — an older core rejects a manifest carrying unknown fields, so
+  // declaring `categories` and raising `gladys_version` go together.
+  const KNOWN = [
+    'climate',
+    'lighting',
+    'energy',
+    'security',
+    'multimedia',
+    'appliances',
+    'environment',
+    'protocols',
+    'network',
+    'notifications',
+    'assistants',
+    'services',
+  ];
+  assert.ok(Array.isArray(manifest.categories), 'categories must be an array');
+  assert.ok(
+    manifest.categories.length >= 1 && manifest.categories.length <= 3,
+    'between 1 and 3 categories are allowed',
+  );
+  for (const category of manifest.categories) {
+    assert.ok(KNOWN.includes(category), `unknown catalog category "${category}"`);
+  }
+  const minimum = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\./);
+  assert.ok(minimum, 'gladys_version must declare a minimum version');
+  const [, major, minor] = minimum.map(Number);
+  assert.ok(
+    major > 4 || (major === 4 && minor >= 86),
+    `categories requires gladys_version >= 4.86.0, got "${manifest.gladys_version}"`,
+  );
+});
+
 test('section fields are purely presentational', () => {
   const sections = manifest.config_schema.filter((f) => f.type === 'section');
   assert.ok(sections.length > 0);
