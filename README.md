@@ -123,8 +123,8 @@ consistency (`test/manifest.test.js`). They use fakes, never the network.
 
 ## Catalog categories
 
-The manifest declares `"categories": ["energy", "services"]` — the two shelves
-of the store catalog this integration sits on (without them it would only show
+The manifest declares `"categories": ["energy"]` — the shelf of the store
+catalog this integration sits on (without it, the integration would only show
 under "All" and in the search). One to three keys are allowed, among `climate`,
 `lighting`, `energy`, `security`, `multimedia`, `appliances`, `environment`,
 `protocols`, `network`, `notifications`, `assistants`, `services`. The field
