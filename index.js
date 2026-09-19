@@ -28,6 +28,7 @@ import {
 } from './src/devices/index.js';
 import { createRefreshLoop } from './src/refresh.js';
 import { ACTIONS } from './src/actions.js';
+import { registerWidgets } from './src/widgets/index.js';
 
 const gladys = new GladysIntegration();
 
@@ -113,6 +114,12 @@ gladys.onDeviceDeleted(async (device) => {
 for (const [actionKey, handler] of Object.entries(ACTIONS)) {
   gladys.onAction(actionKey, () => handler(gladys, { config, store }));
 }
+
+// --- Dashboard widgets: the cards the user drops on their dashboard ----------
+// Declared in the manifest, filled in at runtime by src/widgets/. The context
+// is read at call time so a configuration change applies to the next pull
+// without re-registering anything.
+registerWidgets(gladys, () => ({ config, store }));
 
 // --- Configuration updated by the user ---------------------------------------
 gladys.onConfigUpdated(async (newConfig) => {

@@ -47,6 +47,7 @@ config (country, postal code, radius, fuels)
    → station store      src/stationStore.js       cache + per-country batched refresh
    → device registry    src/devices/              one device per (station, fuel)
    → Discovery tab / refresh loop  src/refresh.js
+   → dashboard widgets  src/widgets/             two declarative cards
 ```
 
 `index.js` is pure wiring: it registers every SDK handler _before_ `connect()` and holds no
@@ -91,6 +92,32 @@ devices Gladys holds, publishes discovery, arms the refresh loop and reports
 - **A missing price is not an error**: `pollDevice` publishes nothing and keeps the last known
   value rather than drawing a hole in the history chart. Likewise a station absent from the
   feed keeps its stale cache entry.
+
+### Dashboard widgets
+
+`src/widgets/` implements the capability of GladysAssistant/Gladys#3109: the manifest declares
+a widget's IDENTITY (`key`, `label`, `icon`, `settings`), the integration produces its CONTENT
+at runtime as a tree of components in the core's vocabulary, and Gladys validates, bounds,
+caches and renders it. Two cards: `best_prices` (ranking of the cheapest stations for one
+fuel) and `station` (one followed station, a price tile per fuel).
+
+- **The core silently trims whatever exceeds a bound**, so `src/widgets/content.js` applies
+  the spec's own limits (characters per field, 8 components, 1 focal, 6 tiles, 2 texts,
+  1 status, 4 buttons) on our side and `test/widgets.test.js` asserts them — a violation must
+  fail a test, not leave a hole in someone's dashboard.
+- **A fuel with a device is published as a `device_feature` reference, not a value**: the
+  dashboard then follows the feature over the WebSocket and the tile moves as soon as the
+  refresh loop publishes a price. A fuel without a device carries the value read from the feed.
+- **Declarations live in the code**: `buildWidgetManifest()` is the source and
+  `test/manifest.test.js` asserts the manifest `widgets` array deep-equals it. Change both
+  together, like the rest of the manifest.
+- **The nudge carries no data**: `notifyWidgetsChanged` only tells the core to re-pull, after
+  a refresh pass that actually moved a price.
+- **Registration is capability-checked** (`typeof gladys.onWidgetGet === 'function'`): an SDK
+  without widget support logs one line and the integration keeps working.
+- **Not releasable until #3109 ships**: the published `manifest.schema.json` rejects the
+  `widgets` field (`must NOT have additional properties`), so the store validator fails on
+  purpose. When it lands: raise `gladys_version`, raise the SDK dependency, re-validate.
 
 ### Country providers
 

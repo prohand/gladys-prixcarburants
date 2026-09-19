@@ -106,6 +106,43 @@ part of the device identity: ticking an extra fuel in the configuration makes
 **new** entries appear in the Discovery tab, and your existing devices keep
 working untouched. Delete the ones you no longer need.
 
+## The dashboard widgets
+
+Beyond the devices, the integration provides **two cards** you can drop on a
+dashboard (**Edit dashboard**, then pick the card in the list, under "Prix
+carburants").
+
+### "Cheapest around me"
+
+The ranking of the stations for **one fuel** you choose:
+
+- the **cheapest** price and the **average** as tiles, because a price means
+  nothing on its own;
+- the stations, cheapest first, with their **distance**, their price and the
+  date the station declared it;
+- tapping a station opens its address and a **Directions** link.
+
+Three settings: the fuel, how many stations are shown (3, 5 or 8) and the
+scope — **around your postal code** (the integration searches, as it does for
+the Discovery tab) or **my stations only** (the ones you added).
+
+### "My station"
+
+The detail of **one** station you follow, picked in the card settings:
+
+- one price tile **per fuel** the station sells (the first four, yours first);
+- the brand, the address, the distance and the date of the last price update;
+- a **Directions** button and a **Refresh** button.
+
+The fuels you already follow (the ones with a device) are shown **live**: the
+tile moves as soon as the integration publishes a new price, without waiting
+for the card to refresh. The other fuels of the station show the value read
+from the feed.
+
+> Widgets need a Gladys version able to render them. On an older version the
+> devices and the Discovery tab work as usual: only the cards are missing from
+> the list.
+
 ## Scene ideas
 
 - Get a notification when the diesel price of your station drops below a

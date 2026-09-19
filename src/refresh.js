@@ -17,6 +17,7 @@
 
 import { createLogger } from '@gladysassistant/integration-sdk';
 import { parseTargets, pollDevice, publishIntegrationState } from './devices/index.js';
+import { notifyWidgetsChanged } from './widgets/index.js';
 
 const logger = createLogger({ name: 'refresh' });
 
@@ -72,6 +73,13 @@ export async function refreshAllDevices(gladys, { config, store, force = false }
   // station failed leaves `store.lastFetchAt` where it was: the date then ages
   // on the dashboard, which is precisely the signal.
   await publishIntegrationState(gladys, { store, devices });
+
+  // Nudge the dashboard cards: their content is cached by the core for their
+  // TTL, and a pass that moved a price is exactly the moment that cache should
+  // be dropped. Fire-and-forget, rate-limited core-side, no data attached.
+  if (updated > 0) {
+    notifyWidgetsChanged(gladys);
+  }
 
   return { total: targets.length, updated, failures };
 }

@@ -33,6 +33,9 @@ Configuration (country, postal code, radius, fuels)
         │                                                src/devices/
         ▼
      Discovery tab ──► the user adds / deletes stations
+        │
+        ▼
+  dashboard widgets ──► two declarative cards               src/widgets/
 ```
 
 Three decisions worth knowing before reading the code:
@@ -48,6 +51,10 @@ Three decisions worth knowing before reading the code:
 - **Devices already created are always re-published.** Moving the postal code
   must not drop a device that keeps working, so discovery publishes the search
   results _merged with_ the stations the user already added.
+- **The dashboard widgets describe, they do not draw.** A widget declares a
+  tree of components (tiles, a list, a status, buttons) in Gladys' own
+  vocabulary; the core validates it, bounds it, caches it and renders it. See
+  [Dashboard widgets](#dashboard-widgets).
 
 ## Project structure
 
@@ -60,6 +67,12 @@ Three decisions worth knowing before reading the code:
 │  ├─ geo.js                         # haversine distance / centroid
 │  ├─ stationStore.js                # cache + per-country batched refresh
 │  ├─ actions.js                     # the Configuration screen buttons
+│  ├─ widgets/
+│  │  ├─ index.js                    #   widget registry + SDK wiring
+│  │  ├─ content.js                  #   the content vocabulary, bounds, budget
+│  │  ├─ bestPrices.js               #   card "Cheapest around me"
+│  │  ├─ station.js                  #   card "My station"
+│  │  └─ format.js                   #   price / distance / directions helpers
 │  ├─ countries/
 │  │  ├─ index.js                    #   country registry (+ how to add one)
 │  │  └─ france.js                   #   France provider (open data API)
@@ -131,6 +144,44 @@ under "All" and in the search). One to three keys are allowed, among `climate`,
 only exists since Gladys 4.86, and an older core rejects a manifest carrying
 unknown fields: `categories` and `"gladys_version": ">=4.86.0"` therefore move
 together, which `test/manifest.test.js` checks.
+
+## Dashboard widgets
+
+The integration declares two cards in the manifest `widgets` field, filled in
+at runtime by `src/widgets/`:
+
+| Key           | Card                                                                                                                                |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `best_prices` | **Cheapest around me** — cheapest and average price as tiles, then the ranked stations with their distance, price and declared date |
+| `station`     | **My station** — one station you follow: a price tile per fuel, its address and the date of its last price update                   |
+
+Three things shape the code:
+
+- **We describe, the core renders.** No HTML, no CSS, no colour: components,
+  semantic colours and Feather icon names only. `src/widgets/content.js`
+  applies the spec's own character bounds and content budget (8 components, one
+  focal, 6 tiles, 4 buttons) so a card is never trimmed behind our back.
+- **A tracked fuel is a LIVE tile.** When the station/fuel pair has a device,
+  the tile is declared as a `device_feature` reference instead of a value: the
+  dashboard then follows the feature over the WebSocket and the price moves the
+  moment the refresh loop publishes it, with no widget pull at all.
+- **One pull path, one nudge.** The cards are built from the same station
+  store as the devices, and a refresh pass that moved a price only sends
+  `requestWidgetRefresh` — a "re-pull me" carrying no data.
+
+> **Not releasable yet.** The `widgets` manifest field and the SDK handlers
+> come from [GladysAssistant/Gladys#3109](https://github.com/GladysAssistant/Gladys/pull/3109),
+> which is still open. Until it ships:
+>
+> - `npx github:GladysAssistant/integration-store .` fails with
+>   `manifest: must NOT have additional properties` — the published schema does
+>   not know `widgets` yet;
+> - `@gladysassistant/integration-sdk` has no `onWidgetGet`, so
+>   `registerWidgets()` logs one line and the integration runs without widgets
+>   (everything else is unaffected).
+>
+> When the PR lands: bump `gladys_version` to the first release accepting
+> `widgets`, raise the SDK dependency, re-run the store validator, and release.
 
 ## Validate before publishing
 

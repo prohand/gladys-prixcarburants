@@ -114,6 +114,46 @@ apparaissent dans l'onglet Découverte, et vos appareils existants continuent
 de fonctionner sans être modifiés. Supprimez ceux dont vous n'avez plus
 besoin.
 
+## Les widgets du tableau de bord
+
+En plus des appareils, l'intégration fournit **deux cartes** à poser sur un
+tableau de bord (bouton **Modifier le tableau de bord**, puis choisissez la
+carte dans la liste, section « Prix carburants »).
+
+### « Les moins chers »
+
+Le classement des stations pour **un carburant** que vous choisissez :
+
+- le **prix le moins cher** et la **moyenne** en tuiles, parce qu'un prix ne
+  veut rien dire tout seul ;
+- la liste des stations, de la moins chère à la plus chère, avec leur
+  **distance**, leur prix et la date à laquelle la station l'a déclaré ;
+- un appui sur une station ouvre son adresse et un lien **Itinéraire**.
+
+Trois réglages : le carburant, le nombre de stations affichées (3, 5 ou 8) et
+le périmètre — **autour de votre code postal** (l'intégration cherche, comme
+pour l'onglet Découverte) ou **vos stations seulement** (celles que vous avez
+ajoutées).
+
+### « Ma station »
+
+Le détail d'**une** station que vous suivez, choisie dans les réglages de la
+carte :
+
+- une tuile de prix **par carburant** vendu par la station (les quatre
+  premiers, le vôtre en tête) ;
+- l'enseigne, l'adresse, la distance et la date du dernier relevé ;
+- un bouton **Itinéraire** et un bouton **Rafraîchir**.
+
+Les carburants que vous suivez déjà (ceux qui ont un appareil) sont affichés
+**en direct** : la tuile bouge dès que l'intégration publie un nouveau prix,
+sans attendre le rafraîchissement de la carte. Les autres carburants de la
+station affichent la valeur lue dans le flux.
+
+> Les widgets demandent une version de Gladys qui sait les afficher. Sur une
+> version plus ancienne, les appareils et l'onglet Découverte fonctionnent
+> normalement : seules les cartes n'apparaissent pas dans la liste.
+
 ## Idées de scènes
 
 - Recevoir une notification quand le prix du gazole de votre station passe
