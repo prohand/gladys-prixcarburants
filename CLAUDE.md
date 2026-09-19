@@ -109,10 +109,19 @@ fuel) and `station` (one followed station, a price tile per fuel).
 - **`status` is NOT a focal component.** The core's `FOCAL_TYPES` is
   `['chart', 'card-list', 'image']` and `status` has a budget of its own, so a card may carry
   a chart AND the list under it — which is what `best_prices` does.
-- **The curve is drawn from the first pull** — a single point on day one, filled in afterwards
-  — because a card that hides its chart until it has data looks broken. The TREND tile is the
-  opposite: absent until the history really covers its window, since "0 ct over 7 days" on day
-  one is a lie. `src/refresh.js` samples too, but only for an area the history already follows
+- **The curve is drawn from the first pull** — because a card that hides its chart until it
+  has data looks broken. Two rules keep its axis honest, and both exist because the FRONT lets
+  ApexCharts auto-range over the points we send (`interval` only drives the tooltip format, so
+  no 30-day window can be imposed): the series always ENDS on the price the pull just read, and
+  a series that would hold a single point is anchored at the start of that day — one point
+  makes ApexCharts spread the axis and print dates in the FUTURE, which is what a price curve
+  must never do. The anchor carries the measured value and only gives the axis a width; from
+  the second sample on (one an hour) it never runs. The TREND tile keeps its place next to the
+  average from day one and shows an em dash until the history covers its window, since "0 ct
+  over 7 days" on day one is a measurement nobody made.
+- **The ranking rows carry the date the STATION declared its price**, next to the price, while
+  the caption above carries the moment WE read the feed. Two different dates, both wanted:
+  a stale one in a row is normal, a stale one in the caption means the API stopped answering. `src/refresh.js` samples too, but only for an area the history already follows
   (`history.knows`), so the curve keeps filling with no dashboard open while an install without
   a widget pays nothing.
 - **The 30-day curve and the 7-day trend come from our own samples** (`src/priceHistory.js`):

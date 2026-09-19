@@ -19,15 +19,16 @@
 // price of the area itself, at most once an hour. The curve is drawn from the
 // very first pull — a single point on day one — and fills itself afterwards,
 // including while nobody watches the dashboard (src/refresh.js samples too).
-// The trend tile is the one that waits: it appears once the history really
-// covers its window, because "0 ct over 7 days" on day one would be a lie.
+// The trend tile keeps its place from day one and shows a dash until the
+// history really covers its window, because "0 ct over 7 days" on day one would
+// be a measurement nobody made.
 // -----------------------------------------------------------------------------
 
 import { isConfigReady } from '../config.js';
 import { resolveSearchCenter } from '../house.js';
 import { FUELS, FUEL_KEYS, fuelLabel } from '../fuels.js';
 import { getProvider } from '../countries/index.js';
-import { formatInstant } from '../text.js';
+import { formatDateTime, formatInstant } from '../text.js';
 import { COLOR, buildContent, button, chart, statusList, text, valueTile } from './content.js';
 import { PRICE_UNIT, formatPrice } from './format.js';
 
@@ -45,6 +46,12 @@ const DEFAULT_COUNT = '5';
 
 /** The window the trend tile compares over. */
 const TREND_DAYS = 7;
+
+/**
+ * Two points at the very same instant are one point, and one point is what
+ * makes the axis spread into the future. A second apart is enough to keep two.
+ */
+const LIVE_POINT_MIN_GAP_MS = 1000;
 
 /**
  * Manifest declaration. Mirrored in `gladys-assistant-integration.json` and
@@ -263,7 +270,11 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
       statusList(
         stations.slice(0, count).map((station, index) => ({
           label: station.name,
-          value: `${formatPrice(station.prices[fuel], language)} ${PRICE_UNIT}`,
+          // The price AND the moment the station declared it: the caption above
+          // says when WE read the feed, this says how old the price itself is —
+          // a station that has not moved its prices in a week is normal, and
+          // only this date says so.
+          value: `${formatPrice(station.prices[fuel], language)} ${PRICE_UNIT}${declaredAt(station, fuel)}`,
           icon: 'map-pin',
           // The cheapest one is the answer to the question; the others are the
           // context that makes it an answer.
@@ -303,7 +314,14 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
 function buildTrendTile(history, { config, fuel, scope }) {
   const trend = history?.trend(config, fuel, TREND_DAYS, scope);
   if (trend === null || trend === undefined) {
-    return null;
+    // A dash, never a zero: the tile keeps its place next to the average from
+    // day one, and says plainly that a week of history does not exist yet
+    // rather than claiming the price did not move.
+    return valueTile({
+      label: { en: `Over ${TREND_DAYS} days`, fr: `Sur ${TREND_DAYS} jours` },
+      value: '—',
+      color: COLOR.NEUTRAL,
+    });
   }
   const cents = Number((trend * 100).toFixed(1));
   return valueTile({
@@ -318,17 +336,54 @@ function buildTrendTile(history, { config, fuel, scope }) {
 }
 
 /**
+ * ` · 19/09/2026 à 10:30`, the moment the station declared this price, or an
+ * empty string when the feed does not say. Appended to the price rather than
+ * given its own row: a status item holds one label and one value, and the label
+ * is the station's name.
+ */
+function declaredAt(station, fuel) {
+  const declared = formatDateTime(station.updatedAt?.[fuel]);
+  return declared ? ` · ${declared}` : '';
+}
+
+/**
  * The 30-day curve of the cheapest price.
  *
  * Drawn from the FIRST pull: a card that shows its curve empty on day one and
  * fills it day after day is honest about what it is doing, where a card that
- * hides it looks broken. The core drops a chart whose series holds no point at
- * all, so a history that has not been written yet (the very first pull, a
- * read-only `/data`) is given today's cheapest price as its single point.
+ * hides it looks broken.
+ *
+ * It ALWAYS ends on the price this very pull just read. That is not padding —
+ * it is the freshest measurement the card has — and it is what keeps the axis
+ * honest: a chart drawn from a single point makes ApexCharts spread its axis
+ * around it and print dates in the FUTURE, which is exactly what a price curve
+ * must never show. With a point at "now" the right edge is now, and the window
+ * grows towards thirty days as the samples pile up behind it.
  */
 function buildChart(history, { config, fuel, label, scope, cheapest }) {
   const recorded = history?.dailySeries(config, fuel, scope) ?? [];
-  const points = recorded.length > 0 ? recorded : [{ t: new Date().toISOString(), v: cheapest }];
+  const points = [...recorded];
+  const now = Date.now();
+  const last = points[points.length - 1];
+
+  // Always end on the price this very pull just read: that is the freshest
+  // measurement the card has, and it pins the right edge of the axis to NOW.
+  if (!last || now - new Date(last.t).getTime() > LIVE_POINT_MIN_GAP_MS) {
+    points.push({ t: new Date(now).toISOString(), v: cheapest });
+  }
+
+  // One point is not a curve, and ApexCharts draws it by spreading the axis
+  // around it — which is how a price chart ends up printing NEXT WEEK under a
+  // single spike. On the very first pull, the day the card is added, anchor the
+  // line at the start of that day: the value is the one we measured, the anchor
+  // only gives the axis a width. From the second sample on (one an hour), the
+  // real points take over and this never runs again.
+  if (points.length === 1) {
+    const anchor = new Date(points[0].t);
+    anchor.setHours(0, 0, 0, 0);
+    points.unshift({ t: anchor.toISOString(), v: points[0].v });
+  }
+
   return chart({
     chartType: 'area',
     title: { en: 'Last 30 days', fr: '30 derniers jours' },

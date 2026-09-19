@@ -157,7 +157,11 @@ test('the ranking sorts the stations by price and badges the cheapest', async ()
     ['Cheap', 'Pricey'],
   );
   assert.equal(ranking.items[0].color, 'success', 'the cheapest one stands out');
-  assert.equal(ranking.items[0].value, '1,599 €/L', 'French reader, French separator');
+  assert.equal(
+    ranking.items[0].value,
+    '1,599 €/L · 06/08/2026 à 07:12',
+    'the price, and when the station declared it',
+  );
 
   const [cheapest, average] = componentsOfType(content, 'value');
   assert.equal(cheapest.value, 1.599);
@@ -492,13 +496,38 @@ test('a fresh install already draws its curve, with the point it has', async () 
 
   const [curve] = componentsOfType(content, 'chart');
   assert.ok(curve, 'the card shows its curve from day one, and fills it afterwards');
-  assert.equal(curve.series[0].points.length, 1);
-  assert.equal(curve.series[0].points[0].v, 1.66);
-  assert.equal(
-    componentsOfType(content, 'value').some((tile) => tile.unit === 'ct'),
-    false,
-    'the trend waits for a real week, rather than claiming zero',
+  const points = curve.series[0].points;
+  assert.ok(points.every((point) => point.v === 1.66));
+  // The last point is NOW: an axis drawn from a single point spreads into the
+  // future, and a price curve must never show tomorrow.
+  const last = new Date(points[points.length - 1].t).getTime();
+  assert.ok(Date.now() - last < 5000, 'the curve ends on the price just read');
+
+  const trend = componentsOfType(content, 'value').find((tile) => tile.label.fr === 'Sur 7 jours');
+  assert.ok(trend, 'the tile is on the card from day one');
+  assert.equal(trend.value, '—', 'a dash, never a zero, until a real week is covered');
+});
+
+test('the curve never ends in the future, whatever the history holds', async () => {
+  const history = historyWith([
+    { daysAgo: 12, price: 1.8 },
+    { daysAgo: 3, price: 1.74 },
+  ]);
+  const { context } = contextWith([createStation({ prices: { gazole: 1.71 } })], { history });
+
+  const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole' },
+  });
+
+  const points = componentsOfType(content, 'chart')[0].series[0].points;
+  const times = points.map((point) => new Date(point.t).getTime());
+  assert.deepEqual(
+    times,
+    [...times].sort((a, b) => a - b),
+    'oldest first',
   );
+  assert.ok(times[times.length - 1] <= Date.now(), 'nothing is dated in the future');
+  assert.equal(points[points.length - 1].v, 1.71, 'and it ends on the price just read');
 });
 
 test('the curve is drawn even when nothing could be recorded at all', async () => {
@@ -620,4 +649,27 @@ test('the search is centred on the house, so the provider measures from it', asy
   await store.search(config);
 
   assert.deepEqual(received.center, { latitude: 48.11, longitude: -1.68 });
+});
+
+test('a single sample is anchored to the start of its day, never to the future', async () => {
+  // The day the card is added: one measurement, and nothing behind it.
+  const { context } = contextWith([createStation({ prices: { gazole: 1.88 } })]);
+
+  const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole' },
+  });
+
+  const points = componentsOfType(content, 'chart')[0].series[0].points;
+  assert.equal(points.length, 2, 'one point makes ApexCharts spread its axis into next week');
+  assert.ok(
+    points.every((point) => point.v === 1.88),
+    'the anchor carries the measured price',
+  );
+  const anchor = new Date(points[0].t);
+  assert.equal(
+    anchor.getHours() + anchor.getMinutes() + anchor.getSeconds(),
+    0,
+    'start of the day',
+  );
+  assert.ok(new Date(points[1].t).getTime() <= Date.now());
 });

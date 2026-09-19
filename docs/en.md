@@ -120,11 +120,14 @@ and how much will it cost.
 - **Heading**: the fuel and the area — `Diesel · within 10 km of my home`
   (or `of 35000` when Gladys does not know where the house is).
 - **Three tiles**: the cheapest price, the average of the stations found, and
-  the **7-day trend** in cents (green when it drops, red when it climbs).
+  the **7-day trend** in cents (green when it drops, red when it climbs). The
+  tile is there from day one and shows `—` until a real week of history exists.
 - **The read time**: `Prices read on 19/09/2026 at 10:30`, because a price is
   only as good as the moment it was read.
 - **The 30-day curve** of the cheapest price of the area.
-- **The ranking** of the stations with their price, the cheapest one in green.
+- **The ranking** of the stations with their price **and the date the station
+  declared it** (not to be confused with the read time above: a station may not
+  have moved its prices in a week).
 - A button to the **official map** (prix-carburants.gouv.fr).
 
 Three settings: the fuel, how many stations are shown (3, 5 or 8) and the
@@ -137,8 +140,9 @@ The open data feed publishes the prices of the moment, not yesterday's: nobody
 stores "the cheapest price of your area". So the integration samples it itself,
 **at most once an hour**, and keeps 30 days in `/data`.
 
-- The curve is shown **from day one**, with the single point it has, and fills
-  itself afterwards.
+- The curve is shown **from day one** and fills itself afterwards. It always
+  ends on the price just read, so **the axis never runs past today**; it grows
+  leftwards until it covers thirty days after a month.
 - Sampling continues **while nobody is watching** the dashboard: the refresh
   loop takes over, from the moment the card exists somewhere (an install with
   no widget pays nothing).
