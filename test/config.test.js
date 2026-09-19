@@ -57,3 +57,11 @@ test('isConfigReady requires a postal code', () => {
   assert.equal(isConfigReady(normalizeConfig()), false);
   assert.equal(isConfigReady(normalizeConfig({ postal_code: '35000' })), true);
 });
+
+test('the distances are measured from the house unless the user says otherwise', () => {
+  assert.equal(normalizeConfig().search_center, 'house');
+  assert.equal(normalizeConfig({ search_center: 'postal_code' }).search_center, 'postal_code');
+  // The house is only ever a REQUEST: src/house.js falls back on the postal
+  // code when Gladys has no coordinates, so this value is never a promise.
+  assert.equal(normalizeConfig({ search_center: '' }).search_center, 'house');
+});

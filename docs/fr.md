@@ -125,7 +125,8 @@ carte dans la liste, section « Prix carburants »).
 La carte répond à trois questions d'un coup : où faire le plein, est-ce le bon
 jour, et combien ça coûte.
 
-- **Titre** : le carburant et la zone — `Gazole · 10 km autour du 35000`.
+- **Titre** : le carburant et la zone — `Gazole · 10 km autour de ma maison`
+  (ou `autour du 35000` si Gladys ne connaît pas les coordonnées de la maison).
 - **Trois tuiles** : le prix le moins cher, la moyenne des stations trouvées, et
   la **tendance sur 7 jours** en centimes (vert si ça baisse, rouge si ça monte).
 - **L'heure du relevé** : `Prix relevés le 19/09/2026 à 10:30`, parce qu'un prix
@@ -143,16 +144,18 @@ ajoutées).
 
 Le flux open data publie les prix de l'instant, pas ceux d'hier : personne ne
 stocke « le prix le moins cher de votre zone ». L'intégration le relève donc
-elle-même, **au maximum une fois par heure**, à chaque fois que la carte se
-rafraîchit, et garde 30 jours dans `/data`. Conséquences à connaître :
+elle-même, **au maximum une fois par heure**, et garde 30 jours dans `/data`.
 
-- une installation neuve n'a **ni courbe ni tendance** : elles apparaissent au
-  fur et à mesure (la tendance après 7 jours) ;
-- les relevés se font quand un tableau de bord affiche la carte — si personne ne
-  la regarde pendant une semaine, il n'y a pas de point pour cette semaine ;
-- changer de code postal ou de rayon **repart d'une courbe vierge**, puisque ce
-  n'est plus la même zone ;
-- si `/data` n'est pas accessible en écriture, tout continue de fonctionner :
+- La courbe est affichée **dès le premier jour**, avec le seul point qu'elle a,
+  et se remplit toute seule ensuite.
+- Les relevés continuent **même quand personne ne regarde** le tableau de bord :
+  la boucle de rafraîchissement prend le relais, à partir du moment où la carte
+  existe quelque part (une installation sans widget ne paie rien).
+- La **tendance sur 7 jours**, elle, attend d'avoir vraiment une semaine
+  d'historique : afficher « 0 ct » le premier jour serait faux.
+- Changer de code postal ou de rayon **repart d'une courbe vierge**, puisque ce
+  n'est plus la même zone.
+- Si `/data` n'est pas accessible en écriture, tout continue de fonctionner :
   seule la courbe repart de zéro au redémarrage.
 
 ### « Ma station »
@@ -170,12 +173,21 @@ Les carburants que vous suivez déjà (ceux qui ont un appareil) sont affichés
 sans attendre le rafraîchissement de la carte. Les autres carburants de la
 station affichent la valeur lue dans le flux.
 
-#### La distance est mesurée depuis le code postal
+#### D'où partent les distances
 
-Elle s'affiche sous la forme `2,3 km du 35000`, et c'est littéral : une
-intégration externe **n'a pas accès à l'adresse de votre maison** dans Gladys
-(l'API ne l'expose pas). Le point de référence est donc le centre de la zone du
-code postal configuré, jamais votre porte.
+Par défaut, **de votre maison Gladys**. L'intégration demande ses coordonnées à
+Gladys (`Réglages → Maison`, champ adresse) : la case correspondante est
+affichée à l'installation comme une autorisation, les coordonnées servent
+uniquement à centrer la recherche et à calculer les distances, et elles ne sont
+affichées nulle part.
+
+- Maison localisée → `2,3 km de la maison`, et la recherche est centrée dessus.
+- Maison non localisée, ou réglage **« Mesurer les distances depuis : le code
+  postal »** → `2,3 km du 35000`, mesuré depuis le centre de la zone du code
+  postal.
+
+Le code postal reste obligatoire dans tous les cas : c'est lui qui sert à
+interroger le jeu de données national.
 
 > Les widgets demandent une version de Gladys qui sait les afficher. Sur une
 > version plus ancienne, les appareils et l'onglet Découverte fonctionnent

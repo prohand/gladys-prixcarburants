@@ -41,12 +41,18 @@ const SAMPLE_INTERVAL_MS = HOUR_MS;
 const SAVE_DELAY_MS = 5_000;
 
 /**
- * The series key of one (area, fuel) pair.
+ * The series key of one (area, scope, fuel) triplet.
+ *
+ * The scope is part of the key because "the cheapest around me" and "the
+ * cheapest of my stations" are two different questions: mixing their samples
+ * would draw a curve that answers neither.
+ *
  * @param {{ country: string, postal_code: string, search_radius_km: number }} config
  * @param {string} fuel
+ * @param {string} [scope]
  */
-export function seriesKey(config, fuel) {
-  return `${config.country}:${config.postal_code}:${config.search_radius_km}:${fuel}`;
+export function seriesKey(config, fuel, scope = 'around') {
+  return `${config.country}:${config.postal_code}:${config.search_radius_km}:${scope}:${fuel}`;
 }
 
 /**
@@ -142,8 +148,9 @@ export function createPriceHistory({
      *
      * @param {object} config normalized configuration (defines the area)
      * @param {Array<{ prices: Record<string, number|null> }>} stations
+     * @param {{ scope?: string }} [options]
      */
-    record(config, stations) {
+    record(config, stations, { scope = 'around' } = {}) {
       const at = now();
       const cheapest = new Map();
       for (const station of stations) {
@@ -151,7 +158,7 @@ export function createPriceHistory({
           if (!Number.isFinite(price)) {
             continue;
           }
-          const key = seriesKey(config, fuel);
+          const key = seriesKey(config, fuel, scope);
           if (!(cheapest.get(key) <= price)) {
             cheapest.set(key, price);
           }
@@ -185,10 +192,11 @@ export function createPriceHistory({
      *
      * @param {object} config
      * @param {string} fuel
+     * @param {string} [scope]
      * @returns {Array<{ t: string, v: number }>} ISO dates, as the core expects
      */
-    dailySeries(config, fuel) {
-      const points = series.get(seriesKey(config, fuel)) ?? [];
+    dailySeries(config, fuel, scope = 'around') {
+      const points = series.get(seriesKey(config, fuel, scope)) ?? [];
       const perDay = new Map();
       for (const { t, v } of points) {
         const day = new Date(t).toISOString().slice(0, 10);
@@ -207,12 +215,13 @@ export function createPriceHistory({
      * @param {object} config
      * @param {string} fuel
      * @param {number} [days]
+     * @param {string} [scope]
      * @returns {number|null} the difference in EUR/L (negative = cheaper than
      *   before), or `null` when the history does not go back far enough — the
      *   tile is then simply not shown, rather than showing a made-up zero
      */
-    trend(config, fuel, days = 7) {
-      const points = series.get(seriesKey(config, fuel)) ?? [];
+    trend(config, fuel, days = 7, scope = 'around') {
+      const points = series.get(seriesKey(config, fuel, scope)) ?? [];
       if (points.length < 2) {
         return null;
       }
@@ -224,6 +233,54 @@ export function createPriceHistory({
         return null;
       }
       return points[points.length - 1].v - past.v;
+    },
+
+    /**
+     * Is a curve being drawn for this area?
+     *
+     * The refresh loop uses it to decide whether to sample on its own: the
+     * history starts filling the day a card is put on a dashboard, and then
+     * keeps filling on its own even when nobody is looking at it — which is
+     * what makes a 30-day curve possible at all, since a dashboard nobody opens
+     * pulls nothing.
+     *
+     * @param {object} config
+     * @returns {boolean}
+     */
+    knows(config) {
+      const prefix = `${config.country}:${config.postal_code}:${config.search_radius_km}:`;
+      for (const key of series.keys()) {
+        if (key.startsWith(prefix)) {
+          return true;
+        }
+      }
+      return false;
+    },
+
+    /**
+     * When the last sample of this area was taken, whatever the fuel — the
+     * other half of the loop's decision.
+     * @param {object} config
+     * @returns {number|null} epoch in ms
+     */
+    lastSampleAt(config) {
+      const prefix = `${config.country}:${config.postal_code}:${config.search_radius_km}:`;
+      let last = null;
+      for (const [key, points] of series) {
+        if (!key.startsWith(prefix) || points.length === 0) {
+          continue;
+        }
+        const at = points[points.length - 1].t;
+        if (last === null || at > last) {
+          last = at;
+        }
+      }
+      return last;
+    },
+
+    /** How often a sample is worth taking, so callers need not guess. */
+    get sampleIntervalMs() {
+      return SAMPLE_INTERVAL_MS;
     },
 
     /** Flush now — used by the tests and on shutdown. */

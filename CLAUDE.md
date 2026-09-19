@@ -109,17 +109,30 @@ fuel) and `station` (one followed station, a price tile per fuel).
 - **`status` is NOT a focal component.** The core's `FOCAL_TYPES` is
   `['chart', 'card-list', 'image']` and `status` has a budget of its own, so a card may carry
   a chart AND the list under it — which is what `best_prices` does.
+- **The curve is drawn from the first pull** — a single point on day one, filled in afterwards
+  — because a card that hides its chart until it has data looks broken. The TREND tile is the
+  opposite: absent until the history really covers its window, since "0 ct over 7 days" on day
+  one is a lie. `src/refresh.js` samples too, but only for an area the history already follows
+  (`history.knows`), so the curve keeps filling with no dashboard open while an install without
+  a widget pays nothing.
 - **The 30-day curve and the 7-day trend come from our own samples** (`src/priceHistory.js`):
   no device holds "the cheapest price of the area", and the feed publishes the present only.
   Samples are taken on the searches the widget already runs, at most one an hour, kept 30 days
-  in `/data`, keyed by country + postal code + radius + fuel so moving the area starts a new
+  in `/data`, keyed by country + postal code + radius + SCOPE + fuel so moving the area (or
+  switching the card between "around me" and "my stations") starts a new
   curve. Best effort: an unwritable `/data` costs the curve, never the integration, and the
   trend tile is ABSENT rather than zero while the history is younger than its window — the one
   exception to "no state that must survive a restart", and it is additive by construction.
-- **Distances are measured from the POSTAL CODE, never from the house**: the integration host
-  API (`/api/integration/v1`) exposes no house route — only a weather provider is handed
-  coordinates, for the weather. Both cards say the reference point out loud
-  (`2,3 km du 35000`, `10 km autour du 35000`); do not let a redesign drop it.
+- **Distances start at the Gladys house when it is located**, at the centre of the postal code
+  otherwise, and both cards SAY which (`2,3 km de la maison` / `2,3 km du 35000`,
+  `10 km autour de ma maison` / `autour du 35000`) — do not let a redesign drop that word.
+  `src/house.js` reads `GET /api/integration/v1/house` with the SDK's own base URL and token
+  (the SDK wraps no such call), which requires `"location": true` in the manifest — the two
+  ship together, a 403 is the symptom of forgetting one. Cached an hour, invalidated on
+  `onConfigUpdated`, and best effort everywhere: `resolveSearchCenter` falls back on the postal
+  code for an unlocated house, an older core or a network failure. The coordinates are personal
+  data: they centre the search and nothing else — never a device param, a state, a log or a
+  widget content.
 - **A fuel with a device is published as a `device_feature` reference, not a value**: the
   dashboard then follows the feature over the WebSocket and the tile moves as soon as the
   refresh loop publishes a price. A fuel without a device carries the value read from the feed.

@@ -67,6 +67,7 @@ Three decisions worth knowing before reading the code:
 │  ├─ geo.js                         # haversine distance / centroid
 │  ├─ stationStore.js                # cache + per-country batched refresh
 │  ├─ priceHistory.js                # 30-day samples of the cheapest price (/data)
+│  ├─ house.js                       # house coordinates (GET /house) + search centre
 │  ├─ actions.js                     # the Configuration screen buttons
 │  ├─ widgets/
 │  │  ├─ index.js                    #   widget registry + SDK wiring
@@ -176,10 +177,13 @@ Three things shape the code:
   in `/data`. Best effort by design: an unwritable volume costs the curve and
   nothing else, and the trend tile is absent rather than zero while the history
   is younger than its window.
-- **Distances are measured from the postal code**, and the cards say so
-  (`2.3 km from 35000`, `within 10 km of 35000`): the integration host API
-  exposes no route to the Gladys house address, so nothing here can pretend to
-  measure from the user's door.
+- **Distances start at the Gladys house when it is located.** The manifest
+  declares `"location": true` and `src/house.js` reads
+  `GET /api/integration/v1/house` (Gladys ≥ 4.85, 403 without the declaration),
+  cached an hour and best effort: no house, no coordinates, an older core — the
+  search falls back on the centre of the postal code. Either way the cards say
+  which (`2.3 km from home` / `2.3 km from 35000`), and the coordinates never
+  reach a device, a state, a log or a widget content.
 
 > **Not releasable yet.** The `widgets` manifest field and the SDK handlers
 > come from [GladysAssistant/Gladys#3109](https://github.com/GladysAssistant/Gladys/pull/3109),

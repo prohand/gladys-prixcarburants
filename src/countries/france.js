@@ -120,10 +120,14 @@ export const france = {
    *      centre of the postal code.
    * The union is de-duplicated, sorted by distance and truncated.
    *
-   * @param {{ postalCode: string, radiusKm?: number, limit?: number }} options
+   * @param {{ postalCode: string, radiusKm?: number, limit?: number,
+   *   center?: { latitude: number, longitude: number }|null }} options
+   *   `center` is the geometry the caller wants — the coordinates of the Gladys
+   *   house, typically. It replaces the centre of the postal code for the
+   *   circle AND for the distances, and spares the geocoder a call.
    * @returns {Promise<Station[]>}
    */
-  async searchStations({ postalCode, radiusKm = 0, limit = 20 }) {
+  async searchStations({ postalCode, radiusKm = 0, limit = 20, center: requestedCenter = null }) {
     const cp = String(postalCode ?? '').trim();
     if (!POSTAL_CODE_PATTERN.test(cp)) {
       throw new Error(`Invalid French postal code: "${cp}" (5 digits expected)`);
@@ -138,7 +142,10 @@ export const france = {
     // cannot say where the user lives, so the geocoder does: without it, a
     // postal code with no station of its own returned nothing at all, at any
     // radius.
-    const center = centroid(inPostalCode) ?? (radiusKm > 0 ? await geocodePostalCode(cp) : null);
+    const center =
+      requestedCenter ??
+      centroid(inPostalCode) ??
+      (radiusKm > 0 ? await geocodePostalCode(cp) : null);
 
     if (radiusKm > 0 && center) {
       // Widening the search is a bonus, not the request: if the publisher

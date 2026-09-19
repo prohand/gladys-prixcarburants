@@ -117,7 +117,8 @@ carburants").
 The card answers three questions at once: where to fill up, is this a good day,
 and how much will it cost.
 
-- **Heading**: the fuel and the area — `Diesel · within 10 km of 35000`.
+- **Heading**: the fuel and the area — `Diesel · within 10 km of my home`
+  (or `of 35000` when Gladys does not know where the house is).
 - **Three tiles**: the cheapest price, the average of the stations found, and
   the **7-day trend** in cents (green when it drops, red when it climbs).
 - **The read time**: `Prices read on 19/09/2026 at 10:30`, because a price is
@@ -134,16 +135,18 @@ the Discovery tab) or **my stations only** (the ones you added).
 
 The open data feed publishes the prices of the moment, not yesterday's: nobody
 stores "the cheapest price of your area". So the integration samples it itself,
-**at most once an hour**, every time the card refreshes, and keeps 30 days in
-`/data`. What follows from that:
+**at most once an hour**, and keeps 30 days in `/data`.
 
-- a fresh install has **no curve and no trend**: they build up over time (the
-  trend after 7 days);
-- samples are taken while a dashboard shows the card — if nobody looks at it
-  for a week, that week has no point;
-- changing the postal code or the radius **starts a new curve**, since it is no
-  longer the same area;
-- if `/data` is not writable, everything keeps working: only the curve starts
+- The curve is shown **from day one**, with the single point it has, and fills
+  itself afterwards.
+- Sampling continues **while nobody is watching** the dashboard: the refresh
+  loop takes over, from the moment the card exists somewhere (an install with
+  no widget pays nothing).
+- The **7-day trend** does wait for a real week of history: showing "0 ct" on
+  the first day would be a lie.
+- Changing the postal code or the radius **starts a new curve**, since it is no
+  longer the same area.
+- If `/data` is not writable, everything keeps working: only the curve starts
   over after a restart.
 
 ### "My station"
@@ -159,12 +162,20 @@ tile moves as soon as the integration publishes a new price, without waiting
 for the card to refresh. The other fuels of the station show the value read
 from the feed.
 
-#### The distance is measured from the postal code
+#### Where the distances start
 
-It reads `2.3 km from 35000`, and that is literal: an external integration
-**has no access to the address of your Gladys house** (the host API exposes no
-such route). The reference point is the centre of the configured postal code
-area, never your front door.
+From your **Gladys house** by default. The integration asks Gladys for its
+coordinates (`Settings → House`, address field): the matching box is shown at
+install time as an authorization, the coordinates only centre the search and
+compute the distances, and they are displayed nowhere.
+
+- House located → `2.3 km from home`, and the search is centred on it.
+- House not located, or the setting **"Measure distances from: the postal
+  code"** → `2.3 km from 35000`, measured from the centre of the postal code
+  area.
+
+The postal code stays required either way: it is what queries the national
+dataset.
 
 > Widgets need a Gladys version able to render them. On an older version the
 > devices and the Discovery tab work as usual: only the cards are missing from

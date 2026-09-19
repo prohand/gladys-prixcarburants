@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { ACTIONS } from '../src/actions.js';
-import { DEFAULT_CONFIG } from '../src/config.js';
+import { DEFAULT_CONFIG, normalizeConfig } from '../src/config.js';
 import { COUNTRIES } from '../src/countries/index.js';
 import { FUEL_KEYS } from '../src/fuels.js';
 import { WIDGET_KEYS, buildWidgetManifest } from '../src/widgets/index.js';
@@ -227,4 +227,24 @@ test('the fuel setting of the ranking offers exactly the fuels of the catalog', 
     FUEL_KEYS,
   );
   assert.ok(FUEL_KEYS.includes(fuel.default), 'the default fuel must exist in the catalog');
+});
+
+test('the house coordinates are declared, since the code asks for them', () => {
+  // `GET /api/integration/v1/house` answers 403 to an integration that did not
+  // declare it: src/house.js and this field are one feature, and the install
+  // screen shows it to the user as an authorization contract.
+  assert.equal(manifest.location, true);
+});
+
+test('the search centre select offers exactly what normalizeConfig accepts', () => {
+  const values = field('search_center').options.map((o) => o.value);
+  assert.deepEqual(values, ['house', 'postal_code']);
+  for (const value of values) {
+    assert.equal(normalizeConfig({ search_center: value }).search_center, value);
+  }
+  // Anything else falls back on the default rather than being kept as is.
+  assert.equal(
+    normalizeConfig({ search_center: 'moon' }).search_center,
+    DEFAULT_CONFIG.search_center,
+  );
 });

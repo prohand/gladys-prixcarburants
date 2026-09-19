@@ -25,6 +25,7 @@ import {
   parseDeviceExternalId,
   platformId,
 } from '../devices/fuelStation.js';
+import { resolveSearchCenter } from '../house.js';
 import { COLOR, buildContent, button, statusList, text, valueTile } from './content.js';
 import { PRICE_UNIT, directionsUrl, formatDistance, stationAddress } from './format.js';
 
@@ -76,7 +77,7 @@ export const DECLARATION = {
  * @param {{ config: object, store: object }} context
  * @param {{ settings?: object }} request
  */
-export async function getContent(gladys, { config, store }, { settings } = {}) {
+export async function getContent(gladys, { config, store, house }, { settings } = {}) {
   const target = parseDeviceExternalId(settings?.device);
 
   if (!target) {
@@ -108,6 +109,7 @@ export async function getContent(gladys, { config, store }, { settings } = {}) {
     );
   }
 
+  const { source } = await resolveSearchCenter(config, house);
   const tracked = await trackedFuels(gladys, target);
   const fuels = orderFuels({ station, config, target });
   const url = directionsUrl(station);
@@ -118,7 +120,7 @@ export async function getContent(gladys, { config, store }, { settings } = {}) {
       ...fuels
         .slice(0, MAX_TILES)
         .map((fuel) => buildTile(gladys, { station, target, fuel, tracked })),
-      statusList(buildRows(station, { target, postalCode: config.postal_code })),
+      statusList(buildRows(station, { target, postalCode: config.postal_code, source })),
       url
         ? button({
             label: { en: 'Directions', fr: 'Itinéraire' },
@@ -188,7 +190,7 @@ function buildTile(gladys, { station, target, fuel, tracked }) {
 }
 
 /** The rows under the tiles: where the station is, and how old its prices are. */
-function buildRows(station, { target, postalCode }) {
+function buildRows(station, { target, postalCode, source }) {
   const rows = [];
   if (station.brand) {
     rows.push({ label: { en: 'Brand', fr: 'Marque' }, value: station.brand });
@@ -198,17 +200,23 @@ function buildRows(station, { target, postalCode }) {
     rows.push({ label: { en: 'Address', fr: 'Adresse' }, value: address });
   }
   if (Number.isFinite(station.distanceKm)) {
-    // Say WHERE it is measured from. An integration cannot read the address of
-    // the Gladys house (the host API exposes no such route — only a weather
-    // provider is handed coordinates, and only for the weather), so every
-    // distance here is measured from the configured POSTAL CODE. Writing
-    // "2,3 km" alone would let the reader assume it is from their door.
+    // Say WHERE it is measured from, because there are two possible origins:
+    // the coordinates of the Gladys house when the user asked for them and
+    // located it (`"location": true` in the manifest, src/house.js), and the
+    // centre of the postal code area otherwise. "2,3 km" alone would let the
+    // reader assume the wrong one.
     rows.push({
       label: { en: 'Distance', fr: 'Distance' },
-      value: {
-        en: `${formatDistance(station.distanceKm, 'en')} from ${postalCode}`,
-        fr: `${formatDistance(station.distanceKm, 'fr')} du ${postalCode}`,
-      },
+      value:
+        source === 'house'
+          ? {
+              en: `${formatDistance(station.distanceKm, 'en')} from home`,
+              fr: `${formatDistance(station.distanceKm, 'fr')} de la maison`,
+            }
+          : {
+              en: `${formatDistance(station.distanceKm, 'en')} from ${postalCode}`,
+              fr: `${formatDistance(station.distanceKm, 'fr')} du ${postalCode}`,
+            },
     });
   }
   // The date the station declared the price of the fuel the widget is bound to.

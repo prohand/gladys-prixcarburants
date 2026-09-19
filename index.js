@@ -20,6 +20,7 @@ import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
 import { isConfigReady, normalizeConfig } from './src/config.js';
 import { createStationStore } from './src/stationStore.js';
 import { createPriceHistory } from './src/priceHistory.js';
+import { createHouseLocation, resolveSearchCenter } from './src/house.js';
 import {
   isIntegrationDevice,
   parseTargets,
@@ -36,9 +37,15 @@ const gladys = new GladysIntegration();
 // Current configuration (hot-reloaded via onConfigUpdated).
 let config = normalizeConfig();
 
+// Where the user lives, when they asked for it and Gladys knows: the manifest
+// declares `"location": true` and the host API answers `GET /house`. Best
+// effort — without it every distance is measured from the postal code.
+const house = createHouseLocation(gladys);
+
 // Shared cache + batching in front of the open data providers, so ten station
-// devices polling one after the other cost one HTTP request, not ten.
-const store = createStationStore();
+// devices polling one after the other cost one HTTP request, not ten. The
+// search is centred on the house when there is one to centre it on.
+const store = createStationStore({ resolveCenter: (config) => resolveSearchCenter(config, house) });
 
 // The 30-day curve and the 7-day trend of the "cheapest around me" widget: the
 // open data feed publishes the prices of the moment, so the integration samples
@@ -49,7 +56,7 @@ const priceHistory = createPriceHistory();
 // The prices are refreshed by our own timer: Gladys' `poll_frequency` tops out
 // at one minute, which says nothing useful about a feed updated every ~10 min.
 // See src/refresh.js.
-const refreshLoop = createRefreshLoop(gladys, { store });
+const refreshLoop = createRefreshLoop(gladys, { store, history: priceHistory });
 
 // --- Discovery: Gladys asks for the list of devices --------------------------
 // The user opens the Discovery tab: search the stations around the configured
@@ -119,14 +126,14 @@ gladys.onDeviceDeleted(async (device) => {
 
 // --- Manifest actions: buttons in the Configuration screen -------------------
 for (const [actionKey, handler] of Object.entries(ACTIONS)) {
-  gladys.onAction(actionKey, () => handler(gladys, { config, store }));
+  gladys.onAction(actionKey, () => handler(gladys, { config, store, history: priceHistory }));
 }
 
 // --- Dashboard widgets: the cards the user drops on their dashboard ----------
 // Declared in the manifest, filled in at runtime by src/widgets/. The context
 // is read at call time so a configuration change applies to the next pull
 // without re-registering anything.
-registerWidgets(gladys, () => ({ config, store, history: priceHistory }));
+registerWidgets(gladys, () => ({ config, store, history: priceHistory, house }));
 
 // --- Configuration updated by the user ---------------------------------------
 gladys.onConfigUpdated(async (newConfig) => {
@@ -135,6 +142,9 @@ gladys.onConfigUpdated(async (newConfig) => {
   // The postal code, the radius or the fuel list may all have changed: drop the
   // cached stations and republish a discovery list built from the new criteria.
   store.invalidate();
+  // The user may have just located their house, or switched the origin of the
+  // distances: ask Gladys again instead of serving an hour-old answer.
+  house.invalidate();
   // The refresh interval may have changed too: re-arm the loop so the value the
   // user just saved applies without waiting for the next tick.
   refreshLoop.start(config);

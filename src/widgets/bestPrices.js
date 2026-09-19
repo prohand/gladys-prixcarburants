@@ -16,12 +16,15 @@
 //
 // The curve and the trend come from `src/priceHistory.js`: the open data feed
 // publishes the prices of the moment, so the integration samples the cheapest
-// price of the area itself, at most once an hour. A fresh install has no
-// history yet — the card then simply shows the tiles and the ranking, and the
-// budget it frees goes to a "Refresh" button.
+// price of the area itself, at most once an hour. The curve is drawn from the
+// very first pull — a single point on day one — and fills itself afterwards,
+// including while nobody watches the dashboard (src/refresh.js samples too).
+// The trend tile is the one that waits: it appears once the history really
+// covers its window, because "0 ct over 7 days" on day one would be a lie.
 // -----------------------------------------------------------------------------
 
 import { isConfigReady } from '../config.js';
+import { resolveSearchCenter } from '../house.js';
 import { FUELS, FUEL_KEYS, fuelLabel } from '../fuels.js';
 import { getProvider } from '../countries/index.js';
 import { formatInstant } from '../text.js';
@@ -126,14 +129,15 @@ async function collectStations({ config, store, history }, scope) {
     const stations = await Promise.all(
       tracked.map(({ country, stationId }) => store.getStation(country, stationId)),
     );
-    return stations.filter(Boolean);
+    const found = stations.filter(Boolean);
+    history?.record(config, found, { scope });
+    return found;
   }
 
   const stations = await store.search(config);
-  // A search is the only moment the integration sees the WHOLE area, so it is
-  // the only moment worth sampling for the curve. It costs nothing: the
-  // stations are already in hand.
-  history?.record(config, stations);
+  // Sampling costs nothing here: the stations are already in hand, and the
+  // history keeps at most one point an hour whatever the pull rate.
+  history?.record(config, stations, { scope });
   return stations;
 }
 
@@ -145,14 +149,20 @@ async function collectStations({ config, store, history }, scope) {
  * knows (an integration has no access to it), so the card names its own
  * reference point rather than letting the reader assume another one.
  */
-function buildHeading({ config, scope, label }) {
+function buildHeading({ config, scope, label, source }) {
   if (scope === SCOPE.TRACKED) {
     return { en: `${label.en} · my stations`, fr: `${label.fr} · mes stations` };
   }
+  // "autour de ma maison" but "autour DU 35000": the French article belongs to
+  // the reference point, not to the sentence around it.
+  const from =
+    source === 'house'
+      ? { en: 'my home', fr: 'de ma maison' }
+      : { en: config.postal_code, fr: `du ${config.postal_code}` };
   if (config.search_radius_km > 0) {
     return {
-      en: `${label.en} · within ${config.search_radius_km} km of ${config.postal_code}`,
-      fr: `${label.fr} · ${config.search_radius_km} km autour du ${config.postal_code}`,
+      en: `${label.en} · within ${config.search_radius_km} km of ${from.en}`,
+      fr: `${label.fr} · ${config.search_radius_km} km autour ${from.fr}`,
     };
   }
   return {
@@ -168,7 +178,7 @@ function buildHeading({ config, scope, label }) {
  * @param {{ settings?: object, language?: string }} request
  */
 export async function getContent(_gladys, context, { settings, language = 'en' } = {}) {
-  const { config, store, history } = context;
+  const { config, store, history, house } = context;
   const { fuel, scope, count } = readSettings(settings, config);
 
   if (!isConfigReady(config)) {
@@ -218,11 +228,13 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
   const average = prices.reduce((sum, price) => sum + price, 0) / prices.length;
   const readAt = formatInstant(store.lastFetchAt);
   const mapUrl = getProvider(config.country).mapUrl;
-  const curve = buildChart(history, { config, fuel, label });
+  // Resolved AFTER the search, which has already warmed the house cache.
+  const { source } = await resolveSearchCenter(config, house);
+  const curve = buildChart(history, { config, fuel, label, scope, cheapest: prices[0] });
 
   return buildContent(
     [
-      text({ variant: 'heading', text: buildHeading({ config, scope, label }) }),
+      text({ variant: 'heading', text: buildHeading({ config, scope, label, source }) }),
       valueTile({
         label: { en: 'Cheapest', fr: 'Moins cher' },
         value: cheapest,
@@ -238,7 +250,7 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
         unit: PRICE_UNIT,
         icon: 'bar-chart-2',
       }),
-      buildTrendTile(history, { config, fuel }),
+      buildTrendTile(history, { config, fuel, scope }),
       // The read time, kept in plain sight: a price is only as good as the
       // moment it was read, and this is the one date every card shares.
       readAt
@@ -288,8 +300,8 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
  * Absent — not zeroed — while the history is younger than the window: a card
  * that claims "0 over 7 days" on its first day is a card that lies.
  */
-function buildTrendTile(history, { config, fuel }) {
-  const trend = history?.trend(config, fuel, TREND_DAYS);
+function buildTrendTile(history, { config, fuel, scope }) {
+  const trend = history?.trend(config, fuel, TREND_DAYS, scope);
   if (trend === null || trend === undefined) {
     return null;
   }
@@ -305,14 +317,18 @@ function buildTrendTile(history, { config, fuel }) {
   });
 }
 
-/** The 30-day curve of the cheapest price, when enough days were sampled. */
-function buildChart(history, { config, fuel, label }) {
-  const points = history?.dailySeries(config, fuel) ?? [];
-  if (points.length < 2) {
-    // One point is not a curve: the card keeps its budget for the ranking and
-    // the refresh button until the history has something to draw.
-    return null;
-  }
+/**
+ * The 30-day curve of the cheapest price.
+ *
+ * Drawn from the FIRST pull: a card that shows its curve empty on day one and
+ * fills it day after day is honest about what it is doing, where a card that
+ * hides it looks broken. The core drops a chart whose series holds no point at
+ * all, so a history that has not been written yet (the very first pull, a
+ * read-only `/data`) is given today's cheapest price as its single point.
+ */
+function buildChart(history, { config, fuel, label, scope, cheapest }) {
+  const recorded = history?.dailySeries(config, fuel, scope) ?? [];
+  const points = recorded.length > 0 ? recorded : [{ t: new Date().toISOString(), v: cheapest }];
   return chart({
     chartType: 'area',
     title: { en: 'Last 30 days', fr: '30 derniers jours' },

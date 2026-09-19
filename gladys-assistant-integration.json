@@ -9,6 +9,7 @@
   "version": "1.0.4",
   "docker_image": "ghcr.io/prohand/gladys-prixcarburants:1.0.4",
   "gladys_version": ">=4.86.0",
+  "location": true,
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-prixcarburants/main/cover.png",
   "categories": ["energy"],
   "config_schema": [
@@ -79,6 +80,36 @@
         "en": "35000",
         "fr": "35000"
       }
+    },
+    {
+      "key": "search_center",
+      "type": "select",
+      "label": {
+        "en": "Measure distances from",
+        "fr": "Mesurer les distances depuis"
+      },
+      "description": {
+        "en": "Your Gladys house is used when it has coordinates (the integration asks Gladys for them, and shows them nowhere). Otherwise the centre of the postal code area is used.",
+        "fr": "Votre maison Gladys est utilisée si elle a des coordonnées (l'intégration les demande à Gladys et ne les affiche nulle part). Sinon, c'est le centre de la zone du code postal."
+      },
+      "required": false,
+      "default": "house",
+      "options": [
+        {
+          "value": "house",
+          "label": {
+            "en": "My Gladys house",
+            "fr": "Ma maison Gladys"
+          }
+        },
+        {
+          "value": "postal_code",
+          "label": {
+            "en": "The postal code",
+            "fr": "Le code postal"
+          }
+        }
+      ]
     },
     {
       "key": "search_radius_km",

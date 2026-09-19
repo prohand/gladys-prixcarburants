@@ -481,21 +481,35 @@ test('a price that went up is shown as such', async () => {
   assert.equal(trend.icon, 'trending-up');
 });
 
-test('a fresh install has no curve, and spends the room on a refresh button', async () => {
-  const { context } = contextWith([createStation()], { history: historyWith() });
+test('a fresh install already draws its curve, with the point it has', async () => {
+  const { context } = contextWith([createStation({ prices: { gazole: 1.66 } })], {
+    history: historyWith(),
+  });
 
   const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
     settings: { fuel: 'gazole' },
   });
 
-  assert.equal(componentsOfType(content, 'chart').length, 0, 'one point is not a curve');
+  const [curve] = componentsOfType(content, 'chart');
+  assert.ok(curve, 'the card shows its curve from day one, and fills it afterwards');
+  assert.equal(curve.series[0].points.length, 1);
+  assert.equal(curve.series[0].points[0].v, 1.66);
   assert.equal(
     componentsOfType(content, 'value').some((tile) => tile.unit === 'ct'),
     false,
-    'no invented trend',
+    'the trend waits for a real week, rather than claiming zero',
   );
-  const actions = componentsOfType(content, 'button').filter((one) => one.action);
-  assert.equal(actions.length, 1, 'the freed budget goes to the refresh button');
+});
+
+test('the curve is drawn even when nothing could be recorded at all', async () => {
+  // No history module: a `/data` that cannot be read, an older wiring.
+  const { context } = contextWith([createStation({ prices: { gazole: 1.66 } })]);
+
+  const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole' },
+  });
+
+  assert.equal(componentsOfType(content, 'chart').length, 1);
 });
 
 test('the card says when the prices were read, and links to the official map', async () => {
@@ -541,4 +555,69 @@ test('the station card names what the distance is measured from', async () => {
     rows.some((row) => row.value === '06/08/2026 à 07:12'),
     'the last price update stays on the card',
   );
+});
+
+// --- Measured from the house -------------------------------------------------
+
+/** A house module answering with fixed coordinates, or nothing. */
+const houseThat = (located) => ({ get: async () => located });
+
+test('the heading says the distances start at the house when they do', async () => {
+  const { context } = contextWith([createStation()]);
+  context.house = houseThat({ name: 'Maison', latitude: 48.11, longitude: -1.68 });
+
+  const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole' },
+  });
+
+  const [heading] = componentsOfType(content, 'text');
+  assert.equal(heading.text.fr, 'Gazole · 10 km autour de ma maison');
+  assert.equal(heading.text.en, 'Diesel · within 10 km of my home');
+});
+
+test('an unlocated house falls back on the postal code, in the wording too', async () => {
+  const { context } = contextWith([createStation()]);
+  context.house = houseThat(null);
+
+  const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole' },
+  });
+
+  assert.equal(componentsOfType(content, 'text')[0].text.fr, 'Gazole · 10 km autour du 35000');
+});
+
+test('the station card measures from the house when there is one', async () => {
+  const { context } = contextWith([createStation()]);
+  context.house = houseThat({ name: 'Maison', latitude: 48.11, longitude: -1.68 });
+  const gladys = createFakeGladys();
+
+  const content = await getWidgetContent(gladys, context, 'station', {
+    settings: {
+      device: deviceExternalId(gladys, { country: 'FR', stationId: '35000001', fuel: 'gazole' }),
+    },
+  });
+
+  const rows = componentsOfType(content, 'status')[0].items;
+  assert.equal(rows.find((row) => row.label.fr === 'Distance').value.fr, '1,2 km de la maison');
+});
+
+test('the search is centred on the house, so the provider measures from it', async () => {
+  const provider = createFakeProvider({ stations: [createStation()] });
+  const store = createStationStore({
+    resolveProvider: () => provider,
+    resolveCenter: async () => ({
+      center: { latitude: 48.11, longitude: -1.68 },
+      source: 'house',
+    }),
+  });
+  let received;
+  const search = provider.searchStations;
+  provider.searchStations = async (options) => {
+    received = options;
+    return search(options);
+  };
+
+  await store.search(config);
+
+  assert.deepEqual(received.center, { latitude: 48.11, longitude: -1.68 });
 });
