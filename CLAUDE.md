@@ -113,8 +113,13 @@ fuel) and `station` (one followed station, a price tile per fuel).
   together, like the rest of the manifest.
 - **The nudge carries no data**: `notifyWidgetsChanged` only tells the core to re-pull, after
   a refresh pass that actually moved a price.
-- **Registration is capability-checked** (`typeof gladys.onWidgetGet === 'function'`): an SDK
-  without widget support logs one line and the integration keeps working.
+- **The SDK does not speak widgets yet** (0.13.0 is the latest and its dispatcher ignores
+  unknown message types in silence), so `src/widgets/sdkBridge.js` answers
+  `widget.get` / `widget.action` on the SDK's own socket and sends `widget.refresh`. Without
+  it the core asks, nobody acks, and the card reads "data unavailable" after 15 s.
+  `registerWidgets` prefers `gladys.onWidgetGet` the day it exists and returns `'sdk'` or
+  `'bridge'` to say which road it took. The bridge answers just under the core's 15 s deadline
+  so a slow feed is named instead of timing out silently.
 - **Not releasable until #3109 ships**: the published `manifest.schema.json` rejects the
   `widgets` field (`must NOT have additional properties`), so the store validator fails on
   purpose. When it lands: raise `gladys_version`, raise the SDK dependency, re-validate.

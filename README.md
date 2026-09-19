@@ -69,6 +69,7 @@ Three decisions worth knowing before reading the code:
 │  ├─ actions.js                     # the Configuration screen buttons
 │  ├─ widgets/
 │  │  ├─ index.js                    #   widget registry + SDK wiring
+│  │  ├─ sdkBridge.js                #   answers widget messages the SDK ignores
 │  │  ├─ content.js                  #   the content vocabulary, bounds, budget
 │  │  ├─ bestPrices.js               #   card "Cheapest around me"
 │  │  ├─ station.js                  #   card "My station"
@@ -176,9 +177,11 @@ Three things shape the code:
 > - `npx github:GladysAssistant/integration-store .` fails with
 >   `manifest: must NOT have additional properties` — the published schema does
 >   not know `widgets` yet;
-> - `@gladysassistant/integration-sdk` has no `onWidgetGet`, so
->   `registerWidgets()` logs one line and the integration runs without widgets
->   (everything else is unaffected).
+> - `@gladysassistant/integration-sdk` (0.13.0, latest) has no `onWidgetGet`
+>   and its dispatcher ignores unknown message types silently, so
+>   `src/widgets/sdkBridge.js` answers `widget.get` / `widget.action` on the
+>   SDK's own socket. `registerWidgets()` switches to `gladys.onWidgetGet` the
+>   day the SDK ships it, and the bridge can then be deleted.
 >
 > When the PR lands: bump `gladys_version` to the first release accepting
 > `widgets`, raise the SDK dependency, re-run the store validator, and release.

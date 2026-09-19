@@ -33,6 +33,7 @@ import {
   runWidgetAction,
 } from '../src/widgets/index.js';
 import { createFakeGladys, createFakeProvider, createStation } from './helpers/fakeGladys.js';
+import { EventEmitter } from 'node:events';
 
 const config = normalizeConfig({ postal_code: '35000', fuel_type: ['gazole', 'sp98'] });
 
@@ -40,6 +41,36 @@ function contextWith(stations) {
   const provider = createFakeProvider({ stations });
   const store = createStationStore({ resolveProvider: () => provider });
   return { context: { config, store }, provider, store };
+}
+
+/**
+ * A stand-in for the SDK's WebSocket: it records what we send and lets a test
+ * push an incoming frame, which is all the bridge touches.
+ */
+function createFakeSocket() {
+  const socket = new EventEmitter();
+  socket.readyState = 1; // OPEN
+  socket.sent = [];
+  socket.send = (raw) => socket.sent.push(JSON.parse(raw));
+  /** Push a frame and resolve with the message we answered, if any. */
+  socket.receive = async (message) => {
+    const before = socket.sent.length;
+    socket.emit('message', Buffer.from(JSON.stringify(message)));
+    // The handler is async; let its microtasks (and the store's) settle.
+    for (let i = 0; i < 20 && socket.sent.length === before; i += 1) {
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    return socket.sent[before];
+  };
+  return socket;
+}
+
+/** An SDK instance without widget support, holding a fake socket. */
+function bridgedGladys(stations) {
+  const { context, store, provider } = contextWith(stations);
+  const socket = createFakeSocket();
+  const gladys = Object.assign(new EventEmitter(), createFakeGladys(), { ws: socket });
+  return { context, store, provider, socket, gladys };
 }
 
 /** Components of one type, in the order they were sent. */
@@ -270,14 +301,78 @@ test('an unknown action is rejected rather than silently ignored', async () => {
   );
 });
 
-test('registration is skipped, not fatal, on an SDK without widget support', () => {
-  const gladys = createFakeGladys();
+test('without SDK support, the widget commands are answered on the socket', async () => {
+  // The regression this guards: the SDK ignores an unknown message type in
+  // silence, so a core asking for content gets no ack at all and the card
+  // reads "data unavailable" after 15 s.
+  const { context, socket, gladys } = bridgedGladys([createStation()]);
+
   assert.equal(
-    registerWidgets(gladys, () => ({})),
-    false,
+    registerWidgets(gladys, () => context),
+    'bridge',
   );
-  // And the nudge is a no-op too: a refresh pass must never fail over it.
-  assert.doesNotThrow(() => notifyWidgetsChanged(gladys));
+
+  const ack = await socket.receive({
+    type: 'external-integration.widget.get',
+    payload: { message_id: 'm1', key: 'best_prices', settings: { fuel: 'gazole' }, language: 'fr' },
+  });
+
+  assert.equal(ack.type, 'external-integration.command-result');
+  assert.equal(ack.payload.message_id, 'm1');
+  assert.equal(ack.payload.success, true);
+  assert.equal(ack.payload.data.content.version, 1);
+  assert.ok(ack.payload.data.content.components.length > 0);
+});
+
+test('a failing widget command is acked as a failure, with its reason', async () => {
+  const { socket, gladys, context } = bridgedGladys([]);
+  registerWidgets(gladys, () => context);
+
+  const ack = await socket.receive({
+    type: 'external-integration.widget.get',
+    payload: { message_id: 'm2', key: 'does-not-exist' },
+  });
+
+  assert.equal(ack.payload.success, false);
+  assert.match(ack.payload.error, /Unknown widget/);
+});
+
+test('a widget button is answered with the message shown under it', async () => {
+  const { socket, gladys, context } = bridgedGladys([createStation()]);
+  registerWidgets(gladys, () => context);
+
+  const ack = await socket.receive({
+    type: 'external-integration.widget.action',
+    payload: { message_id: 'm3', key: 'best_prices', action_key: 'refresh' },
+  });
+
+  assert.equal(ack.payload.success, true);
+  assert.ok(ack.payload.data.message.fr);
+});
+
+test('the bridge leaves every other message to the SDK', async () => {
+  const { socket, gladys, context } = bridgedGladys([]);
+  registerWidgets(gladys, () => context);
+
+  socket.emit('message', Buffer.from(JSON.stringify({ type: 'external-integration.device.poll' })));
+  socket.emit('message', Buffer.from('not json'));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(socket.sent, [], 'nothing was acked on our behalf');
+});
+
+test('a reconnection re-attaches the bridge exactly once', () => {
+  const { socket, gladys, context } = bridgedGladys([]);
+  registerWidgets(gladys, () => context);
+  const listeners = socket.listenerCount('message');
+
+  gladys.emit('connected');
+  assert.equal(socket.listenerCount('message'), listeners, 'no duplicate listener on one socket');
+
+  const next = createFakeSocket();
+  gladys.ws = next;
+  gladys.emit('connected');
+  assert.equal(next.listenerCount('message'), 1, 'the new socket is bridged');
 });
 
 test('every declared widget is registered when the SDK supports them', () => {
@@ -290,7 +385,7 @@ test('every declared widget is registered when the SDK supports them', () => {
 
   assert.equal(
     registerWidgets(gladys, () => ({})),
-    true,
+    'sdk',
   );
   assert.deepEqual(registered, WIDGET_KEYS);
   assert.deepEqual(
@@ -299,11 +394,25 @@ test('every declared widget is registered when the SDK supports them', () => {
   );
 });
 
-test('the nudge asks for one refresh per widget', () => {
+test('the nudge uses the SDK when it has one, and the socket otherwise', () => {
   const nudged = [];
-  const gladys = { ...createFakeGladys(), requestWidgetRefresh: (key) => nudged.push(key) };
-
-  notifyWidgetsChanged(gladys);
-
+  const withSdk = { ...createFakeGladys(), requestWidgetRefresh: (key) => nudged.push(key) };
+  notifyWidgetsChanged(withSdk);
   assert.deepEqual(nudged, WIDGET_KEYS);
+
+  const { socket, gladys } = bridgedGladys([]);
+  notifyWidgetsChanged(gladys);
+  assert.deepEqual(
+    socket.sent.map((message) => message.payload.key),
+    WIDGET_KEYS,
+  );
+  assert.equal(socket.sent[0].type, 'external-integration.widget.refresh');
+});
+
+test('a nudge sent while the socket is closed is dropped, never thrown', () => {
+  const { socket, gladys } = bridgedGladys([]);
+  socket.readyState = 3; // CLOSED
+
+  assert.doesNotThrow(() => notifyWidgetsChanged(gladys));
+  assert.deepEqual(socket.sent, []);
 });
