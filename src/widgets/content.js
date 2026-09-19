@@ -52,6 +52,10 @@ export const LIMITS = {
   CARD_LINKS: 3,
   CARD_ITEMS_LIST: 8,
   CARD_ITEMS_GRID: 12,
+  CHART_TITLE: 40,
+  CHART_SERIES: 4,
+  CHART_POINTS: 300,
+  SERIES_NAME: 24,
   LINK_LABEL: 24,
   BUTTON_LABEL: 24,
   TTL_MIN: 10,
@@ -70,9 +74,12 @@ export const BUDGET = {
 };
 
 const TILE_TYPES = new Set(['value', 'gauge']);
-// `status` participates in the focal budget: the spec counts a second status
-// list as a second focal component.
-const FOCAL_TYPES = new Set(['chart', 'card-list', 'image', 'status']);
+// The focal slot, as the core counts it (`FOCAL_TYPES` in
+// `externalIntegration.normalizeWidgetContent.js`): a `status` list is NOT part
+// of it, it has a budget of its own — so a card may carry a chart AND the list
+// of states under it, which is exactly what the two slots of the canonical
+// order are for.
+const FOCAL_TYPES = new Set(['chart', 'card-list', 'image']);
 
 /**
  * Trim a text to its bound, per language value.
@@ -193,6 +200,50 @@ export function statusList(rows) {
     .slice(0, LIMITS.STATUS_ITEMS);
 
   return items.length === 0 ? null : { type: 'status', items };
+}
+
+/**
+ * The focal chart. Two ways to fill it:
+ *   - `series`: points WE hold (the price of the last 30 days), 1-4 series of
+ *     at most 300 points, each `{ t: ISO date, v: number }`;
+ *   - `deviceFeatures` + `interval`: up to 4 of OUR features, whose history
+ *     the frontend loads from Gladys itself.
+ *
+ * @param {{ series?: Array<{ name?: unknown, points: Array<{ t: string, v: number }> }>,
+ *   deviceFeatures?: string[], interval?: string, chartType?: 'line'|'area'|'bar'|'stepline',
+ *   title?: unknown, unit?: unknown }} options
+ */
+export function chart({ series, deviceFeatures, interval, chartType = 'line', title, unit }) {
+  const component = compact({
+    type: 'chart',
+    chart_type: chartType,
+    title: boundedText(title, LIMITS.CHART_TITLE),
+    unit: boundedText(unit, LIMITS.UNIT),
+  });
+
+  if (deviceFeatures?.length) {
+    return {
+      ...component,
+      device_features: deviceFeatures.slice(0, LIMITS.CHART_SERIES),
+      interval,
+    };
+  }
+
+  const bounded = (series ?? [])
+    .slice(0, LIMITS.CHART_SERIES)
+    .map((one) =>
+      compact({
+        name: boundedText(one.name, LIMITS.SERIES_NAME),
+        points: (one.points ?? [])
+          .filter((point) => typeof point?.t === 'string' && Number.isFinite(point.v))
+          .slice(0, LIMITS.CHART_POINTS),
+      }),
+    )
+    .filter((one) => one.points.length > 0);
+
+  // A chart with no point is dropped by the core; returning null here lets the
+  // caller's budget go to something that has content.
+  return bounded.length === 0 ? null : { ...component, series: bounded };
 }
 
 /**

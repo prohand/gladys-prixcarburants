@@ -66,6 +66,7 @@ Three decisions worth knowing before reading the code:
 │  ├─ fuels.js                       # fuel catalog (stable keys + labels)
 │  ├─ geo.js                         # haversine distance / centroid
 │  ├─ stationStore.js                # cache + per-country batched refresh
+│  ├─ priceHistory.js                # 30-day samples of the cheapest price (/data)
 │  ├─ actions.js                     # the Configuration screen buttons
 │  ├─ widgets/
 │  │  ├─ index.js                    #   widget registry + SDK wiring
@@ -169,6 +170,16 @@ Three things shape the code:
 - **One pull path, one nudge.** The cards are built from the same station
   store as the devices, and a refresh pass that moved a price only sends
   `requestWidgetRefresh` — a "re-pull me" carrying no data.
+- **The curve is sampled, not fetched.** The feed publishes the prices of the
+  moment, so `src/priceHistory.js` records the cheapest price of the area at
+  most once an hour (on the searches the widget already does) and keeps 30 days
+  in `/data`. Best effort by design: an unwritable volume costs the curve and
+  nothing else, and the trend tile is absent rather than zero while the history
+  is younger than its window.
+- **Distances are measured from the postal code**, and the cards say so
+  (`2.3 km from 35000`, `within 10 km of 35000`): the integration host API
+  exposes no route to the Gladys house address, so nothing here can pretend to
+  measure from the user's door.
 
 > **Not releasable yet.** The `widgets` manifest field and the SDK handlers
 > come from [GladysAssistant/Gladys#3109](https://github.com/GladysAssistant/Gladys/pull/3109),

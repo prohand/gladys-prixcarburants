@@ -14,6 +14,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizeConfig } from '../src/config.js';
 import { createStationStore } from '../src/stationStore.js';
+import { createPriceHistory } from '../src/priceHistory.js';
 import { deviceExternalId } from '../src/devices/index.js';
 import {
   BUDGET,
@@ -37,10 +38,22 @@ import { EventEmitter } from 'node:events';
 
 const config = normalizeConfig({ postal_code: '35000', fuel_type: ['gazole', 'sp98'] });
 
-function contextWith(stations) {
+function contextWith(stations, { history } = {}) {
   const provider = createFakeProvider({ stations });
   const store = createStationStore({ resolveProvider: () => provider });
-  return { context: { config, store }, provider, store };
+  return { context: { config, store, history }, provider, store };
+}
+
+/** A price history driven by the test's own clock, written nowhere. */
+function historyWith(samples = []) {
+  let clock = Date.UTC(2026, 8, 19, 10);
+  const history = createPriceHistory({ file: '/etc/hostname/nope.json', now: () => clock });
+  for (const { daysAgo, price } of samples) {
+    clock = Date.UTC(2026, 8, 19, 10) - daysAgo * 24 * 60 * 60 * 1000;
+    history.record(config, [createStation({ prices: { gazole: price } })]);
+  }
+  clock = Date.UTC(2026, 8, 19, 10);
+  return history;
 }
 
 /**
@@ -138,18 +151,21 @@ test('the ranking sorts the stations by price and badges the cheapest', async ()
     language: 'fr',
   });
 
-  const [list] = componentsOfType(content, 'card-list');
+  const [ranking] = componentsOfType(content, 'status');
   assert.deepEqual(
-    list.items.map((item) => item.title),
+    ranking.items.map((item) => item.label),
     ['Cheap', 'Pricey'],
   );
-  assert.equal(list.items[0].badge.color, 'success');
-  assert.equal(list.items[1].badge, undefined);
-  assert.match(list.items[0].subtitle, /1,599 €\/L/, 'French reader, French separator');
+  assert.equal(ranking.items[0].color, 'success', 'the cheapest one stands out');
+  assert.equal(ranking.items[0].value, '1,599 €/L', 'French reader, French separator');
 
   const [cheapest, average] = componentsOfType(content, 'value');
   assert.equal(cheapest.value, 1.599);
   assert.equal(average.value, 1.749);
+
+  const [heading] = componentsOfType(content, 'text');
+  assert.equal(heading.variant, 'heading');
+  assert.equal(heading.text.fr, 'Gazole · 10 km autour du 35000', 'the area is named');
 });
 
 test('the ranking honours the number of stations asked for', async () => {
@@ -162,7 +178,7 @@ test('the ranking honours the number of stations asked for', async () => {
     settings: { fuel: 'gazole', count: '3' },
   });
 
-  assert.equal(componentsOfType(content, 'card-list')[0].items.length, 3);
+  assert.equal(componentsOfType(content, 'status')[0].items.length, 3);
 });
 
 test('a station with no price for the chosen fuel is left out of the ranking', async () => {
@@ -172,7 +188,7 @@ test('a station with no price for the chosen fuel is left out of the ranking', a
     settings: { fuel: 'gplc' },
   });
 
-  assert.equal(componentsOfType(content, 'card-list').length, 0);
+  assert.equal(componentsOfType(content, 'status').length, 0);
   assert.equal(componentsOfType(content, 'text').length, 1, 'an explanation, not an empty card');
 });
 
@@ -201,7 +217,7 @@ test('the "my stations" scope ranks the tracked stations only', async () => {
   });
 
   assert.deepEqual(
-    componentsOfType(content, 'card-list')[0].items.map((item) => item.title),
+    componentsOfType(content, 'status')[0].items.map((item) => item.label),
     ['Mine'],
   );
   assert.equal(provider.calls.search, 0, 'tracked stations are fetched by id, not searched');
@@ -415,4 +431,114 @@ test('a nudge sent while the socket is closed is dropped, never thrown', () => {
 
   assert.doesNotThrow(() => notifyWidgetsChanged(gladys));
   assert.deepEqual(socket.sent, []);
+});
+
+// --- The card of the mockup: curve, trend, read time -------------------------
+
+test('with enough history the card draws the curve and the 7-day trend', async () => {
+  const history = historyWith([
+    { daysAgo: 20, price: 1.8 },
+    { daysAgo: 8, price: 1.75 },
+    { daysAgo: 1, price: 1.72 },
+  ]);
+  const { context } = contextWith([createStation({ prices: { gazole: 1.72 } })], { history });
+
+  const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole' },
+    language: 'fr',
+  });
+
+  const [curve] = componentsOfType(content, 'chart');
+  assert.equal(curve.chart_type, 'area');
+  assert.equal(curve.title.fr, '30 derniers jours');
+  assert.equal(curve.unit, '€/L');
+  assert.ok(curve.series[0].points.length >= 3);
+
+  const trend = componentsOfType(content, 'value').find((tile) => tile.unit === 'ct');
+  assert.ok(trend, 'the trend tile is there once the window is covered');
+  assert.equal(trend.value, -3, '1,72 today against 1,75 a week ago');
+  assert.equal(trend.color, 'success', 'cheaper than last week is good news');
+
+  // The whole card still fits: heading, 3 tiles, caption, chart, status, map.
+  assert.ok(content.components.length <= BUDGET.COMPONENTS);
+  assert.equal(componentsOfType(content, 'status').length, 1, 'chart and list coexist');
+});
+
+test('a price that went up is shown as such', async () => {
+  const history = historyWith([
+    { daysAgo: 9, price: 1.65 },
+    { daysAgo: 0, price: 1.7 },
+  ]);
+  const { context } = contextWith([createStation({ prices: { gazole: 1.7 } })], { history });
+
+  const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole' },
+  });
+
+  const trend = componentsOfType(content, 'value').find((tile) => tile.unit === 'ct');
+  assert.equal(trend.value, 5);
+  assert.equal(trend.color, 'danger');
+  assert.equal(trend.icon, 'trending-up');
+});
+
+test('a fresh install has no curve, and spends the room on a refresh button', async () => {
+  const { context } = contextWith([createStation()], { history: historyWith() });
+
+  const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole' },
+  });
+
+  assert.equal(componentsOfType(content, 'chart').length, 0, 'one point is not a curve');
+  assert.equal(
+    componentsOfType(content, 'value').some((tile) => tile.unit === 'ct'),
+    false,
+    'no invented trend',
+  );
+  const actions = componentsOfType(content, 'button').filter((one) => one.action);
+  assert.equal(actions.length, 1, 'the freed budget goes to the refresh button');
+});
+
+test('the card says when the prices were read, and links to the official map', async () => {
+  const { context, store } = contextWith([createStation()]);
+  await store.search(config);
+
+  const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole' },
+  });
+
+  const caption = componentsOfType(content, 'text').find((one) => one.variant === 'caption');
+  assert.match(caption.text.fr, /^Prix relevés le \d{2}\/\d{2}\/\d{4} à \d{2}:\d{2}$/);
+
+  const link = componentsOfType(content, 'button').find((one) => one.link);
+  assert.match(link.link.url, /^https:\/\/www\.prix-carburants\.gouv\.fr/);
+});
+
+test('a widget pull feeds the history, so the curve builds itself', async () => {
+  const history = historyWith();
+  const { context } = contextWith([createStation({ prices: { gazole: 1.61 } })], { history });
+
+  await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole', scope: 'around' },
+  });
+
+  assert.equal(history.dailySeries(config, 'gazole').length, 1);
+});
+
+test('the station card names what the distance is measured from', async () => {
+  const { context } = contextWith([createStation()]);
+  const gladys = createFakeGladys();
+
+  const content = await getWidgetContent(gladys, context, 'station', {
+    settings: {
+      device: deviceExternalId(gladys, { country: 'FR', stationId: '35000001', fuel: 'gazole' }),
+    },
+  });
+
+  const rows = componentsOfType(content, 'status')[0].items;
+  const distance = rows.find((row) => row.label.fr === 'Distance');
+  assert.equal(distance.value.fr, '1,2 km du 35000');
+  assert.ok(
+    rows.some((row) => row.value === '06/08/2026 à 07:12'),
+    'the last price update stays on the card',
+  );
 });

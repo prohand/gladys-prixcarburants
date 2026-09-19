@@ -103,6 +103,9 @@ export const france = {
     en: 'Data: prix-carburants.gouv.fr open data (Etalab licence).',
     fr: 'Données : open data prix-carburants.gouv.fr (licence Etalab).',
   },
+  // The official national map, offered as a link at the bottom of the
+  // "cheapest around me" widget: the card ranks, the map locates.
+  mapUrl: 'https://www.prix-carburants.gouv.fr/',
 
   isValidPostalCode(postalCode) {
     return POSTAL_CODE_PATTERN.test(String(postalCode ?? '').trim());

@@ -122,18 +122,38 @@ carte dans la liste, section « Prix carburants »).
 
 ### « Les moins chers »
 
-Le classement des stations pour **un carburant** que vous choisissez :
+La carte répond à trois questions d'un coup : où faire le plein, est-ce le bon
+jour, et combien ça coûte.
 
-- le **prix le moins cher** et la **moyenne** en tuiles, parce qu'un prix ne
-  veut rien dire tout seul ;
-- la liste des stations, de la moins chère à la plus chère, avec leur
-  **distance**, leur prix et la date à laquelle la station l'a déclaré ;
-- un appui sur une station ouvre son adresse et un lien **Itinéraire**.
+- **Titre** : le carburant et la zone — `Gazole · 10 km autour du 35000`.
+- **Trois tuiles** : le prix le moins cher, la moyenne des stations trouvées, et
+  la **tendance sur 7 jours** en centimes (vert si ça baisse, rouge si ça monte).
+- **L'heure du relevé** : `Prix relevés le 19/09/2026 à 10:30`, parce qu'un prix
+  ne vaut que par le moment où il a été lu.
+- **La courbe des 30 derniers jours** du prix le moins cher de la zone.
+- **Le classement** des stations avec leur prix, la moins chère en vert.
+- Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
 
-Trois réglages : le carburant, le nombre de stations affichées (3, 5 ou 8) et
-le périmètre — **autour de votre code postal** (l'intégration cherche, comme
-pour l'onglet Découverte) ou **vos stations seulement** (celles que vous avez
+Trois réglages : le carburant, le nombre de stations affichées (3, 5 ou 8) et le
+périmètre — **autour de votre code postal** (l'intégration cherche, comme pour
+l'onglet Découverte) ou **vos stations seulement** (celles que vous avez
 ajoutées).
+
+#### D'où vient la courbe
+
+Le flux open data publie les prix de l'instant, pas ceux d'hier : personne ne
+stocke « le prix le moins cher de votre zone ». L'intégration le relève donc
+elle-même, **au maximum une fois par heure**, à chaque fois que la carte se
+rafraîchit, et garde 30 jours dans `/data`. Conséquences à connaître :
+
+- une installation neuve n'a **ni courbe ni tendance** : elles apparaissent au
+  fur et à mesure (la tendance après 7 jours) ;
+- les relevés se font quand un tableau de bord affiche la carte — si personne ne
+  la regarde pendant une semaine, il n'y a pas de point pour cette semaine ;
+- changer de code postal ou de rayon **repart d'une courbe vierge**, puisque ce
+  n'est plus la même zone ;
+- si `/data` n'est pas accessible en écriture, tout continue de fonctionner :
+  seule la courbe repart de zéro au redémarrage.
 
 ### « Ma station »
 
@@ -149,6 +169,13 @@ Les carburants que vous suivez déjà (ceux qui ont un appareil) sont affichés
 **en direct** : la tuile bouge dès que l'intégration publie un nouveau prix,
 sans attendre le rafraîchissement de la carte. Les autres carburants de la
 station affichent la valeur lue dans le flux.
+
+#### La distance est mesurée depuis le code postal
+
+Elle s'affiche sous la forme `2,3 km du 35000`, et c'est littéral : une
+intégration externe **n'a pas accès à l'adresse de votre maison** dans Gladys
+(l'API ne l'expose pas). Le point de référence est donc le centre de la zone du
+code postal configuré, jamais votre porte.
 
 > Les widgets demandent une version de Gladys qui sait les afficher. Sur une
 > version plus ancienne, les appareils et l'onglet Découverte fonctionnent

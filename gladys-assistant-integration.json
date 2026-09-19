@@ -213,8 +213,8 @@
         "fr": "Les moins chers"
       },
       "description": {
-        "en": "The cheapest stations for one fuel, with their distance.",
-        "fr": "Les stations les moins chères pour un carburant, avec leur distance."
+        "en": "The cheapest stations for one fuel, with the trend of the last 30 days.",
+        "fr": "Les stations les moins chères pour un carburant, avec la tendance sur 30 jours."
       },
       "icon": "trending-down",
       "settings": [

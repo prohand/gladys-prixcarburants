@@ -74,9 +74,9 @@ export const DECLARATION = {
  * @param {object} gladys SDK instance — used to forge feature external ids and
  *   to know which fuels of the station have a device
  * @param {{ config: object, store: object }} context
- * @param {{ settings?: object, language?: string }} request
+ * @param {{ settings?: object }} request
  */
-export async function getContent(gladys, { config, store }, { settings, language = 'en' } = {}) {
+export async function getContent(gladys, { config, store }, { settings } = {}) {
   const target = parseDeviceExternalId(settings?.device);
 
   if (!target) {
@@ -118,7 +118,7 @@ export async function getContent(gladys, { config, store }, { settings, language
       ...fuels
         .slice(0, MAX_TILES)
         .map((fuel) => buildTile(gladys, { station, target, fuel, tracked })),
-      statusList(buildRows(station, { target, language })),
+      statusList(buildRows(station, { target, postalCode: config.postal_code })),
       url
         ? button({
             label: { en: 'Directions', fr: 'Itinéraire' },
@@ -188,7 +188,7 @@ function buildTile(gladys, { station, target, fuel, tracked }) {
 }
 
 /** The rows under the tiles: where the station is, and how old its prices are. */
-function buildRows(station, { target, language }) {
+function buildRows(station, { target, postalCode }) {
   const rows = [];
   if (station.brand) {
     rows.push({ label: { en: 'Brand', fr: 'Marque' }, value: station.brand });
@@ -198,9 +198,17 @@ function buildRows(station, { target, language }) {
     rows.push({ label: { en: 'Address', fr: 'Adresse' }, value: address });
   }
   if (Number.isFinite(station.distanceKm)) {
+    // Say WHERE it is measured from. An integration cannot read the address of
+    // the Gladys house (the host API exposes no such route — only a weather
+    // provider is handed coordinates, and only for the weather), so every
+    // distance here is measured from the configured POSTAL CODE. Writing
+    // "2,3 km" alone would let the reader assume it is from their door.
     rows.push({
       label: { en: 'Distance', fr: 'Distance' },
-      value: formatDistance(station.distanceKm, language),
+      value: {
+        en: `${formatDistance(station.distanceKm, 'en')} from ${postalCode}`,
+        fr: `${formatDistance(station.distanceKm, 'fr')} du ${postalCode}`,
+      },
     });
   }
   // The date the station declared the price of the fuel the widget is bound to.

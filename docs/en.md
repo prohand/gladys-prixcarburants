@@ -114,17 +114,37 @@ carburants").
 
 ### "Cheapest around me"
 
-The ranking of the stations for **one fuel** you choose:
+The card answers three questions at once: where to fill up, is this a good day,
+and how much will it cost.
 
-- the **cheapest** price and the **average** as tiles, because a price means
-  nothing on its own;
-- the stations, cheapest first, with their **distance**, their price and the
-  date the station declared it;
-- tapping a station opens its address and a **Directions** link.
+- **Heading**: the fuel and the area — `Diesel · within 10 km of 35000`.
+- **Three tiles**: the cheapest price, the average of the stations found, and
+  the **7-day trend** in cents (green when it drops, red when it climbs).
+- **The read time**: `Prices read on 19/09/2026 at 10:30`, because a price is
+  only as good as the moment it was read.
+- **The 30-day curve** of the cheapest price of the area.
+- **The ranking** of the stations with their price, the cheapest one in green.
+- A button to the **official map** (prix-carburants.gouv.fr).
 
 Three settings: the fuel, how many stations are shown (3, 5 or 8) and the
 scope — **around your postal code** (the integration searches, as it does for
 the Discovery tab) or **my stations only** (the ones you added).
+
+#### Where the curve comes from
+
+The open data feed publishes the prices of the moment, not yesterday's: nobody
+stores "the cheapest price of your area". So the integration samples it itself,
+**at most once an hour**, every time the card refreshes, and keeps 30 days in
+`/data`. What follows from that:
+
+- a fresh install has **no curve and no trend**: they build up over time (the
+  trend after 7 days);
+- samples are taken while a dashboard shows the card — if nobody looks at it
+  for a week, that week has no point;
+- changing the postal code or the radius **starts a new curve**, since it is no
+  longer the same area;
+- if `/data` is not writable, everything keeps working: only the curve starts
+  over after a restart.
 
 ### "My station"
 
@@ -138,6 +158,13 @@ The fuels you already follow (the ones with a device) are shown **live**: the
 tile moves as soon as the integration publishes a new price, without waiting
 for the card to refresh. The other fuels of the station show the value read
 from the feed.
+
+#### The distance is measured from the postal code
+
+It reads `2.3 km from 35000`, and that is literal: an external integration
+**has no access to the address of your Gladys house** (the host API exposes no
+such route). The reference point is the centre of the configured postal code
+area, never your front door.
 
 > Widgets need a Gladys version able to render them. On an older version the
 > devices and the Discovery tab work as usual: only the cards are missing from

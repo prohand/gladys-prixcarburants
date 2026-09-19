@@ -2,28 +2,31 @@
 // Widget: "Cheapest around me"
 //
 // The question this integration exists to answer, on the dashboard instead of
-// in a device list: where do I fill up today, and how much will it cost?
+// in a device list: where do I fill up today, is it a good day to do it, and
+// how much will it cost?
 //
-// One card: the cheapest price as a tile, the average next to it (a price only
-// means something compared to the others), then the ranking of the stations
-// with their distance and the date they declared that price. Tapping a station
-// opens the core's detail panel with its address and a navigation link.
+// The card, slot by slot (the core imposes the order, we choose the content):
+//   heading   SP95 · within 10 km of 35000        — the fuel AND the area, because
+//                                                   a price without its area means nothing
+//   tiles     cheapest / average / 7-day trend    — the three numbers of a decision
+//   caption   prices read on 19/09/2026 at 10:30  — how old what you read is
+//   chart     the last 30 days of the cheapest price
+//   status    the ranked stations and their price
+//   buttons   the official national map
 //
-// The ranking is built from the SAME station store as the devices, so opening a
-// dashboard costs at most one open data request per TTL, shared with whatever
-// the refresh loop was already doing.
+// The curve and the trend come from `src/priceHistory.js`: the open data feed
+// publishes the prices of the moment, so the integration samples the cheapest
+// price of the area itself, at most once an hour. A fresh install has no
+// history yet — the card then simply shows the tiles and the ranking, and the
+// budget it frees goes to a "Refresh" button.
 // -----------------------------------------------------------------------------
 
 import { isConfigReady } from '../config.js';
 import { FUELS, FUEL_KEYS, fuelLabel } from '../fuels.js';
-import { COLOR, buildContent, button, cardList, text, valueTile } from './content.js';
-import {
-  PRICE_UNIT,
-  directionsUrl,
-  formatDistance,
-  formatPrice,
-  stationAddress,
-} from './format.js';
+import { getProvider } from '../countries/index.js';
+import { formatInstant } from '../text.js';
+import { COLOR, buildContent, button, chart, statusList, text, valueTile } from './content.js';
+import { PRICE_UNIT, formatPrice } from './format.js';
 
 export const KEY = 'best_prices';
 
@@ -37,6 +40,9 @@ const SCOPE = { AROUND: 'around', TRACKED: 'tracked' };
 const COUNTS = ['3', '5', '8'];
 const DEFAULT_COUNT = '5';
 
+/** The window the trend tile compares over. */
+const TREND_DAYS = 7;
+
 /**
  * Manifest declaration. Mirrored in `gladys-assistant-integration.json` and
  * checked both ways by test/manifest.test.js — this object is the source.
@@ -45,8 +51,8 @@ export const DECLARATION = {
   key: KEY,
   label: { en: 'Cheapest around me', fr: 'Les moins chers' },
   description: {
-    en: 'The cheapest stations for one fuel, with their distance.',
-    fr: 'Les stations les moins chères pour un carburant, avec leur distance.',
+    en: 'The cheapest stations for one fuel, with the trend of the last 30 days.',
+    fr: 'Les stations les moins chères pour un carburant, avec la tendance sur 30 jours.',
   },
   icon: 'trending-down',
   settings: [
@@ -109,29 +115,60 @@ function readSettings(settings = {}, config) {
 
 /**
  * The stations this card ranks, freshest state first.
- * @param {{ config: object, store: object }} context
+ * @param {{ config: object, store: object, history?: object }} context
  * @param {string} scope
  */
-async function collectStations({ config, store }, scope) {
+async function collectStations({ config, store, history }, scope) {
   if (scope === SCOPE.TRACKED) {
     const tracked = store.trackedStations;
+    // `getStation` shares one batched request per country, so N stations cost
+    // one call whatever N is.
     const stations = await Promise.all(
-      // `getStation` shares one batched request per country, so N stations cost
-      // one call whatever N is.
       tracked.map(({ country, stationId }) => store.getStation(country, stationId)),
     );
     return stations.filter(Boolean);
   }
-  return store.search(config);
+
+  const stations = await store.search(config);
+  // A search is the only moment the integration sees the WHOLE area, so it is
+  // the only moment worth sampling for the curve. It costs nothing: the
+  // stations are already in hand.
+  history?.record(config, stations);
+  return stations;
+}
+
+/**
+ * The heading: the fuel, and where these prices come from.
+ *
+ * Saying the area out loud matters more than it looks — the distances of this
+ * integration are measured from the POSTAL CODE, not from the house Gladys
+ * knows (an integration has no access to it), so the card names its own
+ * reference point rather than letting the reader assume another one.
+ */
+function buildHeading({ config, scope, label }) {
+  if (scope === SCOPE.TRACKED) {
+    return { en: `${label.en} · my stations`, fr: `${label.fr} · mes stations` };
+  }
+  if (config.search_radius_km > 0) {
+    return {
+      en: `${label.en} · within ${config.search_radius_km} km of ${config.postal_code}`,
+      fr: `${label.fr} · ${config.search_radius_km} km autour du ${config.postal_code}`,
+    };
+  }
+  return {
+    en: `${label.en} · postal code ${config.postal_code}`,
+    fr: `${label.fr} · code postal ${config.postal_code}`,
+  };
 }
 
 /**
  * Build the card.
  * @param {object} _gladys SDK instance (unused: this card reads no device)
- * @param {{ config: object, store: object }} context
+ * @param {{ config: object, store: object, history?: object }} context
  * @param {{ settings?: object, language?: string }} request
  */
-export async function getContent(_gladys, { config, store }, { settings, language = 'en' } = {}) {
+export async function getContent(_gladys, context, { settings, language = 'en' } = {}) {
+  const { config, store, history } = context;
   const { fuel, scope, count } = readSettings(settings, config);
 
   if (!isConfigReady(config)) {
@@ -144,18 +181,16 @@ export async function getContent(_gladys, { config, store }, { settings, languag
           },
         }),
       ],
-      // Nothing will change until the user edits the configuration: no point
-      // pulling every ten minutes.
       { ttlSeconds: TTL_SECONDS },
     );
   }
 
-  const stations = (await collectStations({ config, store }, scope))
+  const stations = (await collectStations(context, scope))
     .filter((station) => Number.isFinite(station.prices?.[fuel]))
     .sort((a, b) => a.prices[fuel] - b.prices[fuel]);
 
-  // Every text we send carries both languages and the core picks: `language`
-  // only decides the separators of the numbers we format ourselves.
+  // Every text carries both languages and the core picks the reader's own:
+  // `language` only decides the separators of the numbers we format ourselves.
   const label = { en: fuelLabel(fuel, 'en'), fr: fuelLabel(fuel, 'fr') };
 
   if (stations.length === 0) {
@@ -181,27 +216,18 @@ export async function getContent(_gladys, { config, store }, { settings, languag
   const prices = stations.map((station) => station.prices[fuel]);
   const cheapest = prices[0];
   const average = prices.reduce((sum, price) => sum + price, 0) / prices.length;
-  const ranked = stations.slice(0, count);
+  const readAt = formatInstant(store.lastFetchAt);
+  const mapUrl = getProvider(config.country).mapUrl;
+  const curve = buildChart(history, { config, fuel, label });
 
   return buildContent(
     [
-      text({
-        variant: 'caption',
-        text: {
-          en:
-            scope === SCOPE.TRACKED
-              ? `${label.en} · my stations`
-              : `${label.en} · around ${config.postal_code}`,
-          fr:
-            scope === SCOPE.TRACKED
-              ? `${label.fr} · mes stations`
-              : `${label.fr} · autour de ${config.postal_code}`,
-        },
-      }),
+      text({ variant: 'heading', text: buildHeading({ config, scope, label }) }),
       valueTile({
-        label: { en: 'Cheapest', fr: 'Le moins cher' },
+        label: { en: 'Cheapest', fr: 'Moins cher' },
         value: cheapest,
         unit: PRICE_UNIT,
+        icon: 'trending-down',
         color: COLOR.SUCCESS,
       }),
       valueTile({
@@ -210,42 +236,87 @@ export async function getContent(_gladys, { config, store }, { settings, languag
         // .699 is not more precise than the prices it averages.
         value: Number(average.toFixed(3)),
         unit: PRICE_UNIT,
+        icon: 'bar-chart-2',
       }),
-      cardList({
-        display: 'list',
-        items: ranked.map((station, index) => buildItem(station, { fuel, index, language })),
-      }),
-      button({
-        label: { en: 'Refresh', fr: 'Rafraîchir' },
-        icon: 'refresh-cw',
-        action: { key: 'refresh' },
-      }),
+      buildTrendTile(history, { config, fuel }),
+      // The read time, kept in plain sight: a price is only as good as the
+      // moment it was read, and this is the one date every card shares.
+      readAt
+        ? text({
+            variant: 'caption',
+            text: { en: `Prices read on ${readAt}`, fr: `Prix relevés le ${readAt}` },
+          })
+        : null,
+      curve,
+      statusList(
+        stations.slice(0, count).map((station, index) => ({
+          label: station.name,
+          value: `${formatPrice(station.prices[fuel], language)} ${PRICE_UNIT}`,
+          icon: 'map-pin',
+          // The cheapest one is the answer to the question; the others are the
+          // context that makes it an answer.
+          color: index === 0 ? COLOR.SUCCESS : COLOR.NEUTRAL,
+        })),
+      ),
+      mapUrl
+        ? button({
+            label: { en: 'See the map', fr: 'Voir la carte' },
+            icon: 'map',
+            link: { url: mapUrl },
+          })
+        : null,
+      // Only while there is no curve: with one, the eight components of the
+      // budget are spent and the card is better off keeping the map than a
+      // button the core makes redundant by re-pulling on its own.
+      curve
+        ? null
+        : button({
+            label: { en: 'Refresh', fr: 'Rafraîchir' },
+            icon: 'refresh-cw',
+            action: { key: 'refresh' },
+          }),
     ],
     { ttlSeconds: TTL_SECONDS },
   );
 }
 
 /**
- * One row of the ranking. The subtitle carries what decides a stop — price and
- * distance — and the detail panel (opened on tap) the address and the road.
+ * The trend tile: how much the cheapest price moved over the last week, in
+ * CENTIMES, which is the unit a driver actually feels (a price moves by 2 cts,
+ * not by 0.021 EUR).
+ *
+ * Absent — not zeroed — while the history is younger than the window: a card
+ * that claims "0 over 7 days" on its first day is a card that lies.
  */
-function buildItem(station, { fuel, index, language }) {
-  const price = station.prices[fuel];
-  const distance = formatDistance(station.distanceKm, language);
-  const subtitleParts = [`${formatPrice(price, language)} ${PRICE_UNIT}`, distance].filter(Boolean);
-  const url = directionsUrl(station);
+function buildTrendTile(history, { config, fuel }) {
+  const trend = history?.trend(config, fuel, TREND_DAYS);
+  if (trend === null || trend === undefined) {
+    return null;
+  }
+  const cents = Number((trend * 100).toFixed(1));
+  return valueTile({
+    label: { en: `Over ${TREND_DAYS} days`, fr: `Sur ${TREND_DAYS} jours` },
+    value: cents,
+    unit: 'ct',
+    icon: cents > 0 ? 'trending-up' : 'trending-down',
+    // Cheaper than last week is good news, and the colour says it before the
+    // number is read.
+    color: cents > 0 ? COLOR.DANGER : cents < 0 ? COLOR.SUCCESS : COLOR.NEUTRAL,
+  });
+}
 
-  return {
-    title: station.name,
-    subtitle: subtitleParts.join(' · '),
-    // The date the STATION declared that price, left ISO so the core renders it
-    // in the reader's locale and timezone.
-    date: station.updatedAt?.[fuel],
-    badge:
-      index === 0
-        ? { text: { en: 'Cheapest', fr: 'Moins cher' }, color: COLOR.SUCCESS }
-        : undefined,
-    description: stationAddress(station),
-    links: url ? [{ url, label: { en: 'Directions', fr: 'Itinéraire' } }] : undefined,
-  };
+/** The 30-day curve of the cheapest price, when enough days were sampled. */
+function buildChart(history, { config, fuel, label }) {
+  const points = history?.dailySeries(config, fuel) ?? [];
+  if (points.length < 2) {
+    // One point is not a curve: the card keeps its budget for the ranking and
+    // the refresh button until the history has something to draw.
+    return null;
+  }
+  return chart({
+    chartType: 'area',
+    title: { en: 'Last 30 days', fr: '30 derniers jours' },
+    unit: PRICE_UNIT,
+    series: [{ name: label, points }],
+  });
 }

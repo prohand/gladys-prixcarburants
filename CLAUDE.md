@@ -45,6 +45,7 @@ use the helpers in `test/helpers/fakeGladys.js`.
 config (country, postal code, radius, fuels)
    → country provider   src/countries/<code>.js   stations + prices from open data
    → station store      src/stationStore.js       cache + per-country batched refresh
+   → price history      src/priceHistory.js       30-day samples of the cheapest price
    → device registry    src/devices/              one device per (station, fuel)
    → Discovery tab / refresh loop  src/refresh.js
    → dashboard widgets  src/widgets/             two declarative cards
@@ -105,6 +106,20 @@ fuel) and `station` (one followed station, a price tile per fuel).
   the spec's own limits (characters per field, 8 components, 1 focal, 6 tiles, 2 texts,
   1 status, 4 buttons) on our side and `test/widgets.test.js` asserts them — a violation must
   fail a test, not leave a hole in someone's dashboard.
+- **`status` is NOT a focal component.** The core's `FOCAL_TYPES` is
+  `['chart', 'card-list', 'image']` and `status` has a budget of its own, so a card may carry
+  a chart AND the list under it — which is what `best_prices` does.
+- **The 30-day curve and the 7-day trend come from our own samples** (`src/priceHistory.js`):
+  no device holds "the cheapest price of the area", and the feed publishes the present only.
+  Samples are taken on the searches the widget already runs, at most one an hour, kept 30 days
+  in `/data`, keyed by country + postal code + radius + fuel so moving the area starts a new
+  curve. Best effort: an unwritable `/data` costs the curve, never the integration, and the
+  trend tile is ABSENT rather than zero while the history is younger than its window — the one
+  exception to "no state that must survive a restart", and it is additive by construction.
+- **Distances are measured from the POSTAL CODE, never from the house**: the integration host
+  API (`/api/integration/v1`) exposes no house route — only a weather provider is handed
+  coordinates, for the weather. Both cards say the reference point out loud
+  (`2,3 km du 35000`, `10 km autour du 35000`); do not let a redesign drop it.
 - **A fuel with a device is published as a `device_feature` reference, not a value**: the
   dashboard then follows the feature over the WebSocket and the tile moves as soon as the
   refresh loop publishes a price. A fuel without a device carries the value read from the feed.
@@ -127,7 +142,8 @@ fuel) and `station` (one followed station, a price tile per fuel).
 ### Country providers
 
 Price open data is national, so each country is a module in `src/countries/` exporting
-`code`, `label`, `postalCodeExample`, `fuels`, `attribution`, `isValidPostalCode()`,
+`code`, `label`, `postalCodeExample`, `fuels`, `attribution`, optional `mapUrl`
+(the national map, linked from the widget), `isValidPostalCode()`,
 `searchStations({ postalCode, radiusKm, limit })` and `fetchStationsByIds(ids)`. Register it
 in `src/countries/index.js` and add its option to the manifest `country` field — nothing else
 changes, since device ids already carry the country code.
@@ -168,5 +184,7 @@ behaviour changes.
 
 The Gladys sandbox mounts the rootfs **read-only** with `/data` as the only writable volume,
 and the container runs as a non-root user. Do not write files outside `/data`, and do not
-introduce state that needs to survive a restart — the store rebuilds itself from the devices
-Gladys holds on every `connected`.
+introduce state the integration NEEDS to survive a restart — the store rebuilds itself from
+the devices Gladys holds on every `connected`. `src/priceHistory.js` is the only file written,
+and it is additive: everything works without it, it only makes the widget curve survive a
+restart.
