@@ -10,9 +10,8 @@
   "docker_image": "ghcr.io/prohand/gladys-prixcarburants:1.0.4",
   "gladys_version": ">=4.86.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-prixcarburants/main/cover.png",
-  "categories": [
-    "energy"
-  ],
+  "categories": ["energy"],
+  "transports": ["cloud"],
   "config_schema": [
     {
       "key": "intro",
@@ -106,13 +105,11 @@
         "fr": "Type de carburant"
       },
       "description": {
-        "en": "One device is offered per station AND per selected fuel, so you can follow several fuels at the same station.",
-        "fr": "Un appareil est proposé par station ET par carburant sélectionné, ce qui permet de suivre plusieurs carburants dans la même station."
+        "en": "One device is offered per station AND per selected fuel, so you can follow several fuels at the same station. A station only appears for the fuels it actually sells: many stations (TotalEnergies in particular) replaced SP95 with E10 (SP95-E10), so tick E10 if the SP95 of your station is nowhere to be found.",
+        "fr": "Un appareil est proposé par station ET par carburant sélectionné, ce qui permet de suivre plusieurs carburants dans la même station. Une station n'apparaît que pour les carburants qu'elle vend vraiment : beaucoup de stations (TotalEnergies notamment) ont remplacé le SP95 par le E10 (SP95-E10), cochez donc E10 si le SP95 de votre station reste introuvable."
       },
       "required": true,
-      "default": [
-        "gazole"
-      ],
+      "default": ["gazole"],
       "options": [
         {
           "value": "gazole",
