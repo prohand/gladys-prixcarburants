@@ -37,6 +37,35 @@ test('search_stations lists the stations it found with their price', async () =>
   assert.match(message.en, /Diesel: 1\.699 EUR\/L/);
 });
 
+test('search_stations says a fuel is not sold instead of drawing a dash', async () => {
+  // The helper station is the very case users report as a bug: a TotalEnergies
+  // selling SP98 and E10 but no SP95. No device can be offered for its SP95, so
+  // the preview must say WHY, in both languages.
+  const { store } = storeWith([createStation()]);
+  const message = await searchStations(createFakeGladys(), {
+    config: normalizeConfig({ postal_code: '35000', fuel_type: ['sp95', 'sp98'] }),
+    store,
+  });
+
+  assert.match(message.en, /SP95: not sold/);
+  assert.match(message.fr, /SP95 : non vendu/);
+  assert.match(message.en, /SP98: 1\.879 EUR\/L/);
+  assert.match(message.en, /None of these stations sells SP95\./);
+  assert.match(message.en, /SP95 is being replaced by E10/);
+  assert.match(message.fr, /cochez E10/);
+});
+
+test('search_stations stays quiet about a fuel at least one station sells', async () => {
+  const { store } = storeWith([createStation()]);
+  const message = await searchStations(createFakeGladys(), {
+    config: normalizeConfig({ postal_code: '35000', fuel_type: ['sp98'] }),
+    store,
+  });
+
+  assert.doesNotMatch(message.en, /None of these stations sells/);
+  assert.doesNotMatch(message.fr, /Aucune de ces stations/);
+});
+
 test('search_stations suggests a wider radius when nothing is found', async () => {
   const { store } = storeWith([]);
   const message = await searchStations(createFakeGladys(), { config, store });

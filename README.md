@@ -132,6 +132,17 @@ only exists since Gladys 4.86, and an older core rejects a manifest carrying
 unknown fields: `categories` and `"gladys_version": ">=4.86.0"` therefore move
 together, which `test/manifest.test.js` checks.
 
+## Local / Cloud tag
+
+The manifest declares `"transports": ["cloud"]`. The catalog reads that field
+to draw the **Local** / **Cloud** tag on the integration card and to answer the
+matching facet of the store: without it the card carries no tag at all
+([issue 10](https://github.com/prohand/gladys-prixcarburants/issues/10)). Every price here comes from a national open data
+API over the internet, so `cloud` is the whole truth — declaring `local` as
+well would add the core's "Prefer local (LAN) connection" toggle to a
+configuration screen where it would mean nothing. `test/manifest.test.js`
+pins it.
+
 ## Validate before publishing
 
 ```bash

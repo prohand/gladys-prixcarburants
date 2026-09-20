@@ -124,6 +124,16 @@ test('the catalog categories stay within what Gladys knows, and require 4.86', (
   );
 });
 
+test('the manifest declares the transport the integration really uses', () => {
+  // The Local/Cloud tag of the store catalog is read from this field: without
+  // it the card carries neither, and the "Cloud" facet of the catalog does not
+  // list the integration. Every price comes from a national open data API over
+  // the internet, so `cloud` is the whole truth here — declaring `local` too
+  // would add the core's "Prefer local (LAN) connection" toggle to a config
+  // screen where it means nothing.
+  assert.deepEqual(manifest.transports, ['cloud']);
+});
+
 test('section fields are purely presentational', () => {
   const sections = manifest.config_schema.filter((f) => f.type === 'section');
   assert.ok(sections.length > 0);

@@ -136,6 +136,13 @@ consultez les logs de l'intégration, qui indiquent les stations manquantes.
 L'intégration conserve alors la dernière valeur connue plutôt que de trouer la
 courbe.
 
+**Le SP95 d'une station n'apparaît pas, contrairement au SP98.** C'est la
+station qui ne vend pas de SP95, pas un bug : beaucoup d'enseignes
+(TotalEnergies en particulier) l'ont remplacé par le **E10 (SP95-E10)**.
+Cochez E10 dans la configuration et la station réapparaîtra dans l'onglet
+Découverte. Le bouton **Prévisualiser les stations proches** le dit
+station par station : « SP95 : non vendu ».
+
 **Nombre de stations limité.** Le réglage **Nombre maximum de stations** borne
 la liste de découverte (20 par défaut, 50 au maximum). En ville dense,
 baissez-le et réduisez le rayon.

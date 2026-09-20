@@ -71,6 +71,13 @@ jobs:
             gladys-assistant-integration.json > "$tmp"
           mv "$tmp" gladys-assistant-integration.json
 
+          # jq reprints the WHOLE file with its own style (a short array is
+          # exploded over three lines), which leaves the manifest failing the
+          # `format:check` gate of CI on the release commit itself. Hand it back
+          # to Prettier so the released tree is the one CI accepts.
+          npm ci --ignore-scripts
+          npx prettier --write gladys-assistant-integration.json
+
           echo "version=${new_version}" >> "$GITHUB_OUTPUT"
 
       # Note: if the branch you release from is protected against direct pushes,

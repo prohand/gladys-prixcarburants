@@ -126,6 +126,12 @@ the integration logs list the missing stations.
 **An empty price.** The station is not declaring that fuel right now. The
 integration keeps the last known value instead of leaving a hole in the chart.
 
+**The SP95 of a station is missing while its SP98 is there.** That station
+does not sell SP95, and it is not a bug: many brands (TotalEnergies in
+particular) replaced it with **E10 (SP95-E10)**. Tick E10 in the configuration
+and the station comes back in the Discovery tab. The **Preview the nearby
+stations** button spells it out station by station: "SP95: not sold".
+
 **Limited number of stations.** The **Maximum number of stations** setting
 bounds the discovery list (20 by default, 50 max). In a dense city, lower it
 and shrink the radius.
