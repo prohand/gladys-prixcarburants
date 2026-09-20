@@ -28,6 +28,7 @@ import {
 } from './src/devices/index.js';
 import { createRefreshLoop } from './src/refresh.js';
 import { createSceneEvents } from './src/sceneEvents.js';
+import { registerSceneActions } from './src/sceneActions.js';
 import { ACTIONS } from './src/actions.js';
 
 const gladys = new GladysIntegration();
@@ -120,6 +121,12 @@ gladys.onDeviceDeleted(async (device) => {
 for (const [actionKey, handler] of Object.entries(ACTIONS)) {
   gladys.onAction(actionKey, () => handler(gladys, { config, store, sceneEvents }));
 }
+
+// --- Scene actions: what a scene can ask the integration to do ---------------
+// Same preview as the triggers above (`scene_actions` in the manifest). The
+// context is a FUNCTION so a handler always reads the configuration in force
+// at the moment the scene runs, not the one this module saw at startup.
+registerSceneActions(gladys, { context: () => ({ config, store, sceneEvents }) });
 
 // --- Configuration updated by the user ---------------------------------------
 gladys.onConfigUpdated(async (newConfig) => {

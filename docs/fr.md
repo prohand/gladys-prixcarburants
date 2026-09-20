@@ -153,6 +153,35 @@ Pour un simple seuil (« préviens-moi sous 1,70 € »), n'utilisez pas ces
 déclencheurs : le déclencheur **Un appareil change d'état** de Gladys, sur la
 donnée « prix » de la station, fait déjà exactement ça.
 
+## Actions de scènes
+
+Toujours dans la catégorie **Intégrations**, l'intégration ajoute trois actions
+utilisables dans une scène.
+
+| Action                                 | Ce qu'elle fait                                                                   |
+| -------------------------------------- | --------------------------------------------------------------------------------- |
+| **Rafraîchir les prix des carburants** | lit le flux maintenant, pour que la suite de la scène travaille sur un prix frais |
+| **Trouver la station la moins chère**  | compare vos stations pour un carburant et renvoie la moins chère                  |
+| **Préparer un résumé des prix**        | la même comparaison sous forme d'une ligne de texte prête à envoyer               |
+
+Les résultats d'une action sont réutilisables dans les étapes suivantes de la
+scène (prix, nom de la station, ville, adresse, distance, date du prix…).
+
+Exemple de scène, tous les matins à 7 h :
+
+1. **Trouver la station la moins chère** (carburant : Gazole, lire les prix
+   avant de comparer : oui) ;
+2. **Continuer seulement si** le résultat `found` est vrai ;
+3. **Envoyer un message** : « Le plein le moins cher : {{ nom de la station }} à
+   {{ prix }} €/L ».
+
+Ou plus court, en une seule étape : **Préparer un résumé des prix**, puis
+envoyer le texte obtenu.
+
+Bon à savoir : « Trouver la station la moins chère » ne fait jamais échouer la
+scène quand vous ne suivez aucune station pour ce carburant — elle répond
+`found = false`, et c'est à vous de tester ce résultat.
+
 ## Dépannage
 
 **Aucune station dans l'onglet Découverte.** Vérifiez le code postal (5

@@ -142,6 +142,33 @@ For a plain threshold ("warn me below 1.70"), do not use these triggers: the
 Gladys **A device changes state** trigger on the station's price feature
 already does exactly that.
 
+## Scene actions
+
+In the same **Integrations** category, the integration adds three actions a
+scene can run.
+
+| Action                        | What it does                                                        |
+| ----------------------------- | ------------------------------------------------------------------- |
+| **Refresh the fuel prices**   | reads the feed now, so the rest of the scene works on a fresh price |
+| **Find the cheapest station** | compares your stations for one fuel and returns the cheapest one    |
+| **Prepare a price summary**   | the same comparison as one line of text, ready to send              |
+
+What an action returns is reusable in the next steps of the scene (price,
+station name, city, address, distance, date of the price…).
+
+An example scene, every morning at 7am:
+
+1. **Find the cheapest station** (fuel: Diesel, read the prices before
+   comparing: yes);
+2. **Only continue if** the `found` result is true;
+3. **Send a message**: "Cheapest fill-up: {{ station name }} at {{ price }}".
+
+Or, in one step: **Prepare a price summary**, then send the text it returns.
+
+Worth knowing: "Find the cheapest station" never fails the scene when you
+follow no station for that fuel — it answers `found = false`, and it is up to
+you to test that result.
+
 ## Troubleshooting
 
 **No station in the Discovery tab.** Check the postal code (5 digits in

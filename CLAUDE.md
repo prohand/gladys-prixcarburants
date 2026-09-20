@@ -48,6 +48,7 @@ config (country, postal code, radius, fuels)
    → device registry    src/devices/              one device per (station, fuel)
    → Discovery tab / refresh loop  src/refresh.js
                         src/sceneEvents.js       scene triggers fired per pass
+                        src/sceneActions.js      scene actions a scene can run
 ```
 
 `index.js` is pure wiring: it registers every SDK handler _before_ `connect()` and holds no
@@ -89,14 +90,22 @@ devices Gladys holds, publishes discovery, arms the refresh loop and reports
   batches every tracked station of a country into one request and shares the in-flight
   promise, so ten devices cost one HTTP call. Never call a provider directly from a device or
   refresh path.
-- **Scene triggers are a PREVIEW** (GladysAssistant/Gladys#3110, unreleased): the manifest
+- **Scene triggers AND actions are a PREVIEW** (GladysAssistant/Gladys#3110, unreleased): the manifest
   `scene_triggers` and `POST /api/integration/v1/scene/event`, fired by `src/sceneEvents.js`
   at the end of a refresh pass. Trigger keys, filter keys and variable keys are **append-only**
   for the same reason as the fuels: a scene stores them. Two rules the module must keep — one
   event per TRANSITION (never one per pass) and no baseline, no event (the first pass after a
   restart only records, so a restart never replays "everything changed"). A price THRESHOLD
-  stays out: a price is a device feature, and `device.new-state` already covers it. A released
-  core, and the store indexer, still reject a manifest carrying `scene_triggers` — so
+  stays out: a price is a device feature, and `device.new-state` already covers it.
+  `scene_actions` (`src/sceneActions.js`) is the other half: the core sends
+  `external-integration.scene-action.run` over the WS and reads `data.outputs` back, so the
+  handlers return OUTPUT OBJECTS while the manifest `actions` of `src/actions.js` return a
+  bilingual message — two namespaces, never one handler for both. An action is never a
+  condition: answer `found: false`, never throw, when there is simply nothing to report. The
+  SDK has neither `publishSceneEvent` nor `onSceneAction` yet, so both modules use them when
+  present and fall back (raw host API route / intercepting that one WS message, since the SDK
+  drops unknown types silently). A released core, and the store indexer, still reject a
+  manifest carrying `scene_triggers`/`scene_actions` — so
   `gladys_version` must be raised to the first release that ships it before any release
   (the `categories`/4.86 precedent), and the publisher disables itself on the first 404.
 - **A missing price is not an error**: `pollDevice` publishes nothing and keeps the last known

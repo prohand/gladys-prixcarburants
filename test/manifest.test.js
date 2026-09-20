@@ -13,6 +13,7 @@ import { DEFAULT_CONFIG } from '../src/config.js';
 import { COUNTRIES } from '../src/countries/index.js';
 import { FUEL_KEYS } from '../src/fuels.js';
 import { FEED_STATUSES, PRICE_DIRECTIONS, SCENE_TRIGGER_CONTRACT } from '../src/sceneEvents.js';
+import { REPORT_LIMITS, SCENE_ACTIONS, SCENE_ACTION_CONTRACT } from '../src/sceneActions.js';
 
 const manifest = JSON.parse(
   await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
@@ -249,4 +250,107 @@ test('the station filter is picked from the devices, and is never required', () 
   assert.equal(device.options, undefined, 'a source and static options are exclusive');
   assert.equal(device.default, undefined);
   assert.notEqual(device.required, true);
+});
+
+// --- Scene actions (GladysAssistant/Gladys#3110, preview) --------------------
+
+test('the manifest declares exactly the scene actions the code handles', () => {
+  assert.deepEqual(
+    (manifest.scene_actions ?? []).map((a) => a.key).sort(),
+    Object.keys(SCENE_ACTIONS).sort(),
+  );
+  assert.deepEqual(Object.keys(SCENE_ACTIONS).sort(), Object.keys(SCENE_ACTION_CONTRACT).sort());
+});
+
+test('each scene action declares exactly the fields and outputs the code uses', () => {
+  for (const action of manifest.scene_actions) {
+    const contract = SCENE_ACTION_CONTRACT[action.key];
+    assert.deepEqual(
+      (action.fields ?? []).map((f) => f.key),
+      contract.fields,
+      `fields of "${action.key}"`,
+    );
+    assert.deepEqual(
+      (action.outputs ?? []).map((o) => o.key),
+      contract.outputs,
+      `outputs of "${action.key}"`,
+    );
+  }
+});
+
+test('the scene actions stay within the limits the core validates', () => {
+  assert.ok(manifest.scene_actions.length >= 1 && manifest.scene_actions.length <= 20);
+  for (const action of manifest.scene_actions) {
+    assert.match(action.key, /^[a-z0-9_]{1,40}$/, `action key "${action.key}"`);
+    assert.ok(action.label?.en && action.label?.fr, `"${action.key}" needs both labels`);
+    // The ack delay a scene grants the container: 5-120s, and ours read a
+    // national open data API before answering.
+    assert.ok(
+      Number.isInteger(action.timeout_seconds) &&
+        action.timeout_seconds >= 5 &&
+        action.timeout_seconds <= 120,
+      `"${action.key}" declares an impossible timeout`,
+    );
+    assert.ok((action.fields ?? []).length <= 10, `"${action.key}" has too many fields`);
+    assert.ok((action.outputs ?? []).length <= 20, `"${action.key}" has too many outputs`);
+    for (const field of action.fields ?? []) {
+      assert.match(field.key, /^[a-z0-9_]+$/);
+      assert.ok(field.label?.en && field.label?.fr, `field "${field.key}" needs both labels`);
+      // An action parameter accepts `boolean` (a trigger filter does not), but
+      // never a secret: a scene's JSON is readable by every Gladys user.
+      assert.ok(
+        ['string', 'number', 'boolean', 'select', 'multi_select', 'section'].includes(field.type),
+        `field "${field.key}" has a type no scene action accepts`,
+      );
+      // A required field WITHOUT a default breaks every existing scene the day
+      // it is added, and the core then fails the action at execution.
+      if (field.required === true) {
+        assert.notEqual(field.default, undefined, `required field "${field.key}" needs a default`);
+      }
+      for (const option of field.options ?? []) {
+        assert.ok(option.label?.en && option.label?.fr, `option "${option.value}"`);
+      }
+    }
+    for (const output of action.outputs ?? []) {
+      assert.match(output.key, /^[a-z0-9_]+$/);
+      assert.ok(['string', 'number', 'boolean'].includes(output.type), 'scalars only');
+      assert.ok(output.label?.en && output.label?.fr, `output "${output.key}"`);
+    }
+  }
+});
+
+test('the fuel fields of the scene actions offer exactly the fuels of the catalog', () => {
+  const fuelFields = manifest.scene_actions.flatMap((a) =>
+    (a.fields ?? []).filter((f) => f.key === 'fuel'),
+  );
+  assert.equal(fuelFields.length, 2, 'both the cheapest-station and the report ask for a fuel');
+  for (const field of fuelFields) {
+    assert.deepEqual(
+      field.options.map((o) => o.value),
+      FUEL_KEYS,
+    );
+    assert.ok(FUEL_KEYS.includes(field.default), 'the default fuel must exist');
+  }
+});
+
+test('the bounds of the report match the ones the handler clamps to', () => {
+  const field = manifest.scene_actions
+    .find((a) => a.key === 'price_report')
+    .fields.find((f) => f.key === 'max_stations');
+  // Same reason as the config_schema bounds: the form prevents the mistake,
+  // the handler protects itself from a value that arrived another way.
+  assert.equal(field.min, REPORT_LIMITS.MIN);
+  assert.equal(field.max, REPORT_LIMITS.MAX);
+  assert.equal(field.default, REPORT_LIMITS.DEFAULT);
+});
+
+test('the scene actions and the button actions are two namespaces', () => {
+  // The spec allows the same key in both lists, and the two answer differently
+  // (a message under a button vs outputs fed to a scene): the handlers must
+  // never be mixed up.
+  for (const key of Object.keys(SCENE_ACTIONS)) {
+    if (ACTIONS[key]) {
+      assert.notEqual(SCENE_ACTIONS[key], ACTIONS[key], `"${key}" must not share a handler`);
+    }
+  }
 });

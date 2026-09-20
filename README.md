@@ -60,6 +60,7 @@ Three decisions worth knowing before reading the code:
 │  ├─ geo.js                         # haversine distance / centroid
 │  ├─ stationStore.js                # cache + per-country batched refresh
 │  ├─ sceneEvents.js                 # scene triggers fired at the end of a pass
+│  ├─ sceneActions.js                # scene actions a scene can run
 │  ├─ actions.js                     # the Configuration screen buttons
 │  ├─ countries/
 │  │  ├─ index.js                    #   country registry (+ how to add one)
@@ -144,7 +145,7 @@ well would add the core's "Prefer local (LAN) connection" toggle to a
 configuration screen where it would mean nothing. `test/manifest.test.js`
 pins it.
 
-## Scene triggers (preview — NOT releasable yet)
+## Scene triggers and actions (preview — NOT releasable yet)
 
 The manifest declares three `scene_triggers`, fired by `src/sceneEvents.js` at
 the end of every refresh pass:
@@ -154,6 +155,19 @@ the end of every refresh pass:
 | `price_updated`            | a followed station moved a price (carries the old one and the gap) |
 | `cheapest_station_changed` | another followed station is now the cheapest for a fuel            |
 | `feed_status_changed`      | every station of a pass failed, or the feed answers again          |
+
+…and three `scene_actions`, handled in `src/sceneActions.js`, that a scene can
+run:
+
+| Key                | Does                                                              | Outputs                                     |
+| ------------------ | ----------------------------------------------------------------- | ------------------------------------------- |
+| `refresh_prices`   | reads the feed now, so the next steps act on a fresh price        | `total`, `updated`, `failed`                |
+| `cheapest_station` | compares the followed stations of one fuel, returns the cheapest  | `found`, `station_name`, `price`, `city`, … |
+| `price_report`     | the same comparison as one line of text, ready for a notification | `text`, `station_count`, `cheapest_price`   |
+
+`cheapest_station` answers `found: false` rather than throwing when nothing is
+followed for that fuel: a scene action is never a condition, so the scene gates
+itself with the core's "only continue if" on that output.
 
 They rest on **[GladysAssistant/Gladys#3110](https://github.com/GladysAssistant/Gladys/pull/3110),
 which is not released**: `scene_triggers` in the manifest and
@@ -171,8 +185,14 @@ which is not released**: `scene_triggers` in the manifest and
   core disables the publisher for the life of the container, and a refresh pass
   never fails because a scene event could not be delivered.
 
-The SDK does not expose `publishSceneEvent()` yet either, so `sceneEvents.js`
-calls it when it exists and falls back to the raw host API route meanwhile.
+The SDK exposes neither `publishSceneEvent()` nor `onSceneAction()` yet:
+`sceneEvents.js` calls the first when it exists and falls back to the raw host
+API route, and `registerSceneActions()` uses the second when it exists and
+otherwise intercepts the `external-integration.scene-action.run` message itself
+— the SDK drops an unknown message type silently, which would leave every scene
+action timing out with nothing in the logs. `test/sceneActions.test.js` runs
+that fallback against a real (unconnected) SDK instance, so it fails the day
+those internals move, which is the day the fallback must go.
 
 Two rules the module is built around, both from the spec: **one event per
 transition** (a price that did not move fires nothing, whatever the interval)
