@@ -12,6 +12,7 @@ import { ACTIONS } from '../src/actions.js';
 import { DEFAULT_CONFIG } from '../src/config.js';
 import { COUNTRIES } from '../src/countries/index.js';
 import { FUEL_KEYS } from '../src/fuels.js';
+import { FEED_STATUSES, PRICE_DIRECTIONS, SCENE_TRIGGER_CONTRACT } from '../src/sceneEvents.js';
 
 const manifest = JSON.parse(
   await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
@@ -150,4 +151,102 @@ test('section fields are purely presentational', () => {
       assert.match(link.url, /^https:\/\//, 'section links must be https');
     }
   }
+});
+
+// --- Scene triggers (GladysAssistant/Gladys#3110, preview) --------------------
+// The scene editor renders these from the manifest alone, while the code fires
+// them by key with a payload the core whitelists against them: a key declared
+// on one side only is a trigger that never appears, or an event silently
+// dropped. Hence the same both-ways check as the actions above.
+
+test('the manifest declares exactly the scene triggers the code fires', () => {
+  assert.deepEqual(
+    (manifest.scene_triggers ?? []).map((t) => t.key).sort(),
+    Object.keys(SCENE_TRIGGER_CONTRACT).sort(),
+  );
+});
+
+test('each scene trigger declares exactly the filters and variables the code sends', () => {
+  for (const trigger of manifest.scene_triggers) {
+    const contract = SCENE_TRIGGER_CONTRACT[trigger.key];
+    assert.deepEqual(
+      (trigger.fields ?? []).map((f) => f.key),
+      contract.filters,
+      `filters of "${trigger.key}"`,
+    );
+    assert.deepEqual(
+      (trigger.variables ?? []).map((v) => v.key),
+      contract.variables,
+      `variables of "${trigger.key}"`,
+    );
+  }
+});
+
+test('the scene triggers stay within the limits the core validates', () => {
+  // Bounds of the spec: 1-20 triggers, <= 10 filters, <= 20 variables, keys of
+  // at most 40 characters matching [a-z0-9_]. A manifest over any of them is
+  // rejected whole, which takes the whole integration down with it.
+  assert.ok(manifest.scene_triggers.length >= 1 && manifest.scene_triggers.length <= 20);
+  for (const trigger of manifest.scene_triggers) {
+    assert.match(trigger.key, /^[a-z0-9_]{1,40}$/, `trigger key "${trigger.key}"`);
+    assert.ok(trigger.label?.en && trigger.label?.fr, `"${trigger.key}" needs both labels`);
+    assert.ok((trigger.fields ?? []).length <= 10, `"${trigger.key}" has too many filters`);
+    assert.ok((trigger.variables ?? []).length <= 20, `"${trigger.key}" has too many variables`);
+    for (const field of trigger.fields ?? []) {
+      assert.match(field.key, /^[a-z0-9_]+$/);
+      assert.ok(field.label?.en && field.label?.fr, `filter "${field.key}" needs both labels`);
+      // A trigger filter has no boolean (a toggle could never mean "any"), and
+      // no secret: a scene's JSON is readable by every Gladys user.
+      assert.ok(
+        ['string', 'number', 'select', 'multi_select', 'section'].includes(field.type),
+        `filter "${field.key}" has a type no scene trigger accepts`,
+      );
+      for (const option of field.options ?? []) {
+        assert.ok(option.label?.en && option.label?.fr, `option "${option.value}"`);
+      }
+    }
+    for (const variable of trigger.variables ?? []) {
+      assert.match(variable.key, /^[a-z0-9_]+$/);
+      assert.ok(['string', 'number', 'boolean'].includes(variable.type), 'scalars only');
+      assert.ok(variable.label?.en && variable.label?.fr, `variable "${variable.key}"`);
+    }
+  }
+});
+
+test('the fuel filters offer exactly the fuels of the catalog', () => {
+  const fuelFilters = manifest.scene_triggers.flatMap((t) =>
+    (t.fields ?? []).filter((f) => f.key === 'fuel'),
+  );
+  assert.ok(fuelFilters.length > 0);
+  for (const filter of fuelFilters) {
+    assert.deepEqual(
+      filter.options.map((o) => o.value),
+      FUEL_KEYS,
+    );
+  }
+});
+
+test('the enum filters offer exactly the values the code sends', () => {
+  const optionsOf = (triggerKey, fieldKey) =>
+    manifest.scene_triggers
+      .find((t) => t.key === triggerKey)
+      .fields.find((f) => f.key === fieldKey)
+      .options.map((o) => o.value)
+      .sort();
+
+  assert.deepEqual(optionsOf('price_updated', 'direction'), Object.values(PRICE_DIRECTIONS).sort());
+  assert.deepEqual(optionsOf('feed_status_changed', 'status'), Object.values(FEED_STATUSES).sort());
+});
+
+test('the station filter is picked from the devices, and is never required', () => {
+  const device = manifest.scene_triggers
+    .find((t) => t.key === 'price_updated')
+    .fields.find((f) => f.key === 'device');
+  // `source: "devices"` makes Gladys list the stations the user added, by name;
+  // `default` is refused with a source, and an empty filter is the wildcard the
+  // description promises ("every station you follow").
+  assert.equal(device.source, 'devices');
+  assert.equal(device.options, undefined, 'a source and static options are exclusive');
+  assert.equal(device.default, undefined);
+  assert.notEqual(device.required, true);
 });

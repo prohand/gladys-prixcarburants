@@ -27,6 +27,7 @@ import {
   publishIntegrationState,
 } from './src/devices/index.js';
 import { createRefreshLoop } from './src/refresh.js';
+import { createSceneEvents } from './src/sceneEvents.js';
 import { ACTIONS } from './src/actions.js';
 
 const gladys = new GladysIntegration();
@@ -38,10 +39,16 @@ let config = normalizeConfig();
 // devices polling one after the other cost one HTTP request, not ten.
 const store = createStationStore();
 
+// The scene triggers declared in the manifest (`scene_triggers`), fired at the
+// end of every refresh pass when something actually changed. Purely additive:
+// a Gladys that does not know the feature answers 404 once and the publisher
+// stays quiet afterwards. See src/sceneEvents.js.
+const sceneEvents = createSceneEvents(gladys);
+
 // The prices are refreshed by our own timer: Gladys' `poll_frequency` tops out
 // at one minute, which says nothing useful about a feed updated every ~10 min.
 // See src/refresh.js.
-const refreshLoop = createRefreshLoop(gladys, { store });
+const refreshLoop = createRefreshLoop(gladys, { store, sceneEvents });
 
 // --- Discovery: Gladys asks for the list of devices --------------------------
 // The user opens the Discovery tab: search the stations around the configured
@@ -111,7 +118,7 @@ gladys.onDeviceDeleted(async (device) => {
 
 // --- Manifest actions: buttons in the Configuration screen -------------------
 for (const [actionKey, handler] of Object.entries(ACTIONS)) {
-  gladys.onAction(actionKey, () => handler(gladys, { config, store }));
+  gladys.onAction(actionKey, () => handler(gladys, { config, store, sceneEvents }));
 }
 
 // --- Configuration updated by the user ---------------------------------------
@@ -121,6 +128,10 @@ gladys.onConfigUpdated(async (newConfig) => {
   // The postal code, the radius or the fuel list may all have changed: drop the
   // cached stations and republish a discovery list built from the new criteria.
   store.invalidate();
+  // Same reason on the scene side: the prices and the "cheapest station" the
+  // previous passes measured were those of another set of stations. Comparing
+  // the next pass with them would fire transitions that never happened.
+  sceneEvents.reset();
   // The refresh interval may have changed too: re-arm the loop so the value the
   // user just saved applies without waiting for the next tick.
   refreshLoop.start(config);

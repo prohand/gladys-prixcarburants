@@ -122,6 +122,37 @@ besoin.
   plein.
 - Enregistrer le prix moyen du mois grâce à l'historique.
 
+## Déclencheurs de scènes
+
+Sur une version de Gladys qui le gère, l'intégration ajoute trois déclencheurs
+dans la catégorie **Intégrations** de l'éditeur de scènes. Ils apparaissent tout
+seuls : rien à configurer côté intégration.
+
+| Déclencheur                                  | Se déclenche quand                                                                                       |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Un prix de carburant a changé**            | une station que vous suivez a déclaré un nouveau prix (filtres : station, carburant, hausse ou baisse)   |
+| **La station la moins chère a changé**       | une autre de vos stations est devenue la moins chère pour un carburant (il faut en suivre au moins deux) |
+| **Le flux open data est devenu injoignable** | toutes les stations d'un rafraîchissement ont échoué, ou le flux répond de nouveau                       |
+
+Chaque déclencheur transmet des informations à vos actions : le nom de la
+station, la ville, le carburant, le nouveau prix, le prix précédent et l'écart.
+Exemple de notification : « Le Gazole passe à 1,659 € à Station du Centre
+(-0,040 €) ».
+
+Un filtre laissé vide veut dire « peu importe » : sans station choisie, le
+déclencheur réagit à toutes vos stations.
+
+Deux points à connaître :
+
+- **un prix qui ne bouge pas ne déclenche rien**, même si l'intégration
+  rafraîchit toutes les heures : seul un vrai changement est envoyé ;
+- après un redémarrage du conteneur, le premier rafraîchissement sert de point
+  de repère et n'envoie rien.
+
+Pour un simple seuil (« préviens-moi sous 1,70 € »), n'utilisez pas ces
+déclencheurs : le déclencheur **Un appareil change d'état** de Gladys, sur la
+donnée « prix » de la station, fait déjà exactement ça.
+
 ## Dépannage
 
 **Aucune station dans l'onglet Découverte.** Vérifiez le code postal (5

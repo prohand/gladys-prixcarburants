@@ -133,14 +133,17 @@ export async function searchStations(gladys, { config, store }) {
  * Force an immediate price refresh of every station device already added,
  * without waiting for the next poll.
  * @param {object} gladys SDK instance
- * @param {{ config: object, store: object }} context
+ * @param {{ config: object, store: object, sceneEvents?: object }} context
  */
-export async function refreshPrices(gladys, { config, store }) {
+export async function refreshPrices(gladys, { config, store, sceneEvents = null }) {
   // `force`: the user pressed a button, they expect a real read, not the cache.
+  // A manual refresh is a refresh like any other: a price that moved since the
+  // previous pass fires its scene trigger here too.
   const { total, updated, failures } = await refreshAllDevices(gladys, {
     config,
     store,
     force: true,
+    sceneEvents,
   });
 
   if (total === 0) {

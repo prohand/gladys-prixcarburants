@@ -113,6 +113,35 @@ working untouched. Delete the ones you no longer need.
 - Compare two stations on the dashboard before driving out to fill up.
 - Track the monthly average price thanks to the history.
 
+## Scene triggers
+
+On a Gladys version that supports them, the integration adds three triggers to
+the **Integrations** category of the scene editor. They show up on their own:
+nothing to configure on the integration side.
+
+| Trigger                                   | Fires when                                                                                        |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **A fuel price changed**                  | a station you follow declared a new price (filters: station, fuel, up or down)                    |
+| **The cheapest station changed**          | another of your stations is now the cheapest for a fuel (you need to follow at least two of them) |
+| **The open data feed became unreachable** | every station of a refresh failed, or the feed answers again                                      |
+
+Each trigger passes information on to your actions: the station name, the city,
+the fuel, the new price, the previous price and the difference. A notification
+then reads "Diesel is now 1.659 EUR at Station du Centre (-0.040)".
+
+A filter left empty means "any": with no station picked, the trigger reacts to
+every station you follow.
+
+Two things worth knowing:
+
+- **a price that did not move fires nothing**, even though the integration
+  refreshes every hour: only a real change is sent;
+- after a container restart, the first refresh is a baseline and fires nothing.
+
+For a plain threshold ("warn me below 1.70"), do not use these triggers: the
+Gladys **A device changes state** trigger on the station's price feature
+already does exactly that.
+
 ## Troubleshooting
 
 **No station in the Discovery tab.** Check the postal code (5 digits in

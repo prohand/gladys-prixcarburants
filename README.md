@@ -59,6 +59,7 @@ Three decisions worth knowing before reading the code:
 │  ├─ fuels.js                       # fuel catalog (stable keys + labels)
 │  ├─ geo.js                         # haversine distance / centroid
 │  ├─ stationStore.js                # cache + per-country batched refresh
+│  ├─ sceneEvents.js                 # scene triggers fired at the end of a pass
 │  ├─ actions.js                     # the Configuration screen buttons
 │  ├─ countries/
 │  │  ├─ index.js                    #   country registry (+ how to add one)
@@ -142,6 +143,43 @@ API over the internet, so `cloud` is the whole truth — declaring `local` as
 well would add the core's "Prefer local (LAN) connection" toggle to a
 configuration screen where it would mean nothing. `test/manifest.test.js`
 pins it.
+
+## Scene triggers (preview — NOT releasable yet)
+
+The manifest declares three `scene_triggers`, fired by `src/sceneEvents.js` at
+the end of every refresh pass:
+
+| Key                        | Fired when                                                         |
+| -------------------------- | ------------------------------------------------------------------ |
+| `price_updated`            | a followed station moved a price (carries the old one and the gap) |
+| `cheapest_station_changed` | another followed station is now the cheapest for a fuel            |
+| `feed_status_changed`      | every station of a pass failed, or the feed answers again          |
+
+They rest on **[GladysAssistant/Gladys#3110](https://github.com/GladysAssistant/Gladys/pull/3110),
+which is not released**: `scene_triggers` in the manifest and
+`POST /api/integration/v1/scene/event` to fire one. Consequences, today:
+
+- a **released** Gladys rejects a manifest carrying unknown fields, and
+  `npx github:GladysAssistant/integration-store .` answers
+  `manifest: must NOT have additional properties`. This branch is therefore
+  testable against a Gladys built from the PR, and **must not be released as
+  is**;
+- before releasing, `gladys_version` has to be raised to the first Gladys
+  version that ships the feature — exactly what was done for `categories` and
+  4.86.0 — and the store indexer re-run;
+- the runtime side is already harmless either way: the first `404` from the
+  core disables the publisher for the life of the container, and a refresh pass
+  never fails because a scene event could not be delivered.
+
+The SDK does not expose `publishSceneEvent()` yet either, so `sceneEvents.js`
+calls it when it exists and falls back to the raw host API route meanwhile.
+
+Two rules the module is built around, both from the spec: **one event per
+transition** (a price that did not move fires nothing, whatever the interval)
+and **no baseline, no event** (the first pass after a restart only records, so
+restarting the container never replays "everything changed"). A price
+_threshold_ is deliberately absent: a price is a device feature, and
+"below 1.70 €" is already a core `device.new-state` trigger.
 
 ## Validate before publishing
 

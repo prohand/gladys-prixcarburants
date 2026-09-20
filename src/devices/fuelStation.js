@@ -168,9 +168,14 @@ function buildParams(station, country, fuel) {
 /**
  * Read the current price of a device and publish it.
  *
+ * The station is returned alongside the price: the refresh pass needs it to
+ * decide what actually changed since the previous one (src/sceneEvents.js),
+ * and it is already in hand here — reading it twice would cost a second look
+ * in the store for nothing.
+ *
  * @param {object} gladys SDK instance
  * @param {{ device: object, store: object }} context
- * @returns {Promise<{ price: number|null }>}
+ * @returns {Promise<{ price: number|null, station: object }>}
  */
 export async function pollDevice(gladys, { device, store }) {
   const target = parseDeviceExternalId(device.external_id);
@@ -189,7 +194,7 @@ export async function pollDevice(gladys, { device, store }) {
     // yet. Publishing nothing keeps the last known value on the dashboard
     // instead of drawing a hole in the chart.
     logger.info(`${station.name}: no ${target.fuel} price published, keeping the previous one`);
-    return { price: null };
+    return { price: null, station };
   }
 
   const ids = gladys.externalIds(DEVICE_TYPE, platformId(target));
@@ -204,5 +209,5 @@ export async function pollDevice(gladys, { device, store }) {
   }
 
   logger.info(`${station.name}: ${target.fuel} at ${price.toFixed(3)} EUR/L`);
-  return { price };
+  return { price, station };
 }
