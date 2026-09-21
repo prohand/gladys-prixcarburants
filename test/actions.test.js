@@ -55,6 +55,29 @@ test('search_stations says a fuel is not sold instead of drawing a dash', async 
   assert.match(message.fr, /cochez E10/);
 });
 
+test('search_stations says a fuel is OUT OF STOCK rather than not sold', async () => {
+  // The station sells SP98, its tank is empty. Calling that "non vendu" is what
+  // users report as a bug: they can see the pump from the road.
+  const { store } = storeWith([
+    createStation({
+      prices: { gazole: 1.699, sp98: null },
+      availability: { gazole: 'available', sp98: 'out_of_stock' },
+      outOfStockSince: { sp98: '2026-09-18 08:09:56' },
+    }),
+  ]);
+  const message = await searchStations(createFakeGladys(), {
+    config: normalizeConfig({ postal_code: '35000', fuel_type: ['gazole', 'sp98'] }),
+    store,
+  });
+
+  assert.match(message.en, /SP98: out of stock/);
+  assert.match(message.fr, /SP98 : en rupture/);
+  assert.doesNotMatch(message.fr, /non vendu/);
+  assert.match(message.en, /SP98 is out of stock in every one of these stations/);
+  assert.match(message.fr, /Le SP98 est en rupture dans toutes ces stations/);
+  assert.doesNotMatch(message.fr, /Aucune de ces stations ne vend/);
+});
+
 test('search_stations stays quiet about a fuel at least one station sells', async () => {
   const { store } = storeWith([createStation()]);
   const message = await searchStations(createFakeGladys(), {

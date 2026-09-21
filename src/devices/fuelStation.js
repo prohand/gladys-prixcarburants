@@ -15,7 +15,10 @@
 //                  The date comes from the feed itself, per station AND per
 //                  fuel — the diesel and the SP98 of one station are not
 //                  updated at the same moment — so it belongs here rather than
-//                  on some integration-wide "last update" device.
+//                  on some integration-wide "last update" device. It also
+//                  carries the reason a price stopped moving when the station
+//                  declared itself out of stock ("En rupture depuis le …"),
+//                  which is the question a frozen price raises.
 // -----------------------------------------------------------------------------
 
 import {
@@ -24,6 +27,7 @@ import {
   DEVICE_FEATURE_TYPES,
   DEVICE_FEATURE_UNITS,
 } from '@gladysassistant/integration-sdk';
+import { isOutOfStock, outOfStockSince } from '../availability.js';
 import { fuelLabel } from '../fuels.js';
 import { formatDateTime } from '../text.js';
 
@@ -166,6 +170,20 @@ function buildParams(station, country, fuel) {
 }
 
 /**
+ * What the text feature says while the station is out of stock. In French like
+ * the other user-facing strings of a device (a device name is a plain string in
+ * Gladys, there is no per-language variant to pick from).
+ *
+ * @param {object} station
+ * @param {string} fuel
+ * @returns {string}
+ */
+function outOfStockText(station, fuel) {
+  const since = formatDateTime(outOfStockSince(station, fuel));
+  return since ? `En rupture depuis le ${since}` : 'En rupture';
+}
+
+/**
  * Read the current price of a device and publish it.
  *
  * @param {object} gladys SDK instance
@@ -183,16 +201,25 @@ export async function pollDevice(gladys, { device, store }) {
     throw new Error(`Station ${target.stationId} is not in the ${target.country} feed anymore`);
   }
 
+  const ids = gladys.externalIds(DEVICE_TYPE, platformId(target));
   const price = station.prices[target.fuel] ?? null;
   if (price === null) {
-    // Not an error: a station stops selling a fuel, or has not declared a price
-    // yet. Publishing nothing keeps the last known value on the dashboard
-    // instead of drawing a hole in the chart.
+    // Not an error: a station stops selling a fuel, runs out of it, or has not
+    // declared a price yet. Publishing no price keeps the last known value on
+    // the dashboard instead of drawing a hole in the chart — but a value frozen
+    // for days looks broken, so when the feed says WHY, the text feature says
+    // it too.
+    if (isOutOfStock(station, target.fuel)) {
+      await gladys.publishState(ids.feature(FEATURE.UPDATED_AT), {
+        text: outOfStockText(station, target.fuel),
+      });
+      logger.info(`${station.name}: ${target.fuel} out of stock, keeping the previous price`);
+      return { price: null };
+    }
     logger.info(`${station.name}: no ${target.fuel} price published, keeping the previous one`);
     return { price: null };
   }
 
-  const ids = gladys.externalIds(DEVICE_TYPE, platformId(target));
   await gladys.publishState(ids.feature(FEATURE.PRICE), price);
 
   // When the station declared that price. It is a per-(station, fuel) date —

@@ -7,7 +7,7 @@
 //
 //   1. the provider of the configured country returns the stations around the
 //      postal code (src/countries/);
-//   2. we turn every (station, fuel) pair that actually has a price into a
+//   2. we turn every (station, fuel) pair the station actually sells into a
 //      discovered device;
 //   3. Gladys shows them in the DISCOVERY tab, and the user adds the ones they
 //      want — one, several, or all of them.
@@ -19,6 +19,7 @@
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
+import { sellsFuel } from '../availability.js';
 import { getProvider } from '../countries/index.js';
 import { fuelLabel } from '../fuels.js';
 import { buildDevice, parseDeviceExternalId } from './fuelStation.js';
@@ -48,10 +49,15 @@ export {
 /**
  * Turn a list of stations into the discovery payload.
  *
- * A (station, fuel) pair is published only when the station currently has a
- * price for that fuel: the dataset covers every pump in the country, and
- * offering "LPG at a station that does not sell LPG" would fill the discovery
- * tab with devices that can never publish a state.
+ * A (station, fuel) pair is published only when the station SELLS that fuel:
+ * the dataset covers every pump in the country, and offering "LPG at a station
+ * that does not sell LPG" would fill the discovery tab with devices that can
+ * never publish a state.
+ *
+ * Selling it does not mean having a price today. A station declaring a
+ * temporary rupture is out of stock, not out of business: its price comes back
+ * in a few hours, so the device is offered right away rather than making the
+ * user come back to the Discovery tab once the tanker has passed.
  *
  * @param {object} gladys SDK instance
  * @param {object} config normalized configuration
@@ -62,7 +68,7 @@ export function buildDiscoveredDevices(gladys, config, stations) {
   const devices = [];
   for (const station of stations) {
     for (const fuel of config.fuel_type) {
-      if (station.prices?.[fuel] === null || station.prices?.[fuel] === undefined) {
+      if (!sellsFuel(station, fuel)) {
         continue;
       }
       devices.push(buildDevice(gladys, { station, country, fuel }));
@@ -110,6 +116,8 @@ export function buildCreatedDevices(gladys, config, createdDevices, store) {
       longitude: null,
       prices: {},
       updatedAt: {},
+      availability: {},
+      outOfStockSince: {},
     };
     const payload = buildDevice(gladys, { station, country, fuel });
     // A created device keeps the name the user gave it; do not fight over it.

@@ -64,9 +64,14 @@ devices Gladys holds, publishes discovery, arms the refresh loop and reports
 - **Devices already created are always re-published** by `publishDiscovery`, merged after the
   search results so a created device's user-chosen name wins. Moving the postal code must not
   drop a working device.
-- **A (station, fuel) pair with no price is never published** — the dataset covers every pump
-  in the country, so offering "LPG at a station that sells none" creates devices that can
-  never publish a state.
+- **A (station, fuel) pair the station does not sell is never published** — the dataset covers
+  every pump in the country, so offering "LPG at a station that sells none" creates devices
+  that can never publish a state. "Sells it" is not "has a price today": the feed declares
+  RUPTURES, and a temporary one is a pump waiting for a tanker, so `src/availability.js` turns
+  an empty price column into `available` / `out_of_stock` / `not_sold` and only the last one
+  is dropped. Out of stock is published as a device, previewed as "en rupture" rather than
+  "non vendu", and shown on the device's text feature ("En rupture depuis le …") so a frozen
+  price says why it is frozen.
 - **Exactly one device is not a station**: `src/devices/integration.js`
   (`ext:<selector>:integration:status`), publishing when the feed was last read _successfully_.
   Its platform id is a constant so changing country or postal code never orphans it, it is
@@ -102,8 +107,11 @@ changes, since device ids already carry the country code.
 
 France (`france.js`) queries the Opendatasoft `explore/v2.1` API of the _flux instantané v2_
 dataset. Two quirks worth knowing: the parsing is deliberately tolerant (flat `gazole_prix`
-columns _and_ nested `prix` arrays, degrees _and_ hundred-thousandths of a degree, prices in
-euros _and_ in thousandths), and the price feed **does not publish station names** — brands
+columns _and_ nested `prix` arrays, flat `sp98_rupture_type` columns _and_ a nested `rupture`
+array whose entries pile up over the years — only the most recent one per fuel describes the
+station today, and an unqualified `type` means temporary — degrees _and_ hundred-thousandths
+of a degree, prices in euros _and_ in thousandths), and the price feed **does not publish
+station names** — brands
 come from separate reference datasets via `franceNames.js`, best effort, cached for the life
 of the container, falling back to an address-based name. ODSQL `where` clauses are built by
 string concatenation, so every id goes through the sanitizers before interpolation, and id
