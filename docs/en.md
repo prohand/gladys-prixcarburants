@@ -56,6 +56,14 @@ publish that brand, so it is read from a reference dataset of the same
 information system; a station that reference dataset does not know keeps a name
 built from its street.
 
+When two stations of the same brand share a city, their street is added to the
+name so you can tell them apart: `TotalEnergies - 33 Av. Médéric -
+Noisy-le-Grand - Diesel`. In the rare case where even the street is the same
+(both sides of a motorway rest area), the national id of the station is appended.
+Devices already created keep the name they were given: rename them in
+**Devices**, or delete and re-add them from the **Discovery** tab to get the
+detailed name (their price history is lost in the process).
+
 ## Configuration
 
 1. Open the **Configuration** tab of the integration.

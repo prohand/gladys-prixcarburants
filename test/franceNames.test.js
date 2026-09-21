@@ -157,3 +157,73 @@ test('buildStationName always produces something recognisable', () => {
   );
   assert.equal(buildStationName({ id: '42' }), 'Station 42');
 });
+
+test('two stations of the same brand in the same city get their street back', async (t) => {
+  resetStationNames();
+  mockReference(t, { sample: { id: '35000001', marque: 'TotalEnergies' }, records: [] });
+
+  const stations = [
+    {
+      id: '93160001',
+      brand: 'TotalEnergies',
+      city: 'Noisy-le-Grand',
+      address: '33 Avenue Médéric',
+      name: '',
+    },
+    {
+      id: '93160009',
+      brand: 'TotalEnergies',
+      city: 'Noisy-le-Grand',
+      address: '104/106 AV MEDERIC',
+      name: '',
+    },
+    { id: '93160002', brand: 'Esso', city: 'Noisy-le-Grand', address: '2 Rue du Pont', name: '' },
+  ];
+  await resolveStationNames(stations);
+
+  assert.equal(stations[0].name, 'TotalEnergies - 33 Av. Médéric - Noisy-le-Grand');
+  assert.equal(stations[1].name, 'TotalEnergies - 104/106 AV MEDERIC - Noisy-le-Grand');
+  // The only Esso of the city keeps the short name: disambiguating costs
+  // nothing to the stations that are already unique.
+  assert.equal(stations[2].name, 'Esso - Noisy-le-Grand');
+});
+
+test('stations sharing a brand, a city AND an address fall back on their id', async (t) => {
+  resetStationNames();
+  mockReference(t, { sample: { id: '35000001', marque: 'TotalEnergies' }, records: [] });
+
+  const stations = [
+    {
+      id: '77410001',
+      brand: 'Total',
+      city: 'Claye-Souilly',
+      address: 'A4 Aire de Vémars',
+      name: '',
+    },
+    {
+      id: '77410002',
+      brand: 'Total',
+      city: 'Claye-Souilly',
+      address: 'A4 Aire de Vémars',
+      name: '',
+    },
+  ];
+  await resolveStationNames(stations);
+
+  assert.equal(stations[0].name, 'Total - A4 Aire de Vémars - Claye-Souilly (77410001)');
+  assert.equal(stations[1].name, 'Total - A4 Aire de Vémars - Claye-Souilly (77410002)');
+});
+
+test('a nameless station keeps its address-based name instead of repeating it', async (t) => {
+  resetStationNames();
+  mockReference(t, { sample: { id: '35000001', marque: 'TotalEnergies' }, records: [] });
+
+  const stations = [
+    { id: '69100004', brand: '', city: 'Oullins', address: 'Boulevard Émile Zola', name: '' },
+    { id: '69100005', brand: '', city: 'Oullins', address: 'Boulevard Émile Zola', name: '' },
+  ];
+  await resolveStationNames(stations);
+
+  assert.equal(stations[0].name, 'Boulevard Émile Zola - Oullins (69100004)');
+  assert.equal(stations[1].name, 'Boulevard Émile Zola - Oullins (69100005)');
+});

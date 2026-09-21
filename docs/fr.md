@@ -59,6 +59,15 @@ ne publie pas cette enseigne : elle est lue dans un jeu de données de référen
 du même système d'information. Une station que ce jeu de données ne connaît pas
 garde un nom construit à partir de sa rue.
 
+Quand deux stations de la même enseigne sont dans la même commune, leur rue est
+ajoutée au nom pour les distinguer : `TotalEnergies - 33 Av. Médéric -
+Noisy-le-Grand - Gazole`. Dans le cas rare où même la rue est identique (les
+deux sens d'une aire d'autoroute), l'identifiant national de la station est
+ajouté à la fin. Les appareils déjà créés gardent le nom qu'ils avaient :
+renommez-les dans **Appareils**, ou supprimez-les et rajoutez-les depuis
+l'onglet **Découverte** pour récupérer le nom détaillé (vous perdez alors leur
+historique de prix).
+
 ## Configuration
 
 1. Ouvrez l'onglet **Configuration** de l'intégration.

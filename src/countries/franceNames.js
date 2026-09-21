@@ -23,7 +23,7 @@
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
-import { cleanText } from '../text.js';
+import { cleanText, shortenAddress } from '../text.js';
 
 const logger = createLogger({ name: 'provider-fr-names' });
 
@@ -106,7 +106,81 @@ export async function resolveStationNames(stations) {
     }
     station.name = buildStationName(station);
   }
+  return disambiguateStationNames(stations);
+}
+
+/**
+ * Make sure no two stations of a list share a name.
+ *
+ * "TotalEnergies - Noisy-le-Grand" is exactly what the driver looks for — right
+ * up to the day a town has two of them: the Discovery tab then offers two
+ * identical entries, and once added they are two identical devices in every
+ * scene picker, with only the technical params to tell them apart. So a name
+ * only stays short while it is unique: a clashing one gets its street back, and
+ * the id if even the street is not enough (a motorway rest area with a pump on
+ * each side declares the same address twice).
+ *
+ * The full address and the id are in the device params either way; this is
+ * about what the user reads in a list.
+ *
+ * @param {Array<object>} stations
+ * @returns {Array<object>} the same stations, renamed in place
+ */
+export function disambiguateStationNames(stations) {
+  renameClashes(stations, withStreet);
+  renameClashes(stations, withId);
   return stations;
+}
+
+/**
+ * Rename every station whose name is shared with another one of the list,
+ * using the first longer name `rename` can build for it.
+ * @param {Array<object>} stations
+ * @param {(station: object) => string} rename
+ */
+function renameClashes(stations, rename) {
+  /** @type {Map<string, Array<object>>} */
+  const byName = new Map();
+  for (const station of stations) {
+    const group = byName.get(station.name);
+    if (group) {
+      group.push(station);
+    } else {
+      byName.set(station.name, [station]);
+    }
+  }
+
+  for (const group of byName.values()) {
+    if (group.length < 2) {
+      continue;
+    }
+    for (const station of group) {
+      station.name = rename(station) || station.name;
+    }
+  }
+}
+
+/**
+ * The name with the street between the brand and the city. Nothing to add when
+ * the station has no brand: its name already IS its street.
+ * @param {object} station
+ * @returns {string}
+ */
+function withStreet(station) {
+  const street = shortenAddress(station.address);
+  if (!station.brand || !street) {
+    return '';
+  }
+  return [station.brand, street, station.city].filter(Boolean).join(' - ');
+}
+
+/**
+ * Last resort: the national id of the station, which is unique by construction.
+ * @param {object} station
+ * @returns {string}
+ */
+function withId(station) {
+  return `${station.name} (${station.id})`;
 }
 
 /**
