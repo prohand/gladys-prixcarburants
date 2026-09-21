@@ -219,7 +219,7 @@ export async function pollDevice(gladys, { device, store }) {
         text: outOfStockText(station, target.fuel),
       });
       logger.info(`${station.name}: ${target.fuel} out of stock, keeping the previous price`);
-      return { price: null };
+      return { price: null, station };
     }
     logger.info(`${station.name}: no ${target.fuel} price published, keeping the previous one`);
     return { price: null, station };
