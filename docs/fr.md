@@ -123,6 +123,91 @@ apparaissent dans l'onglet Découverte, et vos appareils existants continuent
 de fonctionner sans être modifiés. Supprimez ceux dont vous n'avez plus
 besoin.
 
+## Les widgets du tableau de bord
+
+En plus des appareils, l'intégration fournit **deux cartes** à poser sur un
+tableau de bord (bouton **Modifier le tableau de bord**, puis choisissez la
+carte dans la liste, section « Prix carburants »).
+
+### « Les moins chers »
+
+La carte répond à trois questions d'un coup : où faire le plein, est-ce le bon
+jour, et combien ça coûte.
+
+- **Titre** : le carburant et la zone — `Gazole · 10 km autour de ma maison`
+  (ou `autour du 35000` si Gladys ne connaît pas les coordonnées de la maison).
+- **Trois tuiles** : le prix le moins cher, la moyenne des stations trouvées, et
+  la **tendance sur 7 jours** en centimes (vert si ça baisse, rouge si ça monte).
+  La tuile est là dès le premier jour et affiche `—` tant qu'il n'y a pas une
+  vraie semaine d'historique.
+- **L'heure du relevé** : `Prix relevés le 19/09/2026 à 10:30`, parce qu'un prix
+  ne vaut que par le moment où il a été lu.
+- **La courbe des 30 derniers jours** du prix le moins cher de la zone.
+- **Le classement** des stations avec leur prix **et la date à laquelle la
+  station l'a déclaré** (à ne pas confondre avec l'heure du relevé ci-dessus :
+  une station peut ne pas avoir bougé ses prix depuis une semaine).
+- Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
+
+Trois réglages : le carburant, le nombre de stations affichées (3, 5 ou 8) et le
+périmètre — **autour de votre code postal** (l'intégration cherche, comme pour
+l'onglet Découverte) ou **vos stations seulement** (celles que vous avez
+ajoutées).
+
+#### D'où vient la courbe
+
+Le flux open data publie les prix de l'instant, pas ceux d'hier : personne ne
+stocke « le prix le moins cher de votre zone ». L'intégration le relève donc
+elle-même, **au maximum une fois par heure**, et garde 30 jours dans `/data`.
+
+- La courbe est affichée **dès le premier jour** et se remplit toute seule
+  ensuite. Elle se termine toujours sur le prix qui vient d'être lu, donc
+  **l'axe ne va jamais au-delà d'aujourd'hui** ; il s'étend vers la gauche au
+  fur et à mesure, jusqu'à couvrir 30 jours au bout d'un mois.
+- Les relevés continuent **même quand personne ne regarde** le tableau de bord :
+  la boucle de rafraîchissement prend le relais, à partir du moment où la carte
+  existe quelque part (une installation sans widget ne paie rien).
+- La **tendance sur 7 jours**, elle, attend d'avoir vraiment une semaine
+  d'historique : afficher « 0 ct » le premier jour serait faux.
+- Changer de code postal ou de rayon **repart d'une courbe vierge**, puisque ce
+  n'est plus la même zone.
+- Si `/data` n'est pas accessible en écriture, tout continue de fonctionner :
+  seule la courbe repart de zéro au redémarrage.
+
+### « Ma station »
+
+Le détail d'**une** station que vous suivez, choisie dans les réglages de la
+carte :
+
+- une tuile de prix **par carburant** vendu par la station (les quatre
+  premiers, le vôtre en tête) ;
+- l'enseigne, l'adresse, la distance et la date du dernier relevé ;
+- un bouton **Itinéraire** et un bouton **Rafraîchir**.
+
+Les carburants que vous suivez déjà (ceux qui ont un appareil) sont affichés
+**en direct** : la tuile bouge dès que l'intégration publie un nouveau prix,
+sans attendre le rafraîchissement de la carte. Les autres carburants de la
+station affichent la valeur lue dans le flux.
+
+#### D'où partent les distances
+
+Par défaut, **de votre maison Gladys**. L'intégration demande ses coordonnées à
+Gladys (`Réglages → Maison`, champ adresse) : la case correspondante est
+affichée à l'installation comme une autorisation, les coordonnées servent
+uniquement à centrer la recherche et à calculer les distances, et elles ne sont
+affichées nulle part.
+
+- Maison localisée → `2,3 km de la maison`, et la recherche est centrée dessus.
+- Maison non localisée, ou réglage **« Mesurer les distances depuis : le code
+  postal »** → `2,3 km du 35000`, mesuré depuis le centre de la zone du code
+  postal.
+
+Le code postal reste obligatoire dans tous les cas : c'est lui qui sert à
+interroger le jeu de données national.
+
+> Les widgets demandent **Gladys 5.1 ou plus récent**, comme les scènes plus
+> bas. C'est la version minimale déclarée par l'intégration : sur un Gladys
+> plus ancien, elle n'apparaît simplement pas dans le magasin.
+
 ## Idées de scènes
 
 - Recevoir une notification quand le prix du gazole de votre station passe
@@ -130,6 +215,66 @@ besoin.
 - Comparer deux stations sur le tableau de bord avant de partir faire le
   plein.
 - Enregistrer le prix moyen du mois grâce à l'historique.
+
+## Déclencheurs de scènes
+
+L'intégration ajoute trois déclencheurs dans la catégorie **Intégrations** de
+l'éditeur de scènes (Gladys 5.1 ou plus récent). Ils apparaissent tout seuls :
+rien à configurer côté intégration.
+
+| Déclencheur                                  | Se déclenche quand                                                                                       |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Un prix de carburant a changé**            | une station que vous suivez a déclaré un nouveau prix (filtres : station, carburant, hausse ou baisse)   |
+| **La station la moins chère a changé**       | une autre de vos stations est devenue la moins chère pour un carburant (il faut en suivre au moins deux) |
+| **Le flux open data est devenu injoignable** | toutes les stations d'un rafraîchissement ont échoué, ou le flux répond de nouveau                       |
+
+Chaque déclencheur transmet des informations à vos actions : le nom de la
+station, la ville, le carburant, le nouveau prix, le prix précédent et l'écart.
+Exemple de notification : « Le Gazole passe à 1,659 € à Station du Centre
+(-0,040 €) ».
+
+Un filtre laissé vide veut dire « peu importe » : sans station choisie, le
+déclencheur réagit à toutes vos stations.
+
+Deux points à connaître :
+
+- **un prix qui ne bouge pas ne déclenche rien**, même si l'intégration
+  rafraîchit toutes les heures : seul un vrai changement est envoyé ;
+- après un redémarrage du conteneur, le premier rafraîchissement sert de point
+  de repère et n'envoie rien.
+
+Pour un simple seuil (« préviens-moi sous 1,70 € »), n'utilisez pas ces
+déclencheurs : le déclencheur **Un appareil change d'état** de Gladys, sur la
+donnée « prix » de la station, fait déjà exactement ça.
+
+## Actions de scènes
+
+Toujours dans la catégorie **Intégrations**, l'intégration ajoute trois actions
+utilisables dans une scène.
+
+| Action                                 | Ce qu'elle fait                                                                   |
+| -------------------------------------- | --------------------------------------------------------------------------------- |
+| **Rafraîchir les prix des carburants** | lit le flux maintenant, pour que la suite de la scène travaille sur un prix frais |
+| **Trouver la station la moins chère**  | compare vos stations pour un carburant et renvoie la moins chère                  |
+| **Préparer un résumé des prix**        | la même comparaison sous forme d'une ligne de texte prête à envoyer               |
+
+Les résultats d'une action sont réutilisables dans les étapes suivantes de la
+scène (prix, nom de la station, ville, adresse, distance, date du prix…).
+
+Exemple de scène, tous les matins à 7 h :
+
+1. **Trouver la station la moins chère** (carburant : Gazole, lire les prix
+   avant de comparer : oui) ;
+2. **Continuer seulement si** le résultat `found` est vrai ;
+3. **Envoyer un message** : « Le plein le moins cher : {{ nom de la station }} à
+   {{ prix }} €/L ».
+
+Ou plus court, en une seule étape : **Préparer un résumé des prix**, puis
+envoyer le texte obtenu.
+
+Bon à savoir : « Trouver la station la moins chère » ne fait jamais échouer la
+scène quand vous ne suivez aucune station pour ce carburant — elle répond
+`found = false`, et c'est à vous de tester ce résultat.
 
 ## Dépannage
 

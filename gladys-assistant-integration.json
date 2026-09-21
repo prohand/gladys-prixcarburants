@@ -8,7 +8,8 @@
   },
   "version": "1.0.7",
   "docker_image": "ghcr.io/prohand/gladys-prixcarburants:1.0.7",
-  "gladys_version": ">=4.86.0",
+  "gladys_version": ">=5.1.0",
+  "location": true,
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-prixcarburants/main/cover.png",
   "categories": ["energy"],
   "transports": ["cloud"],
@@ -80,6 +81,36 @@
         "en": "35000",
         "fr": "35000"
       }
+    },
+    {
+      "key": "search_center",
+      "type": "select",
+      "label": {
+        "en": "Measure distances from",
+        "fr": "Mesurer les distances depuis"
+      },
+      "description": {
+        "en": "Your Gladys house is used when it has coordinates (the integration asks Gladys for them, and shows them nowhere). Otherwise the centre of the postal code area is used.",
+        "fr": "Votre maison Gladys est utilisée si elle a des coordonnées (l'intégration les demande à Gladys et ne les affiche nulle part). Sinon, c'est le centre de la zone du code postal."
+      },
+      "required": false,
+      "default": "house",
+      "options": [
+        {
+          "value": "house",
+          "label": {
+            "en": "My Gladys house",
+            "fr": "Ma maison Gladys"
+          }
+        },
+        {
+          "value": "postal_code",
+          "label": {
+            "en": "The postal code",
+            "fr": "Le code postal"
+          }
+        }
+      ]
     },
     {
       "key": "search_radius_km",
@@ -204,6 +235,862 @@
         "fr": "Rafraîchir les prix maintenant"
       },
       "timeout_seconds": 60
+    }
+  ],
+  "widgets": [
+    {
+      "key": "best_prices",
+      "label": {
+        "en": "Cheapest around me",
+        "fr": "Les moins chers"
+      },
+      "description": {
+        "en": "The cheapest stations for one fuel, with the trend of the last 30 days.",
+        "fr": "Les stations les moins chères pour un carburant, avec la tendance sur 30 jours."
+      },
+      "icon": "trending-down",
+      "settings": [
+        {
+          "key": "fuel",
+          "type": "select",
+          "label": {
+            "en": "Fuel",
+            "fr": "Carburant"
+          },
+          "description": {
+            "en": "The fuel this card ranks the stations for.",
+            "fr": "Le carburant pour lequel cette carte classe les stations."
+          },
+          "default": "gazole",
+          "options": [
+            {
+              "value": "gazole",
+              "label": {
+                "en": "Diesel",
+                "fr": "Gazole"
+              }
+            },
+            {
+              "value": "sp95",
+              "label": {
+                "en": "SP95",
+                "fr": "SP95"
+              }
+            },
+            {
+              "value": "sp98",
+              "label": {
+                "en": "SP98",
+                "fr": "SP98"
+              }
+            },
+            {
+              "value": "e10",
+              "label": {
+                "en": "E10 (SP95-E10)",
+                "fr": "E10 (SP95-E10)"
+              }
+            },
+            {
+              "value": "e85",
+              "label": {
+                "en": "E85 (Superethanol)",
+                "fr": "E85 (Superéthanol)"
+              }
+            },
+            {
+              "value": "gplc",
+              "label": {
+                "en": "LPG",
+                "fr": "GPLc"
+              }
+            }
+          ]
+        },
+        {
+          "key": "scope",
+          "type": "select",
+          "label": {
+            "en": "Stations",
+            "fr": "Stations"
+          },
+          "description": {
+            "en": "Search around the configured postal code, or rank only the stations you added.",
+            "fr": "Chercher autour du code postal configuré, ou classer seulement les stations que vous avez ajoutées."
+          },
+          "default": "around",
+          "options": [
+            {
+              "value": "around",
+              "label": {
+                "en": "Around my postal code",
+                "fr": "Autour de mon code postal"
+              }
+            },
+            {
+              "value": "tracked",
+              "label": {
+                "en": "My stations only",
+                "fr": "Mes stations seulement"
+              }
+            }
+          ]
+        },
+        {
+          "key": "count",
+          "type": "select",
+          "label": {
+            "en": "Stations shown",
+            "fr": "Stations affichées"
+          },
+          "default": "5",
+          "options": [
+            {
+              "value": "3",
+              "label": {
+                "en": "3",
+                "fr": "3"
+              }
+            },
+            {
+              "value": "5",
+              "label": {
+                "en": "5",
+                "fr": "5"
+              }
+            },
+            {
+              "value": "8",
+              "label": {
+                "en": "8",
+                "fr": "8"
+              }
+            }
+          ]
+        }
+      ],
+      "action_timeout_seconds": 60
+    },
+    {
+      "key": "station",
+      "label": {
+        "en": "My station",
+        "fr": "Ma station"
+      },
+      "description": {
+        "en": "Every price of one station you follow, with its address.",
+        "fr": "Tous les prix d’une station que vous suivez, avec son adresse."
+      },
+      "icon": "map-pin",
+      "settings": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Station",
+            "fr": "Station"
+          },
+          "description": {
+            "en": "One of the stations you added from the Discovery tab.",
+            "fr": "Une des stations que vous avez ajoutées depuis l’onglet Découverte."
+          }
+        }
+      ],
+      "action_timeout_seconds": 60
+    }
+  ],
+  "scene_triggers": [
+    {
+      "key": "price_updated",
+      "label": {
+        "en": "A fuel price changed",
+        "fr": "Un prix de carburant a changé"
+      },
+      "description": {
+        "en": "A station you follow declared a new price. The event carries the previous price and the difference, which a device feature alone cannot give.",
+        "fr": "Une station que vous suivez a déclaré un nouveau prix. L'événement porte l'ancien prix et l'écart, ce qu'une donnée d'appareil seule ne peut pas donner."
+      },
+      "fields": [
+        {
+          "key": "device",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Station",
+            "fr": "Station"
+          },
+          "description": {
+            "en": "Leave empty to react to every station you follow.",
+            "fr": "Laissez vide pour réagir à toutes les stations que vous suivez."
+          }
+        },
+        {
+          "key": "fuel",
+          "type": "select",
+          "label": {
+            "en": "Fuel",
+            "fr": "Carburant"
+          },
+          "description": {
+            "en": "Leave empty for any fuel.",
+            "fr": "Laissez vide pour tous les carburants."
+          },
+          "options": [
+            {
+              "value": "gazole",
+              "label": {
+                "en": "Diesel",
+                "fr": "Gazole"
+              }
+            },
+            {
+              "value": "sp95",
+              "label": {
+                "en": "SP95",
+                "fr": "SP95"
+              }
+            },
+            {
+              "value": "sp98",
+              "label": {
+                "en": "SP98",
+                "fr": "SP98"
+              }
+            },
+            {
+              "value": "e10",
+              "label": {
+                "en": "E10 (SP95-E10)",
+                "fr": "E10 (SP95-E10)"
+              }
+            },
+            {
+              "value": "e85",
+              "label": {
+                "en": "E85 (Superethanol)",
+                "fr": "E85 (Superéthanol)"
+              }
+            },
+            {
+              "value": "gplc",
+              "label": {
+                "en": "LPG",
+                "fr": "GPLc"
+              }
+            }
+          ]
+        },
+        {
+          "key": "direction",
+          "type": "select",
+          "label": {
+            "en": "Direction",
+            "fr": "Sens"
+          },
+          "description": {
+            "en": "Leave empty for both.",
+            "fr": "Laissez vide pour les deux."
+          },
+          "options": [
+            {
+              "value": "down",
+              "label": {
+                "en": "The price went down",
+                "fr": "Le prix a baissé"
+              }
+            },
+            {
+              "value": "up",
+              "label": {
+                "en": "The price went up",
+                "fr": "Le prix a augmenté"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "station_name",
+          "type": "string",
+          "label": {
+            "en": "Station name",
+            "fr": "Nom de la station"
+          }
+        },
+        {
+          "key": "city",
+          "type": "string",
+          "label": {
+            "en": "City",
+            "fr": "Ville"
+          }
+        },
+        {
+          "key": "fuel",
+          "type": "string",
+          "label": {
+            "en": "Fuel key",
+            "fr": "Clé du carburant"
+          }
+        },
+        {
+          "key": "fuel_label",
+          "type": "string",
+          "label": {
+            "en": "Fuel",
+            "fr": "Carburant"
+          }
+        },
+        {
+          "key": "price",
+          "type": "number",
+          "label": {
+            "en": "New price (EUR/L)",
+            "fr": "Nouveau prix (EUR/L)"
+          }
+        },
+        {
+          "key": "previous_price",
+          "type": "number",
+          "label": {
+            "en": "Previous price (EUR/L)",
+            "fr": "Prix précédent (EUR/L)"
+          }
+        },
+        {
+          "key": "price_difference",
+          "type": "number",
+          "label": {
+            "en": "Difference (EUR/L)",
+            "fr": "Écart (EUR/L)"
+          }
+        },
+        {
+          "key": "direction",
+          "type": "string",
+          "label": {
+            "en": "Direction (down/up)",
+            "fr": "Sens (down/up)"
+          }
+        },
+        {
+          "key": "updated_at",
+          "type": "string",
+          "label": {
+            "en": "Declared on",
+            "fr": "Déclaré le"
+          }
+        }
+      ]
+    },
+    {
+      "key": "cheapest_station_changed",
+      "label": {
+        "en": "The cheapest station changed",
+        "fr": "La station la moins chère a changé"
+      },
+      "description": {
+        "en": "Among the stations you follow, another one is now the cheapest for a fuel. Needs at least two stations followed for that fuel.",
+        "fr": "Parmi les stations que vous suivez, une autre est désormais la moins chère pour un carburant. Il faut suivre au moins deux stations pour ce carburant."
+      },
+      "fields": [
+        {
+          "key": "fuel",
+          "type": "select",
+          "label": {
+            "en": "Fuel",
+            "fr": "Carburant"
+          },
+          "description": {
+            "en": "Leave empty for any fuel.",
+            "fr": "Laissez vide pour tous les carburants."
+          },
+          "options": [
+            {
+              "value": "gazole",
+              "label": {
+                "en": "Diesel",
+                "fr": "Gazole"
+              }
+            },
+            {
+              "value": "sp95",
+              "label": {
+                "en": "SP95",
+                "fr": "SP95"
+              }
+            },
+            {
+              "value": "sp98",
+              "label": {
+                "en": "SP98",
+                "fr": "SP98"
+              }
+            },
+            {
+              "value": "e10",
+              "label": {
+                "en": "E10 (SP95-E10)",
+                "fr": "E10 (SP95-E10)"
+              }
+            },
+            {
+              "value": "e85",
+              "label": {
+                "en": "E85 (Superethanol)",
+                "fr": "E85 (Superéthanol)"
+              }
+            },
+            {
+              "value": "gplc",
+              "label": {
+                "en": "LPG",
+                "fr": "GPLc"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "station_name",
+          "type": "string",
+          "label": {
+            "en": "New cheapest station",
+            "fr": "Nouvelle station la moins chère"
+          }
+        },
+        {
+          "key": "city",
+          "type": "string",
+          "label": {
+            "en": "City",
+            "fr": "Ville"
+          }
+        },
+        {
+          "key": "fuel",
+          "type": "string",
+          "label": {
+            "en": "Fuel key",
+            "fr": "Clé du carburant"
+          }
+        },
+        {
+          "key": "fuel_label",
+          "type": "string",
+          "label": {
+            "en": "Fuel",
+            "fr": "Carburant"
+          }
+        },
+        {
+          "key": "price",
+          "type": "number",
+          "label": {
+            "en": "Its price (EUR/L)",
+            "fr": "Son prix (EUR/L)"
+          }
+        },
+        {
+          "key": "previous_station_name",
+          "type": "string",
+          "label": {
+            "en": "Previous cheapest station",
+            "fr": "Précédente station la moins chère"
+          }
+        },
+        {
+          "key": "previous_price",
+          "type": "number",
+          "label": {
+            "en": "Its last known price (EUR/L)",
+            "fr": "Son dernier prix connu (EUR/L)"
+          }
+        },
+        {
+          "key": "price_difference",
+          "type": "number",
+          "label": {
+            "en": "Difference (EUR/L)",
+            "fr": "Écart (EUR/L)"
+          }
+        },
+        {
+          "key": "station_count",
+          "type": "number",
+          "label": {
+            "en": "Stations compared",
+            "fr": "Stations comparées"
+          }
+        }
+      ]
+    },
+    {
+      "key": "feed_status_changed",
+      "label": {
+        "en": "The open data feed became reachable / unreachable",
+        "fr": "Le flux open data est devenu joignable / injoignable"
+      },
+      "description": {
+        "en": "Every station of a refresh failed, or the feed answers again after a failure. The transition is fired once, not at every refresh.",
+        "fr": "Toutes les stations d'un rafraîchissement ont échoué, ou le flux répond de nouveau après une panne. La transition est émise une fois, pas à chaque rafraîchissement."
+      },
+      "fields": [
+        {
+          "key": "status",
+          "type": "select",
+          "label": {
+            "en": "Status",
+            "fr": "État"
+          },
+          "description": {
+            "en": "Leave empty for both.",
+            "fr": "Laissez vide pour les deux."
+          },
+          "options": [
+            {
+              "value": "unavailable",
+              "label": {
+                "en": "The feed stopped answering",
+                "fr": "Le flux ne répond plus"
+              }
+            },
+            {
+              "value": "available",
+              "label": {
+                "en": "The feed answers again",
+                "fr": "Le flux répond de nouveau"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "status",
+          "type": "string",
+          "label": {
+            "en": "Status (available/unavailable)",
+            "fr": "État (available/unavailable)"
+          }
+        },
+        {
+          "key": "error",
+          "type": "string",
+          "label": {
+            "en": "Error",
+            "fr": "Erreur"
+          }
+        },
+        {
+          "key": "last_success",
+          "type": "string",
+          "label": {
+            "en": "Last successful read",
+            "fr": "Dernière lecture réussie"
+          }
+        }
+      ]
+    }
+  ],
+  "scene_actions": [
+    {
+      "key": "refresh_prices",
+      "label": {
+        "en": "Refresh the fuel prices",
+        "fr": "Rafraîchir les prix des carburants"
+      },
+      "description": {
+        "en": "Read the open data feed now, so the next steps of the scene do not act on an hour-old price.",
+        "fr": "Lit le flux open data maintenant, pour que la suite de la scène ne travaille pas sur un prix vieux d'une heure."
+      },
+      "timeout_seconds": 60,
+      "outputs": [
+        {
+          "key": "total",
+          "type": "number",
+          "label": {
+            "en": "Stations read",
+            "fr": "Stations lues"
+          }
+        },
+        {
+          "key": "updated",
+          "type": "number",
+          "label": {
+            "en": "Prices updated",
+            "fr": "Prix mis à jour"
+          }
+        },
+        {
+          "key": "failed",
+          "type": "number",
+          "label": {
+            "en": "Stations that failed",
+            "fr": "Stations en échec"
+          }
+        }
+      ]
+    },
+    {
+      "key": "cheapest_station",
+      "label": {
+        "en": "Find the cheapest station",
+        "fr": "Trouver la station la moins chère"
+      },
+      "description": {
+        "en": "Compares the stations you follow for one fuel and returns the cheapest one. Answers found = false when you follow none for that fuel.",
+        "fr": "Compare les stations que vous suivez pour un carburant et renvoie la moins chère. Renvoie found = false si vous n'en suivez aucune pour ce carburant."
+      },
+      "timeout_seconds": 60,
+      "fields": [
+        {
+          "key": "fuel",
+          "type": "select",
+          "label": {
+            "en": "Fuel",
+            "fr": "Carburant"
+          },
+          "required": true,
+          "default": "gazole",
+          "options": [
+            {
+              "value": "gazole",
+              "label": {
+                "en": "Diesel",
+                "fr": "Gazole"
+              }
+            },
+            {
+              "value": "sp95",
+              "label": {
+                "en": "SP95",
+                "fr": "SP95"
+              }
+            },
+            {
+              "value": "sp98",
+              "label": {
+                "en": "SP98",
+                "fr": "SP98"
+              }
+            },
+            {
+              "value": "e10",
+              "label": {
+                "en": "E10 (SP95-E10)",
+                "fr": "E10 (SP95-E10)"
+              }
+            },
+            {
+              "value": "e85",
+              "label": {
+                "en": "E85 (Superethanol)",
+                "fr": "E85 (Superéthanol)"
+              }
+            },
+            {
+              "value": "gplc",
+              "label": {
+                "en": "LPG",
+                "fr": "GPLc"
+              }
+            }
+          ]
+        },
+        {
+          "key": "refresh",
+          "type": "boolean",
+          "label": {
+            "en": "Read the prices before comparing",
+            "fr": "Lire les prix avant de comparer"
+          },
+          "description": {
+            "en": "Slower, but never compares prices from the previous refresh.",
+            "fr": "Plus lent, mais ne compare jamais des prix du rafraîchissement précédent."
+          },
+          "default": false
+        }
+      ],
+      "outputs": [
+        {
+          "key": "found",
+          "type": "boolean",
+          "label": {
+            "en": "A station was found",
+            "fr": "Une station a été trouvée"
+          }
+        },
+        {
+          "key": "station_name",
+          "type": "string",
+          "label": {
+            "en": "Station name",
+            "fr": "Nom de la station"
+          }
+        },
+        {
+          "key": "city",
+          "type": "string",
+          "label": {
+            "en": "City",
+            "fr": "Ville"
+          }
+        },
+        {
+          "key": "address",
+          "type": "string",
+          "label": {
+            "en": "Address",
+            "fr": "Adresse"
+          }
+        },
+        {
+          "key": "price",
+          "type": "number",
+          "label": {
+            "en": "Price (EUR/L)",
+            "fr": "Prix (EUR/L)"
+          }
+        },
+        {
+          "key": "distance_km",
+          "type": "number",
+          "label": {
+            "en": "Distance (km)",
+            "fr": "Distance (km)"
+          }
+        },
+        {
+          "key": "updated_at",
+          "type": "string",
+          "label": {
+            "en": "Price declared on",
+            "fr": "Prix déclaré le"
+          }
+        },
+        {
+          "key": "station_count",
+          "type": "number",
+          "label": {
+            "en": "Stations compared",
+            "fr": "Stations comparées"
+          }
+        }
+      ]
+    },
+    {
+      "key": "price_report",
+      "label": {
+        "en": "Prepare a price summary",
+        "fr": "Préparer un résumé des prix"
+      },
+      "description": {
+        "en": "One line of text listing the stations you follow, cheapest first, ready to send in a notification.",
+        "fr": "Une ligne de texte listant les stations que vous suivez, la moins chère d'abord, prête à envoyer dans une notification."
+      },
+      "timeout_seconds": 30,
+      "fields": [
+        {
+          "key": "fuel",
+          "type": "select",
+          "label": {
+            "en": "Fuel",
+            "fr": "Carburant"
+          },
+          "required": true,
+          "default": "gazole",
+          "options": [
+            {
+              "value": "gazole",
+              "label": {
+                "en": "Diesel",
+                "fr": "Gazole"
+              }
+            },
+            {
+              "value": "sp95",
+              "label": {
+                "en": "SP95",
+                "fr": "SP95"
+              }
+            },
+            {
+              "value": "sp98",
+              "label": {
+                "en": "SP98",
+                "fr": "SP98"
+              }
+            },
+            {
+              "value": "e10",
+              "label": {
+                "en": "E10 (SP95-E10)",
+                "fr": "E10 (SP95-E10)"
+              }
+            },
+            {
+              "value": "e85",
+              "label": {
+                "en": "E85 (Superethanol)",
+                "fr": "E85 (Superéthanol)"
+              }
+            },
+            {
+              "value": "gplc",
+              "label": {
+                "en": "LPG",
+                "fr": "GPLc"
+              }
+            }
+          ]
+        },
+        {
+          "key": "max_stations",
+          "type": "number",
+          "label": {
+            "en": "Stations listed",
+            "fr": "Stations listées"
+          },
+          "description": {
+            "en": "How many stations the summary names.",
+            "fr": "Nombre de stations nommées dans le résumé."
+          },
+          "required": false,
+          "default": 5,
+          "min": 1,
+          "max": 20
+        }
+      ],
+      "outputs": [
+        {
+          "key": "text",
+          "type": "string",
+          "label": {
+            "en": "Summary",
+            "fr": "Résumé"
+          }
+        },
+        {
+          "key": "station_count",
+          "type": "number",
+          "label": {
+            "en": "Stations followed",
+            "fr": "Stations suivies"
+          }
+        },
+        {
+          "key": "cheapest_price",
+          "type": "number",
+          "label": {
+            "en": "Cheapest price (EUR/L)",
+            "fr": "Prix le plus bas (EUR/L)"
+          }
+        }
+      ]
     }
   ]
 }

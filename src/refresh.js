@@ -17,8 +17,39 @@
 
 import { createLogger } from '@gladysassistant/integration-sdk';
 import { parseTargets, pollDevice, publishIntegrationState } from './devices/index.js';
+import { notifyWidgetsChanged } from './widgets/index.js';
+import { isConfigReady } from './config.js';
 
 const logger = createLogger({ name: 'refresh' });
+
+/**
+ * Keep the widget curve filling when nobody is looking at the dashboard.
+ *
+ * The widget samples the cheapest price of the area on every pull, but the core
+ * only pulls while a dashboard shows the card: a card nobody opens for a week
+ * would have a week-long hole. So the refresh loop samples too — but ONLY for
+ * an area the history already follows (`knows`), which means a card exists
+ * somewhere, and only when the last sample is old enough to deserve a new one.
+ * An install with no widget therefore pays nothing.
+ *
+ * Best effort by construction: a failed search leaves the curve as it was.
+ *
+ * @param {{ config: object, store: object, history?: object }} context
+ */
+async function sampleForWidgets({ config, store, history }) {
+  if (!history || !isConfigReady(config) || !history.knows(config)) {
+    return;
+  }
+  const last = history.lastSampleAt(config);
+  if (last !== null && Date.now() - last < history.sampleIntervalMs) {
+    return;
+  }
+  try {
+    history.record(config, await store.search(config));
+  } catch (err) {
+    logger.debug(`Widget sampling skipped: ${err.message}`);
+  }
+}
 
 /**
  * Read every station device Gladys holds and publish its current price.
@@ -27,21 +58,30 @@ const logger = createLogger({ name: 'refresh' });
  * from the feed must not stop the nine others from being refreshed.
  *
  * @param {object} gladys SDK instance
- * @param {{ config: object, store: object, force?: boolean }} context
+ * @param {{ config: object, store: object, history?: object, force?: boolean,
+ *   sceneEvents?: object }} context
  *   `force` drops the cached stations first, so the pass really hits the
  *   provider — what the "Refresh the prices now" button means. The periodic
  *   loop leaves it off: its interval (10 min minimum) is always longer than the
  *   store TTL anyway, and a refresh right after a reconnection then costs
  *   nothing.
+ *   `sceneEvents` is optional: without it the pass behaves exactly as before,
+ *   which is what keeps a Gladys that ignores scene triggers unaffected.
  * @returns {Promise<{ total: number, updated: number, failures: string[] }>}
  */
-export async function refreshAllDevices(gladys, { config, store, force = false }) {
+export async function refreshAllDevices(
+  gladys,
+  { config, store, history, force = false, sceneEvents = null },
+) {
   const devices = await gladys.getDevices();
   const targets = parseTargets(devices);
   if (targets.length === 0) {
     // Still worth a status publish: the user may hold the integration device
     // alone, and a previous search already dated the last read of the feed.
     await publishIntegrationState(gladys, { store, devices });
+    // A user may hold no station device and still have the widget on a
+    // dashboard: the curve is worth keeping alive for them too.
+    await sampleForWidgets({ config, store, history });
     return { total: 0, updated: 0, failures: [] };
   }
 
@@ -56,15 +96,23 @@ export async function refreshAllDevices(gladys, { config, store, force = false }
 
   let updated = 0;
   const failures = [];
-  for (const { device } of targets) {
+  // What changed since the previous pass is a property of the PASS, not of a
+  // device: "the cheapest station you follow is no longer the same one" can
+  // only be answered once every station has been read. See src/sceneEvents.js.
+  const pass = sceneEvents?.startPass() ?? null;
+  let lastError = null;
+  for (const target of targets) {
+    const { device } = target;
     try {
-      const { price } = await pollDevice(gladys, { device, config, store });
+      const { price, station } = await pollDevice(gladys, { device, config, store });
       if (price !== null) {
         updated += 1;
+        pass?.record({ device, target, station, price });
       }
     } catch (err) {
       logger.error(`Refresh failed for ${device.external_id}`, err);
       failures.push(device.name ?? device.external_id);
+      lastError = err;
     }
   }
 
@@ -72,6 +120,32 @@ export async function refreshAllDevices(gladys, { config, store, force = false }
   // station failed leaves `store.lastFetchAt` where it was: the date then ages
   // on the dashboard, which is precisely the signal.
   await publishIntegrationState(gladys, { store, devices });
+
+  await sampleForWidgets({ config, store, history });
+
+  // Nudge the dashboard cards: their content is cached by the core for their
+  // TTL, and a pass that moved a price is exactly the moment that cache should
+  // be dropped. Fire-and-forget, rate-limited core-side, no data attached.
+  if (updated > 0) {
+    notifyWidgetsChanged(gladys);
+  }
+
+  // Last of all, and never fatal: a scene trigger that cannot be delivered must
+  // not turn a successful refresh into a failed one (the core may simply not
+  // know about scene triggers yet).
+  if (pass) {
+    try {
+      await pass.end({
+        // Every station failing is the feed being unreachable; one station
+        // missing from it is just one station missing from it.
+        failed: failures.length === targets.length,
+        error: lastError,
+        lastSuccessAt: store.lastFetchAt,
+      });
+    } catch (err) {
+      logger.error('Scene events of this pass were not published', err);
+    }
+  }
 
   return { total: targets.length, updated, failures };
 }
@@ -81,13 +155,14 @@ export async function refreshAllDevices(gladys, { config, store, force = false }
  * declarative and the tests can drive the clock instead of waiting an hour.
  *
  * @param {object} gladys SDK instance
- * @param {{ store: object, setTimer?: Function, clearTimer?: Function }} context
+ * @param {{ store: object, history?: object, sceneEvents?: object,
+ *   setTimer?: Function, clearTimer?: Function }} context
  *   `setTimer`/`clearTimer` are the seam the unit tests use in place of
  *   `setInterval`/`clearInterval`.
  */
 export function createRefreshLoop(
   gladys,
-  { store, setTimer = setInterval, clearTimer = clearInterval },
+  { store, history, sceneEvents = null, setTimer = setInterval, clearTimer = clearInterval },
 ) {
   let timer = null;
   let running = false;
@@ -102,7 +177,12 @@ export function createRefreshLoop(
     }
     running = true;
     try {
-      const { total, updated, failures } = await refreshAllDevices(gladys, { config, store });
+      const { total, updated, failures } = await refreshAllDevices(gladys, {
+        config,
+        store,
+        history,
+        sceneEvents,
+      });
       if (total > 0) {
         logger.info(
           `Periodic refresh: ${updated}/${total} price(s) updated` +
