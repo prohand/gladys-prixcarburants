@@ -58,15 +58,21 @@ async function sampleForWidgets({ config, store, history }) {
  * from the feed must not stop the nine others from being refreshed.
  *
  * @param {object} gladys SDK instance
- * @param {{ config: object, store: object, force?: boolean }} context
+ * @param {{ config: object, store: object, history?: object, force?: boolean,
+ *   sceneEvents?: object }} context
  *   `force` drops the cached stations first, so the pass really hits the
  *   provider — what the "Refresh the prices now" button means. The periodic
  *   loop leaves it off: its interval (10 min minimum) is always longer than the
  *   store TTL anyway, and a refresh right after a reconnection then costs
  *   nothing.
+ *   `sceneEvents` is optional: without it the pass behaves exactly as before,
+ *   which is what keeps a Gladys that ignores scene triggers unaffected.
  * @returns {Promise<{ total: number, updated: number, failures: string[] }>}
  */
-export async function refreshAllDevices(gladys, { config, store, history, force = false }) {
+export async function refreshAllDevices(
+  gladys,
+  { config, store, history, force = false, sceneEvents = null },
+) {
   const devices = await gladys.getDevices();
   const targets = parseTargets(devices);
   if (targets.length === 0) {
@@ -90,15 +96,23 @@ export async function refreshAllDevices(gladys, { config, store, history, force 
 
   let updated = 0;
   const failures = [];
-  for (const { device } of targets) {
+  // What changed since the previous pass is a property of the PASS, not of a
+  // device: "the cheapest station you follow is no longer the same one" can
+  // only be answered once every station has been read. See src/sceneEvents.js.
+  const pass = sceneEvents?.startPass() ?? null;
+  let lastError = null;
+  for (const target of targets) {
+    const { device } = target;
     try {
-      const { price } = await pollDevice(gladys, { device, config, store });
+      const { price, station } = await pollDevice(gladys, { device, config, store });
       if (price !== null) {
         updated += 1;
+        pass?.record({ device, target, station, price });
       }
     } catch (err) {
       logger.error(`Refresh failed for ${device.external_id}`, err);
       failures.push(device.name ?? device.external_id);
+      lastError = err;
     }
   }
 
@@ -116,6 +130,23 @@ export async function refreshAllDevices(gladys, { config, store, history, force 
     notifyWidgetsChanged(gladys);
   }
 
+  // Last of all, and never fatal: a scene trigger that cannot be delivered must
+  // not turn a successful refresh into a failed one (the core may simply not
+  // know about scene triggers yet).
+  if (pass) {
+    try {
+      await pass.end({
+        // Every station failing is the feed being unreachable; one station
+        // missing from it is just one station missing from it.
+        failed: failures.length === targets.length,
+        error: lastError,
+        lastSuccessAt: store.lastFetchAt,
+      });
+    } catch (err) {
+      logger.error('Scene events of this pass were not published', err);
+    }
+  }
+
   return { total: targets.length, updated, failures };
 }
 
@@ -124,13 +155,14 @@ export async function refreshAllDevices(gladys, { config, store, history, force 
  * declarative and the tests can drive the clock instead of waiting an hour.
  *
  * @param {object} gladys SDK instance
- * @param {{ store: object, setTimer?: Function, clearTimer?: Function }} context
+ * @param {{ store: object, history?: object, sceneEvents?: object,
+ *   setTimer?: Function, clearTimer?: Function }} context
  *   `setTimer`/`clearTimer` are the seam the unit tests use in place of
  *   `setInterval`/`clearInterval`.
  */
 export function createRefreshLoop(
   gladys,
-  { store, history, setTimer = setInterval, clearTimer = clearInterval },
+  { store, history, sceneEvents = null, setTimer = setInterval, clearTimer = clearInterval },
 ) {
   let timer = null;
   let running = false;
@@ -149,6 +181,7 @@ export function createRefreshLoop(
         config,
         store,
         history,
+        sceneEvents,
       });
       if (total > 0) {
         logger.info(

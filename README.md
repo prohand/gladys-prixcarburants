@@ -68,6 +68,8 @@ Three decisions worth knowing before reading the code:
 │  ├─ stationStore.js                # cache + per-country batched refresh
 │  ├─ priceHistory.js                # 30-day samples of the cheapest price (/data)
 │  ├─ house.js                       # house coordinates (GET /house) + search centre
+│  ├─ sceneEvents.js                 # scene triggers fired at the end of a pass
+│  ├─ sceneActions.js                # scene actions a scene can run
 │  ├─ actions.js                     # the Configuration screen buttons
 │  ├─ widgets/
 │  │  ├─ index.js                    #   widget registry + SDK wiring
@@ -211,6 +213,62 @@ Three things shape the code:
 >
 > When the PR lands: bump `gladys_version` to the first release accepting
 > `widgets`, raise the SDK dependency, re-run the store validator, and release.
+
+## Scene triggers and actions (preview — NOT releasable yet)
+
+The manifest declares three `scene_triggers`, fired by `src/sceneEvents.js` at
+the end of every refresh pass:
+
+| Key                        | Fired when                                                         |
+| -------------------------- | ------------------------------------------------------------------ |
+| `price_updated`            | a followed station moved a price (carries the old one and the gap) |
+| `cheapest_station_changed` | another followed station is now the cheapest for a fuel            |
+| `feed_status_changed`      | every station of a pass failed, or the feed answers again          |
+
+…and three `scene_actions`, handled in `src/sceneActions.js`, that a scene can
+run:
+
+| Key                | Does                                                              | Outputs                                     |
+| ------------------ | ----------------------------------------------------------------- | ------------------------------------------- |
+| `refresh_prices`   | reads the feed now, so the next steps act on a fresh price        | `total`, `updated`, `failed`                |
+| `cheapest_station` | compares the followed stations of one fuel, returns the cheapest  | `found`, `station_name`, `price`, `city`, … |
+| `price_report`     | the same comparison as one line of text, ready for a notification | `text`, `station_count`, `cheapest_price`   |
+
+`cheapest_station` answers `found: false` rather than throwing when nothing is
+followed for that fuel: a scene action is never a condition, so the scene gates
+itself with the core's "only continue if" on that output.
+
+They rest on **[GladysAssistant/Gladys#3110](https://github.com/GladysAssistant/Gladys/pull/3110),
+which is not released**: `scene_triggers` in the manifest and
+`POST /api/integration/v1/scene/event` to fire one. Consequences, today:
+
+- a **released** Gladys rejects a manifest carrying unknown fields, and
+  `npx github:GladysAssistant/integration-store .` answers
+  `manifest: must NOT have additional properties`. This branch is therefore
+  testable against a Gladys built from the PR, and **must not be released as
+  is**;
+- before releasing, `gladys_version` has to be raised to the first Gladys
+  version that ships the feature — exactly what was done for `categories` and
+  4.86.0 — and the store indexer re-run;
+- the runtime side is already harmless either way: the first `404` from the
+  core disables the publisher for the life of the container, and a refresh pass
+  never fails because a scene event could not be delivered.
+
+The SDK exposes neither `publishSceneEvent()` nor `onSceneAction()` yet:
+`sceneEvents.js` calls the first when it exists and falls back to the raw host
+API route, and `registerSceneActions()` uses the second when it exists and
+otherwise intercepts the `external-integration.scene-action.run` message itself
+— the SDK drops an unknown message type silently, which would leave every scene
+action timing out with nothing in the logs. `test/sceneActions.test.js` runs
+that fallback against a real (unconnected) SDK instance, so it fails the day
+those internals move, which is the day the fallback must go.
+
+Two rules the module is built around, both from the spec: **one event per
+transition** (a price that did not move fires nothing, whatever the interval)
+and **no baseline, no event** (the first pass after a restart only records, so
+restarting the container never replays "everything changed"). A price
+_threshold_ is deliberately absent: a price is a device feature, and
+"below 1.70 €" is already a core `device.new-state` trigger.
 
 ## Validate before publishing
 

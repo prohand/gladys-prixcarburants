@@ -11,6 +11,7 @@ import { createRefreshLoop, refreshAllDevices } from '../src/refresh.js';
 import { deviceExternalId } from '../src/devices/index.js';
 import { createStationStore } from '../src/stationStore.js';
 import { createPriceHistory } from '../src/priceHistory.js';
+import { createSceneEvents, SCENE_TRIGGERS } from '../src/sceneEvents.js';
 import { createFakeGladys, createFakeProvider, createStation } from './helpers/fakeGladys.js';
 
 const config = normalizeConfig({ postal_code: '35000', fuel_type: ['gazole'] });
@@ -186,4 +187,71 @@ test('the loop keeps the widget curve filling when no dashboard is open', async 
   store.invalidate();
   await refreshAllDevices(gladys, { config, store, history });
   assert.equal(provider.calls.search, searchesAfterTheWidget, 'not twice within the hour');
+});
+
+// --- Scene triggers ----------------------------------------------------------
+// The pass is where the events are decided, so this is where "a refresh that
+// changed nothing wakes no scene" has to be asserted end to end.
+
+test('a refresh pass fires the scene trigger of a price that actually moved', async () => {
+  const station = createStation({ id: '1' });
+  const { store } = storeWith([station]);
+  const gladys = gladysWithStations(['1']);
+  const sent = [];
+  const sceneEvents = createSceneEvents(gladys, {
+    publish: async (_gladys, key, data) => sent.push({ key, data }),
+  });
+
+  await refreshAllDevices(gladys, { config, store, sceneEvents });
+  assert.deepEqual(sent, [], 'the first pass is the baseline');
+
+  await refreshAllDevices(gladys, { config, store, force: true, sceneEvents });
+  assert.deepEqual(sent, [], 'the same price twice is not an event');
+
+  station.prices = { ...station.prices, gazole: 1.659 };
+  await refreshAllDevices(gladys, { config, store, force: true, sceneEvents });
+
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].key, SCENE_TRIGGERS.PRICE_UPDATED);
+  assert.equal(sent[0].data.price, 1.659);
+  assert.equal(sent[0].data.previous_price, 1.699);
+});
+
+test('a pass where every station failed fires the feed trigger', async () => {
+  const { provider, store } = storeWith([createStation({ id: '1' })]);
+  const gladys = gladysWithStations(['1']);
+  const sent = [];
+  const sceneEvents = createSceneEvents(gladys, {
+    publish: async (_gladys, key, data) => sent.push({ key, data }),
+  });
+
+  await refreshAllDevices(gladys, { config, store, sceneEvents });
+
+  provider.fetchStationsByIds = async () => {
+    throw new Error('fetch failed (ECONNREFUSED)');
+  };
+  const result = await refreshAllDevices(gladys, { config, store, force: true, sceneEvents });
+
+  assert.equal(result.failures.length, 1);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].key, SCENE_TRIGGERS.FEED_STATUS_CHANGED);
+  assert.equal(sent[0].data.status, 'unavailable');
+  assert.match(sent[0].data.error, /ECONNREFUSED/);
+});
+
+test('an unpublishable scene event never fails the refresh that carried it', async () => {
+  const station = createStation({ id: '1' });
+  const { store } = storeWith([station]);
+  const gladys = gladysWithStations(['1']);
+  const sceneEvents = createSceneEvents(gladys, {
+    publish: async () => {
+      throw new Error('core unreachable');
+    },
+  });
+
+  await refreshAllDevices(gladys, { config, store, sceneEvents });
+  station.prices = { ...station.prices, gazole: 1.659 };
+  const result = await refreshAllDevices(gladys, { config, store, force: true, sceneEvents });
+
+  assert.deepEqual(result, { total: 1, updated: 1, failures: [] }, 'the prices were refreshed');
 });

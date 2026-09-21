@@ -216,6 +216,66 @@ interroger le jeu de données national.
   plein.
 - Enregistrer le prix moyen du mois grâce à l'historique.
 
+## Déclencheurs de scènes
+
+Sur une version de Gladys qui le gère, l'intégration ajoute trois déclencheurs
+dans la catégorie **Intégrations** de l'éditeur de scènes. Ils apparaissent tout
+seuls : rien à configurer côté intégration.
+
+| Déclencheur                                  | Se déclenche quand                                                                                       |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Un prix de carburant a changé**            | une station que vous suivez a déclaré un nouveau prix (filtres : station, carburant, hausse ou baisse)   |
+| **La station la moins chère a changé**       | une autre de vos stations est devenue la moins chère pour un carburant (il faut en suivre au moins deux) |
+| **Le flux open data est devenu injoignable** | toutes les stations d'un rafraîchissement ont échoué, ou le flux répond de nouveau                       |
+
+Chaque déclencheur transmet des informations à vos actions : le nom de la
+station, la ville, le carburant, le nouveau prix, le prix précédent et l'écart.
+Exemple de notification : « Le Gazole passe à 1,659 € à Station du Centre
+(-0,040 €) ».
+
+Un filtre laissé vide veut dire « peu importe » : sans station choisie, le
+déclencheur réagit à toutes vos stations.
+
+Deux points à connaître :
+
+- **un prix qui ne bouge pas ne déclenche rien**, même si l'intégration
+  rafraîchit toutes les heures : seul un vrai changement est envoyé ;
+- après un redémarrage du conteneur, le premier rafraîchissement sert de point
+  de repère et n'envoie rien.
+
+Pour un simple seuil (« préviens-moi sous 1,70 € »), n'utilisez pas ces
+déclencheurs : le déclencheur **Un appareil change d'état** de Gladys, sur la
+donnée « prix » de la station, fait déjà exactement ça.
+
+## Actions de scènes
+
+Toujours dans la catégorie **Intégrations**, l'intégration ajoute trois actions
+utilisables dans une scène.
+
+| Action                                 | Ce qu'elle fait                                                                   |
+| -------------------------------------- | --------------------------------------------------------------------------------- |
+| **Rafraîchir les prix des carburants** | lit le flux maintenant, pour que la suite de la scène travaille sur un prix frais |
+| **Trouver la station la moins chère**  | compare vos stations pour un carburant et renvoie la moins chère                  |
+| **Préparer un résumé des prix**        | la même comparaison sous forme d'une ligne de texte prête à envoyer               |
+
+Les résultats d'une action sont réutilisables dans les étapes suivantes de la
+scène (prix, nom de la station, ville, adresse, distance, date du prix…).
+
+Exemple de scène, tous les matins à 7 h :
+
+1. **Trouver la station la moins chère** (carburant : Gazole, lire les prix
+   avant de comparer : oui) ;
+2. **Continuer seulement si** le résultat `found` est vrai ;
+3. **Envoyer un message** : « Le plein le moins cher : {{ nom de la station }} à
+   {{ prix }} €/L ».
+
+Ou plus court, en une seule étape : **Préparer un résumé des prix**, puis
+envoyer le texte obtenu.
+
+Bon à savoir : « Trouver la station la moins chère » ne fait jamais échouer la
+scène quand vous ne suivez aucune station pour ce carburant — elle répond
+`found = false`, et c'est à vous de tester ce résultat.
+
 ## Dépannage
 
 **Aucune station dans l'onglet Découverte.** Vérifiez le code postal (5
