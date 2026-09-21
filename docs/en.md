@@ -189,9 +189,9 @@ compute the distances, and they are displayed nowhere.
 The postal code stays required either way: it is what queries the national
 dataset.
 
-> Widgets need a Gladys version able to render them. On an older version the
-> devices and the Discovery tab work as usual: only the cards are missing from
-> the list.
+> Widgets need **Gladys 5.1 or newer**, like the scenes below. That is the
+> minimum version the integration declares: on an older Gladys it simply does
+> not show up in the store.
 
 ## Scene ideas
 
@@ -202,9 +202,9 @@ dataset.
 
 ## Scene triggers
 
-On a Gladys version that supports them, the integration adds three triggers to
-the **Integrations** category of the scene editor. They show up on their own:
-nothing to configure on the integration side.
+The integration adds three triggers to the **Integrations** category of the
+scene editor (Gladys 5.1 or newer). They show up on their own: nothing to
+configure on the integration side.
 
 | Trigger                                   | Fires when                                                                                        |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------- |

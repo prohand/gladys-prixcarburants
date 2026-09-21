@@ -14,16 +14,9 @@
 //   - `onWidgetAction(key, cb)`   a button was tapped;
 //   - `requestWidgetRefresh(key)` the nudge, the only thing we PUSH: "re-pull
 //                                 me", carrying no data at all.
-//
-// Registration is capability-checked on purpose. The widget contract is newer
-// than any published SDK (0.13.0 ignores the widget messages outright), so
-// `registerWidgets` falls back to `sdkBridge.js`, which answers those commands
-// on the SDK's own socket. Without that fallback the core asks and nobody
-// replies, and the card reads "data unavailable" fifteen seconds later.
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
-import { bridgeWidgetMessages, sendWidgetRefresh } from './sdkBridge.js';
 import * as bestPrices from './bestPrices.js';
 import * as station from './station.js';
 
@@ -104,11 +97,7 @@ export async function runWidgetAction(gladys, { store }, key, actionKey) {
 export function notifyWidgetsChanged(gladys) {
   for (const key of WIDGET_KEYS) {
     try {
-      if (typeof gladys.requestWidgetRefresh === 'function') {
-        gladys.requestWidgetRefresh(key);
-      } else {
-        sendWidgetRefresh(gladys, key);
-      }
+      gladys.requestWidgetRefresh(key);
     } catch (err) {
       // A nudge that fails costs one TTL of freshness, never a refresh pass.
       logger.debug(`Widget nudge failed for "${key}": ${err.message}`);
@@ -119,38 +108,18 @@ export function notifyWidgetsChanged(gladys) {
 /**
  * Register the widget handlers.
  *
- * Two roads, and the second is the one taken today: the SDK's own API when it
- * has one, and otherwise the bridge of `sdkBridge.js`, which answers the widget
- * commands on the SDK's socket. Without it the core asks and nothing replies,
- * which the dashboard shows as "data unavailable" fifteen seconds later.
- *
  * @param {object} gladys SDK instance
  * @param {() => { config: object, store: object }} getContext the context is
  *   read at CALL time, not at registration time: the configuration is
  *   hot-reloaded (`onConfigUpdated`) and a handler closing over the old object
  *   would keep serving the old postal code.
- * @returns {'sdk'|'bridge'} how the commands are answered
  */
 export function registerWidgets(gladys, getContext) {
-  if (typeof gladys.onWidgetGet !== 'function') {
-    bridgeWidgetMessages(gladys, {
-      getContent: (key, request) => getWidgetContent(gladys, getContext(), key, request),
-      runAction: (key, actionKey) => runWidgetAction(gladys, getContext(), key, actionKey),
-    });
-    logger.info(
-      `${WIDGET_KEYS.length} dashboard widget(s) served without SDK support: ${WIDGET_KEYS.join(', ')}`,
-    );
-    return 'bridge';
-  }
-
   for (const key of WIDGET_KEYS) {
     gladys.onWidgetGet(key, (request) => getWidgetContent(gladys, getContext(), key, request));
-    if (typeof gladys.onWidgetAction === 'function') {
-      gladys.onWidgetAction(key, (actionKey) =>
-        runWidgetAction(gladys, getContext(), key, actionKey),
-      );
-    }
+    gladys.onWidgetAction(key, (actionKey) =>
+      runWidgetAction(gladys, getContext(), key, actionKey),
+    );
   }
   logger.info(`${WIDGET_KEYS.length} dashboard widget(s) registered: ${WIDGET_KEYS.join(', ')}`);
-  return 'sdk';
 }

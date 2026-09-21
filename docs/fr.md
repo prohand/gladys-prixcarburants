@@ -204,9 +204,9 @@ affichées nulle part.
 Le code postal reste obligatoire dans tous les cas : c'est lui qui sert à
 interroger le jeu de données national.
 
-> Les widgets demandent une version de Gladys qui sait les afficher. Sur une
-> version plus ancienne, les appareils et l'onglet Découverte fonctionnent
-> normalement : seules les cartes n'apparaissent pas dans la liste.
+> Les widgets demandent **Gladys 5.1 ou plus récent**, comme les scènes plus
+> bas. C'est la version minimale déclarée par l'intégration : sur un Gladys
+> plus ancien, elle n'apparaît simplement pas dans le magasin.
 
 ## Idées de scènes
 
@@ -218,9 +218,9 @@ interroger le jeu de données national.
 
 ## Déclencheurs de scènes
 
-Sur une version de Gladys qui le gère, l'intégration ajoute trois déclencheurs
-dans la catégorie **Intégrations** de l'éditeur de scènes. Ils apparaissent tout
-seuls : rien à configurer côté intégration.
+L'intégration ajoute trois déclencheurs dans la catégorie **Intégrations** de
+l'éditeur de scènes (Gladys 5.1 ou plus récent). Ils apparaissent tout seuls :
+rien à configurer côté intégration.
 
 | Déclencheur                                  | Se déclenche quand                                                                                       |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |

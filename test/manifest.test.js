@@ -127,6 +127,26 @@ test('the catalog categories stay within what Gladys knows, and require 4.86', (
   );
 });
 
+test('the fields that came with Gladys 5.1 require 5.1 in gladys_version', () => {
+  // Same rule as `categories` above, one release later: `widgets`,
+  // `scene_triggers` and `scene_actions` ship with Gladys 5.1
+  // (GladysAssistant/Gladys#3109 and #3110), and a core that predates them
+  // rejects the WHOLE manifest as carrying unknown fields. The store indexer
+  // refuses the pair outright, so the two move together or not at all.
+  const FIELDS_OF_5_1 = ['widgets', 'scene_triggers', 'scene_actions'];
+  const declared = FIELDS_OF_5_1.filter((field) => manifest[field] !== undefined);
+  if (declared.length === 0) {
+    return;
+  }
+  const minimum = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\./);
+  assert.ok(minimum, 'gladys_version must declare a minimum version');
+  const [, major, minor] = minimum.map(Number);
+  assert.ok(
+    major > 5 || (major === 5 && minor >= 1),
+    `${declared.join(', ')} require gladys_version >= 5.1.0, got "${manifest.gladys_version}"`,
+  );
+});
+
 test('the manifest declares the transport the integration really uses', () => {
   // The Local/Cloud tag of the store catalog is read from this field: without
   // it the card carries neither, and the "Cloud" facet of the catalog does not

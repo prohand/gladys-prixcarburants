@@ -97,8 +97,8 @@ devices Gladys holds, publishes discovery, arms the refresh loop and reports
   batches every tracked station of a country into one request and shares the in-flight
   promise, so ten devices cost one HTTP call. Never call a provider directly from a device or
   refresh path.
-- **Scene triggers AND actions are a PREVIEW** (GladysAssistant/Gladys#3110, unreleased): the manifest
-  `scene_triggers` and `POST /api/integration/v1/scene/event`, fired by `src/sceneEvents.js`
+- **Scene triggers AND actions need Gladys 5.1** (GladysAssistant/Gladys#3110): the manifest
+  `scene_triggers`, fired by `src/sceneEvents.js` through the SDK's `publishSceneEvent()`
   at the end of a refresh pass. Trigger keys, filter keys and variable keys are **append-only**
   for the same reason as the fuels: a scene stores them. Two rules the module must keep — one
   event per TRANSITION (never one per pass) and no baseline, no event (the first pass after a
@@ -108,13 +108,12 @@ devices Gladys holds, publishes discovery, arms the refresh loop and reports
   `external-integration.scene-action.run` over the WS and reads `data.outputs` back, so the
   handlers return OUTPUT OBJECTS while the manifest `actions` of `src/actions.js` return a
   bilingual message — two namespaces, never one handler for both. An action is never a
-  condition: answer `found: false`, never throw, when there is simply nothing to report. The
-  SDK has neither `publishSceneEvent` nor `onSceneAction` yet, so both modules use them when
-  present and fall back (raw host API route / intercepting that one WS message, since the SDK
-  drops unknown types silently). A released core, and the store indexer, still reject a
-  manifest carrying `scene_triggers`/`scene_actions` — so
-  `gladys_version` must be raised to the first release that ships it before any release
-  (the `categories`/4.86 precedent), and the publisher disables itself on the first 404.
+  condition: answer `found: false`, never throw, when there is simply nothing to report. Both
+  halves sit on SDK members (`publishSceneEvent`, `onSceneAction`, 0.14.0 and up) — the raw
+  host-API route and the WS-message interception that stood in for them are gone. A core older
+  than 5.1 rejects a manifest carrying `scene_triggers`/`scene_actions` outright, so
+  `gladys_version` and these fields move together (the `categories`/4.86 precedent, pinned by
+  `test/manifest.test.js`), and the publisher still disables itself on the first 404.
 - **A missing price is not an error**: `pollDevice` publishes nothing and keeps the last known
   value rather than drawing a hole in the history chart. Likewise a station absent from the
   feed keeps its stale cache entry.
@@ -175,16 +174,11 @@ fuel) and `station` (one followed station, a price tile per fuel).
   together, like the rest of the manifest.
 - **The nudge carries no data**: `notifyWidgetsChanged` only tells the core to re-pull, after
   a refresh pass that actually moved a price.
-- **The SDK does not speak widgets yet** (0.13.0 is the latest and its dispatcher ignores
-  unknown message types in silence), so `src/widgets/sdkBridge.js` answers
-  `widget.get` / `widget.action` on the SDK's own socket and sends `widget.refresh`. Without
-  it the core asks, nobody acks, and the card reads "data unavailable" after 15 s.
-  `registerWidgets` prefers `gladys.onWidgetGet` the day it exists and returns `'sdk'` or
-  `'bridge'` to say which road it took. The bridge answers just under the core's 15 s deadline
-  so a slow feed is named instead of timing out silently.
-- **Not releasable until #3109 ships**: the published `manifest.schema.json` rejects the
-  `widgets` field (`must NOT have additional properties`), so the store validator fails on
-  purpose. When it lands: raise `gladys_version`, raise the SDK dependency, re-validate.
+- **The widgets need Gladys 5.1 and SDK 0.14.0**: `registerWidgets` registers on
+  `gladys.onWidgetGet(key, cb)` and `gladys.onWidgetAction(key, cb)`, and the core acks for
+  us under its own 15 s deadline. An older core rejects the `widgets` field like any unknown
+  one, so `gladys_version` carries `">=5.1.0"` — `test/manifest.test.js` fails if the two ever
+  drift apart, which is the same guard `categories` gets.
 
 ### Country providers
 

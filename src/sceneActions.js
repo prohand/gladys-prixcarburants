@@ -74,7 +74,6 @@ export const SCENE_ACTION_CONTRACT = {
 };
 
 /** The WebSocket message the core sends when a scene reaches one of our actions. */
-const SCENE_ACTION_RUN = 'external-integration.scene-action.run';
 
 /**
  * The fuel a scene asked for.
@@ -230,68 +229,20 @@ export const SCENE_ACTIONS = {
 /**
  * Register every scene action handler on the SDK.
  *
- * `onSceneAction(key, cb)` is the member the spec announces; the SDK does not
- * ship it yet, and an unknown WebSocket message type is dropped silently by
- * design (forward compatibility), which would leave every scene action timing
- * out with no log at all. So while it is missing we intercept that one message
- * type ourselves and hand it to the SDK's own command runner, which is exactly
- * what the SDK will do natively: same handler registry, same `command-result`
- * ack, same "not implemented" answer for an unknown key.
- *
- * Deliberately defensive: an SDK that changed its internals logs a warning and
- * loses the scene actions — never the whole integration.
+ * `onSceneAction(key, cb)` acks for us: the resolved outputs on success, the
+ * error message on a throw, "not implemented" for a key we do not handle. The
+ * handler receives the fields already resolved by the core — scene variables
+ * substituted, defaults applied, types validated — so there is nothing to
+ * parse here.
  *
  * @param {object} gladys SDK instance
  * @param {{ handlers?: Record<string, Function>, context: () => object }} options
  *   `context` is a function so the handlers always read the CURRENT
  *   configuration, the one `onConfigUpdated` last stored.
- * @returns {'sdk'|'fallback'|'unsupported'} how the handlers were registered
  */
 export function registerSceneActions(gladys, { handlers = SCENE_ACTIONS, context }) {
-  const wrap = (handler) => (fields) => handler(gladys, fields ?? {}, context());
-
-  if (typeof gladys.onSceneAction === 'function') {
-    for (const [key, handler] of Object.entries(handlers)) {
-      gladys.onSceneAction(key, wrap(handler));
-    }
-    return 'sdk';
-  }
-
-  if (
-    typeof gladys._handleMessage !== 'function' ||
-    typeof gladys._runCommand !== 'function' ||
-    typeof gladys.handlers !== 'object'
-  ) {
-    logger.warn('This SDK cannot receive scene actions: the declared ones will not run');
-    return 'unsupported';
-  }
-
   for (const [key, handler] of Object.entries(handlers)) {
-    gladys.handlers[`sceneAction:${key}`] = wrap(handler);
+    gladys.onSceneAction(key, (fields) => handler(gladys, fields ?? {}, context()));
   }
-
-  const inner = gladys._handleMessage.bind(gladys);
-  gladys._handleMessage = async (rawData, initial) => {
-    let message;
-    try {
-      message = JSON.parse(rawData.toString());
-    } catch {
-      return inner(rawData, initial);
-    }
-    if (message?.type !== SCENE_ACTION_RUN) {
-      return inner(rawData, initial);
-    }
-    const payload = message.payload ?? {};
-    logger.info(`Scene action requested: ${payload.key}`);
-    // `_runCommand` acks for us: success + `data`, the error message on a
-    // throw, "not implemented" for a key we do not handle.
-    return gladys._runCommand(
-      `sceneAction:${payload.key}`,
-      payload,
-      [payload.fields ?? {}],
-      (outputs) => ({ outputs: outputs ?? {} }),
-    );
-  };
-  logger.debug('Scene actions registered through the host message fallback');
-  return 'fallback';
+  logger.info(`${Object.keys(handlers).length} scene action(s) registered`);
 }

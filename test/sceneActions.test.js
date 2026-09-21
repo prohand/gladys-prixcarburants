@@ -1,16 +1,14 @@
 // -----------------------------------------------------------------------------
-// Scene actions (GladysAssistant/Gladys#3110, not released yet).
+// Scene actions (GladysAssistant/Gladys#3110, shipped in Gladys 5.1).
 //
-// Two things are tested here, and the second one matters as much as the first:
-// what the handlers answer, and the fact that the SDK — the REAL one, not a
-// stand-in — actually routes `external-integration.scene-action.run` to them.
-// The SDK ignores unknown message types silently by design, so a broken
-// registration would show up as scenes timing out with nothing in the logs.
+// Two things are tested here: what the handlers answer, and the fact that
+// every declared key is actually registered on `onSceneAction` with a callback
+// that reads the CURRENT configuration. The core acks for us, so what is left
+// on our side is the registration and the outputs.
 // -----------------------------------------------------------------------------
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { GladysIntegration, createLogger } from '@gladysassistant/integration-sdk';
 import { normalizeConfig } from '../src/config.js';
 import { createStationStore } from '../src/stationStore.js';
 import { deviceExternalId } from '../src/devices/index.js';
@@ -132,119 +130,40 @@ test('an action never answers a key it did not declare', async () => {
   }
 });
 
-test('the handlers are registered through the SDK member as soon as it exists', () => {
+test('every declared action is registered on the SDK member', () => {
   const registered = [];
   const gladys = { onSceneAction: (key, callback) => registered.push({ key, callback }) };
 
-  const mode = registerSceneActions(gladys, { context: () => ({}) });
+  registerSceneActions(gladys, { context: () => ({}) });
 
-  assert.equal(mode, 'sdk');
   assert.deepEqual(
     registered.map((r) => r.key),
     Object.keys(SCENE_ACTIONS),
   );
 });
 
-// --- The fallback, against the real SDK --------------------------------------
-// `onSceneAction` does not exist in the SDK yet and an unknown WebSocket
-// message type is dropped silently, so the integration intercepts that one
-// message itself. These tests run on a real GladysIntegration (never connected)
-// so they break the day the SDK internals they lean on change — which is
-// exactly when this fallback must be replaced by the SDK member.
+test('a registered action reads the configuration in force when the scene runs', async () => {
+  // The whole reason `context` is a function: a scene started an hour after an
+  // onConfigUpdated must act on the postal code the user saved, not the one
+  // this module saw at startup.
+  const registered = new Map();
+  const gladys = { onSceneAction: (key, callback) => registered.set(key, callback) };
+  let current = { postalCode: '35000' };
+  const seen = [];
 
-/** A real, unconnected SDK instance whose `command-result` acks are captured. */
-function sdkInstance() {
-  const gladys = new GladysIntegration({
-    hostApiUrl: 'http://127.0.0.1:1',
-    token: 'test-token',
-    selector: 'prix-carburants',
-    logger: createLogger({ level: 'silent' }),
-  });
-  const sent = [];
-  gladys._send = (type, payload) => sent.push({ type, payload });
-  return { gladys, sent };
-}
-
-/** Feed a WebSocket frame to the SDK the way the socket does. */
-const deliver = (gladys, message) => gladys._handleMessage(Buffer.from(JSON.stringify(message)));
-
-test('the fallback answers a scene action with the declared outputs', async () => {
-  const { gladys, sent } = sdkInstance();
-  const mode = registerSceneActions(gladys, {
-    handlers: { echo: async (_gladys, fields) => ({ seen: fields.value }) },
-    context: () => ({}),
-  });
-  assert.equal(mode, 'fallback');
-
-  await deliver(gladys, {
-    type: 'external-integration.scene-action.run',
-    payload: { message_id: 'abc', key: 'echo', fields: { value: 'gazole' } },
-  });
-
-  assert.deepEqual(sent, [
-    {
-      type: 'external-integration.command-result',
-      payload: { message_id: 'abc', success: true, data: { outputs: { seen: 'gazole' } } },
-    },
-  ]);
-});
-
-test('the fallback reports a failing action instead of leaving the scene waiting', async () => {
-  const { gladys, sent } = sdkInstance();
   registerSceneActions(gladys, {
-    handlers: {
-      broken: async () => {
-        throw new Error('open data unreachable');
-      },
-    },
-    context: () => ({}),
+    handlers: { echo: async (_gladys, fields, context) => seen.push({ fields, context }) },
+    context: () => current,
   });
 
-  await deliver(gladys, {
-    type: 'external-integration.scene-action.run',
-    payload: { message_id: 'abc', key: 'broken' },
-  });
+  await registered.get('echo')({ fuel: 'gazole' });
+  current = { postalCode: '44000' };
+  // A core that resolved no field at all sends none: the handler still runs.
+  await registered.get('echo')();
 
-  assert.equal(sent[0].payload.success, false);
-  assert.equal(sent[0].payload.error, 'open data unreachable');
-});
-
-test('an action key this version does not know is answered, not ignored', async () => {
-  const { gladys, sent } = sdkInstance();
-  registerSceneActions(gladys, { handlers: {}, context: () => ({}) });
-
-  await deliver(gladys, {
-    type: 'external-integration.scene-action.run',
-    payload: { message_id: 'abc', key: 'removed_last_version' },
-  });
-
-  assert.deepEqual(sent, [
-    {
-      type: 'external-integration.command-result',
-      payload: { message_id: 'abc', success: false, error: 'not implemented' },
-    },
-  ]);
-});
-
-test('every other message keeps reaching the SDK untouched', async () => {
-  const { gladys, sent } = sdkInstance();
-  registerSceneActions(gladys, { handlers: {}, context: () => ({}) });
-  const polled = [];
-  gladys.onPoll(async (device) => polled.push(device));
-
-  await deliver(gladys, {
-    type: 'external-integration.device.poll',
-    payload: { message_id: 'xyz', device: { external_id: 'ext:prix-carburants:fuel-station:x' } },
-  });
-  // A frame that is not even JSON must not throw either: the SDK ignores it.
-  await gladys._handleMessage(Buffer.from('not json at all'));
-
-  assert.equal(polled.length, 1, 'the poll handler still runs');
-  assert.equal(sent[0].payload.message_id, 'xyz');
-});
-
-test('the scene actions are lost, never the integration, on an unknown SDK', () => {
-  const mode = registerSceneActions({ handlers: {} }, { context: () => ({}) });
-
-  assert.equal(mode, 'unsupported');
+  assert.deepEqual(
+    seen.map((call) => call.context.postalCode),
+    ['35000', '44000'],
+  );
+  assert.deepEqual(seen[1].fields, {}, 'a missing fields object is an empty one');
 });

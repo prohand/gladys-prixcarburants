@@ -106,28 +106,19 @@ const MAX_ERROR_LENGTH = 200;
 // deserves the three decimals the pump displays, and nothing more.
 const round3 = (value) => Math.round(value * 1000) / 1000;
 
-/** The path of the host API route that fires an event (spec §5). */
-const SCENE_EVENT_PATH = '/scene/event';
-
 /**
  * Fire one declared trigger.
  *
- * Written against the SDK member the spec announces (`publishSceneEvent`) and
- * falling back to the raw host API call while the SDK does not ship it yet, so
- * upgrading the SDK later removes the fallback and changes nothing else.
+ * A thin wrapper on purpose: it is the single seam the tests replace
+ * (`createSceneEvents(gladys, { publish })`), and the single place the key and
+ * the payload can be logged the day one has to be traced.
  *
  * @param {object} gladys SDK instance
  * @param {string} key declared `scene_triggers[].key`
  * @param {Record<string, string|number|boolean|null>} data flat, primitives only
  */
 export async function publishSceneEvent(gladys, key, data) {
-  if (typeof gladys.publishSceneEvent === 'function') {
-    return gladys.publishSceneEvent(key, data);
-  }
-  if (typeof gladys.httpClient?.post === 'function') {
-    return gladys.httpClient.post(SCENE_EVENT_PATH, { key, data });
-  }
-  throw new Error('This SDK cannot fire scene events');
+  return gladys.publishSceneEvent(key, data);
 }
 
 /**

@@ -73,7 +73,6 @@ Three decisions worth knowing before reading the code:
 │  ├─ actions.js                     # the Configuration screen buttons
 │  ├─ widgets/
 │  │  ├─ index.js                    #   widget registry + SDK wiring
-│  │  ├─ sdkBridge.js                #   answers widget messages the SDK ignores
 │  │  ├─ content.js                  #   the content vocabulary, bounds, budget
 │  │  ├─ bestPrices.js               #   card "Cheapest around me"
 │  │  ├─ station.js                  #   card "My station"
@@ -198,23 +197,15 @@ Three things shape the code:
   which (`2.3 km from home` / `2.3 km from 35000`), and the coordinates never
   reach a device, a state, a log or a widget content.
 
-> **Not releasable yet.** The `widgets` manifest field and the SDK handlers
-> come from [GladysAssistant/Gladys#3109](https://github.com/GladysAssistant/Gladys/pull/3109),
-> which is still open. Until it ships:
->
-> - `npx github:GladysAssistant/integration-store .` fails with
->   `manifest: must NOT have additional properties` — the published schema does
->   not know `widgets` yet;
-> - `@gladysassistant/integration-sdk` (0.13.0, latest) has no `onWidgetGet`
->   and its dispatcher ignores unknown message types silently, so
->   `src/widgets/sdkBridge.js` answers `widget.get` / `widget.action` on the
->   SDK's own socket. `registerWidgets()` switches to `gladys.onWidgetGet` the
->   day the SDK ships it, and the bridge can then be deleted.
->
-> When the PR lands: bump `gladys_version` to the first release accepting
-> `widgets`, raise the SDK dependency, re-run the store validator, and release.
+Both cards need **Gladys 5.1**, the release that shipped
+[GladysAssistant/Gladys#3109](https://github.com/GladysAssistant/Gladys/pull/3109) — hence
+`"gladys_version": ">=5.1.0"` in the manifest, which `test/manifest.test.js` pins the same way
+it pins `categories` against 4.86. The handlers come from the SDK itself
+(`onWidgetGet`, `onWidgetAction`, `requestWidgetRefresh`, 0.14.0 and up): the
+bridge that answered those commands on the raw socket while the SDK was behind
+is gone.
 
-## Scene triggers and actions (preview — NOT releasable yet)
+## Scene triggers and actions
 
 The manifest declares three `scene_triggers`, fired by `src/sceneEvents.js` at
 the end of every refresh pass:
@@ -238,30 +229,17 @@ run:
 followed for that fuel: a scene action is never a condition, so the scene gates
 itself with the core's "only continue if" on that output.
 
-They rest on **[GladysAssistant/Gladys#3110](https://github.com/GladysAssistant/Gladys/pull/3110),
-which is not released**: `scene_triggers` in the manifest and
-`POST /api/integration/v1/scene/event` to fire one. Consequences, today:
+They come from
+[GladysAssistant/Gladys#3110](https://github.com/GladysAssistant/Gladys/pull/3110), shipped in
+**Gladys 5.1** alongside the widgets — the same `">=5.1.0"` covers both, and the
+store indexer refuses the manifest without it. `sceneEvents.js` fires an event
+with the SDK's `publishSceneEvent()` and `registerSceneActions()` registers on
+its `onSceneAction()`; the raw host-API route and the message interception that
+stood in for them before 0.14.0 are gone.
 
-- a **released** Gladys rejects a manifest carrying unknown fields, and
-  `npx github:GladysAssistant/integration-store .` answers
-  `manifest: must NOT have additional properties`. This branch is therefore
-  testable against a Gladys built from the PR, and **must not be released as
-  is**;
-- before releasing, `gladys_version` has to be raised to the first Gladys
-  version that ships the feature — exactly what was done for `categories` and
-  4.86.0 — and the store indexer re-run;
-- the runtime side is already harmless either way: the first `404` from the
-  core disables the publisher for the life of the container, and a refresh pass
-  never fails because a scene event could not be delivered.
-
-The SDK exposes neither `publishSceneEvent()` nor `onSceneAction()` yet:
-`sceneEvents.js` calls the first when it exists and falls back to the raw host
-API route, and `registerSceneActions()` uses the second when it exists and
-otherwise intercepts the `external-integration.scene-action.run` message itself
-— the SDK drops an unknown message type silently, which would leave every scene
-action timing out with nothing in the logs. `test/sceneActions.test.js` runs
-that fallback against a real (unconnected) SDK instance, so it fails the day
-those internals move, which is the day the fallback must go.
+The runtime side stays forgiving: the first `404` from the core disables the
+publisher for the life of the container, and a refresh pass never fails because
+a scene event could not be delivered.
 
 Two rules the module is built around, both from the spec: **one event per
 transition** (a price that did not move fires nothing, whatever the interval)
