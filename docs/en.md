@@ -134,6 +134,14 @@ the integration logs list the missing stations.
 **An empty price.** The station is not declaring that fuel right now. The
 integration keeps the last known value instead of leaving a hole in the chart.
 
+**A station out of stock.** When the station declares a temporary rupture it
+does sell that fuel, it simply has none left. The device stays offered in the
+Discovery tab, the last known price stays displayed, and the "Last price
+update" feature reads "En rupture depuis le 18/09/2026 à 08:09" until the fuel
+is back. The **Preview the nearby stations** button then writes "SP98: out of
+stock", and keeps "SP98: not sold" for a fuel the station really does not sell
+(no pump, or a definitive rupture).
+
 **The SP95 of a station is missing while its SP98 is there.** That station
 does not sell SP95, and it is not a bug: many brands (TotalEnergies in
 particular) replaced it with **E10 (SP95-E10)**. Tick E10 in the configuration
@@ -147,9 +155,9 @@ and shrink the radius.
 **One particular station is missing.** The list keeps the NEAREST stations, up
 to that maximum: in a city, twenty of them fit in a couple of kilometres, so a
 station 5 km away is left out even with a 10 km radius. Raise **Maximum number
-of stations** rather than the radius. A station that declares no price for the
-fuel you ticked is not offered either, since the device would have nothing to
-publish.
+of stations** rather than the radius. A station that does not sell the fuel you
+ticked is not offered either, since the device would have nothing to publish —
+a station merely out of stock stays offered.
 
 ## Data and licence
 

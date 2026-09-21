@@ -141,6 +141,49 @@ test('polling a fuel without a price keeps the previous state instead of publish
   assert.deepEqual(gladys.published, []);
 });
 
+test('discovery offers a pump the station is temporarily out of', () => {
+  const gladys = createFakeGladys();
+  // Out of stock is not "not sold": the price comes back with the tanker, and
+  // the user must be able to add the device before it does.
+  const station = createStation({
+    prices: { gazole: 1.699, sp98: null },
+    availability: { gazole: 'available', sp98: 'out_of_stock' },
+    outOfStockSince: { sp98: '2026-09-18 08:09:56' },
+  });
+
+  const devices = buildDiscoveredDevices(gladys, config, [station]);
+  assert.deepEqual(
+    devices.map((d) => d.name),
+    ['TotalEnergies - Rennes - Diesel', 'TotalEnergies - Rennes - SP98'],
+  );
+});
+
+test('polling a fuel out of stock says so instead of freezing silently', async () => {
+  const gladys = createFakeGladys();
+  const { store } = storeWith([
+    createStation({
+      prices: { sp98: null },
+      availability: { sp98: 'out_of_stock' },
+      outOfStockSince: { sp98: '2026-09-18 08:09:56' },
+    }),
+  ]);
+  const external_id = deviceExternalId(gladys, {
+    country: 'FR',
+    stationId: '35000001',
+    fuel: 'sp98',
+  });
+
+  const { price } = await pollDevice(gladys, { device: { external_id }, store });
+
+  assert.equal(price, null, 'no price is published: the last known one stays on the chart');
+  assert.deepEqual(gladys.published, [
+    {
+      featureExternalId: `${external_id}:updated_at`,
+      state: { text: 'En rupture depuis le 18/09/2026 à 08:09' },
+    },
+  ]);
+});
+
 test('polling a station that vanished from the feed fails loudly', async () => {
   const gladys = createFakeGladys();
   const { store } = storeWith([]);

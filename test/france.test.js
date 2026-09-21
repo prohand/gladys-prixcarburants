@@ -338,3 +338,58 @@ test('fetchStationsByIds queries the ids it was given', async (t) => {
   const where = decodeURIComponent(urls[0]).replaceAll('+', ' ');
   assert.match(where, /where=id = "1" OR id = "oopsDROP"/);
 });
+
+test('parseStation tells a temporary rupture from a fuel the station does not sell', () => {
+  const station = parseStation({
+    id: '93160006',
+    cp: '93160',
+    ville: 'Noisy-le-Grand',
+    gazole_prix: 2.425,
+    sp98_prix: null,
+    sp98_rupture_debut: '2026-09-18T08:09:56+00:00',
+    sp98_rupture_type: 'temporaire',
+    sp95_prix: null,
+    sp95_rupture_debut: '2026-07-03T09:22:39+00:00',
+    sp95_rupture_type: 'definitive',
+  });
+
+  assert.equal(station.availability.gazole, 'available');
+  assert.equal(station.availability.sp98, 'out_of_stock', 'the pump exists, the tank is empty');
+  assert.equal(station.outOfStockSince.sp98, '2026-09-18T08:09:56+00:00');
+  assert.equal(station.availability.sp95, 'not_sold', 'a definitive rupture is a pump that closed');
+  assert.equal(station.outOfStockSince.sp95, null);
+  assert.equal(station.availability.e85, 'not_sold', 'no column, no rupture: never sold there');
+});
+
+test('parseStation reads the ruptures of the historical nested array', () => {
+  const station = parseStation({
+    id: '35000003',
+    cp: '35000',
+    rupture: JSON.stringify([
+      // The feed keeps the old declarations: only the most recent one describes
+      // the station today.
+      { '@nom': 'SP98', '@debut': '2016-05-26 05:00:00', '@fin': '', '@type': 'definitive' },
+      { '@nom': 'SP98', '@debut': '2026-09-18 08:09:56', '@fin': '', '@type': 'temporaire' },
+      { '@nom': 'E85', '@debut': '2026-09-01 10:00:00', '@fin': '', '@type': '' },
+      { '@nom': 'GPLc', '@debut': '2026-09-01 10:00:00', '@fin': '2026-09-10 10:00:00' },
+    ]),
+  });
+
+  assert.equal(station.availability.sp98, 'out_of_stock');
+  assert.equal(station.outOfStockSince.sp98, '2026-09-18 08:09:56');
+  assert.equal(station.availability.e85, 'out_of_stock', 'an unqualified rupture is temporary');
+  assert.equal(station.availability.gplc, 'not_sold', 'a rupture that ended says nothing today');
+});
+
+test('parseStation trusts a published price over a rupture the feed still carries', () => {
+  const station = parseStation({
+    id: '35000004',
+    cp: '35000',
+    gazole_prix: 1.699,
+    gazole_rupture_debut: '2026-09-01T10:00:00+00:00',
+    gazole_rupture_type: 'temporaire',
+  });
+
+  assert.equal(station.availability.gazole, 'available');
+  assert.equal(station.outOfStockSince.gazole, null);
+});

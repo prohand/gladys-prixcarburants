@@ -145,6 +145,15 @@ consultez les logs de l'intégration, qui indiquent les stations manquantes.
 L'intégration conserve alors la dernière valeur connue plutôt que de trouer la
 courbe.
 
+**Une station en rupture.** Quand la station déclare une rupture temporaire,
+elle vend bien ce carburant, elle n'en a simplement plus. L'appareil reste
+proposé dans l'onglet Découverte, le dernier prix connu reste affiché, et la
+fonctionnalité « Last price update » indique « En rupture depuis le
+18/09/2026 à 08:09 » jusqu'au retour du carburant. Le bouton
+**Prévisualiser les stations proches** écrit « SP98 : en rupture » dans ce cas,
+et « SP98 : non vendu » seulement quand la station ne vend pas ce carburant
+(pompe inexistante ou rupture définitive).
+
 **Le SP95 d'une station n'apparaît pas, contrairement au SP98.** C'est la
 station qui ne vend pas de SP95, pas un bug : beaucoup d'enseignes
 (TotalEnergies en particulier) l'ont remplacé par le **E10 (SP95-E10)**.
@@ -160,8 +169,9 @@ baissez-le et réduisez le rayon.
 PROCHES, dans la limite de ce maximum : en ville, vingt stations tiennent dans
 deux kilomètres, une station à 5 km est donc écartée même avec un rayon de
 10 km. Augmentez le **Nombre maximum de stations** plutôt que le rayon. Une
-station qui ne déclare aucun prix pour le carburant coché n'est pas proposée
-non plus, l'appareil n'aurait rien à publier.
+station qui ne vend pas le carburant coché n'est pas proposée non plus,
+l'appareil n'aurait rien à publier — une station seulement en rupture, elle,
+reste proposée.
 
 ## Données et licence
 

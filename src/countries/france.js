@@ -12,6 +12,11 @@
 // code (a few kB) instead of unzipping the ~15 MB national file on a Raspberry
 // Pi at every refresh.
 //
+// Besides the prices, the feed declares the RUPTURES: a fuel a station sells but
+// is temporarily out of. Both end up as an empty price column, and telling them
+// apart is what keeps the integration from announcing "non vendu" at a station
+// whose pump is simply dry (see src/availability.js).
+//
 // The parsing below is deliberately tolerant: the same dataset is mirrored on
 // several portals with slightly different column shapes (flat `gazole_prix`
 // columns, nested `prix` array, coordinates in degrees or in hundred-thousandths
@@ -20,6 +25,7 @@
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
+import { AVAILABILITY } from '../availability.js';
 import { centroid, distanceKm, isValidPoint } from '../geo.js';
 import { FUEL_KEYS } from '../fuels.js';
 import { cleanText } from '../text.js';
@@ -327,6 +333,10 @@ async function queryStations(where, max) {
  * @property {boolean} [inPostalCode]
  * @property {Record<string, number|null>} prices  price in EUR/L, per fuel key
  * @property {Record<string, string|null>} updatedAt ISO date of each price
+ * @property {Record<string, string>} availability per fuel: available, out of
+ *   stock (rupture temporaire) or not sold (see src/availability.js)
+ * @property {Record<string, string|null>} outOfStockSince when the station
+ *   declared the temporary rupture, per fuel
  */
 
 /**
@@ -345,15 +355,29 @@ export function parseStation(record) {
   const city = cleanText(record.ville ?? record.city);
   const brand = parseBrand(record);
   const nested = parseNestedPrices(record);
+  const nestedRuptures = parseNestedRuptures(record);
 
   /** @type {Record<string, number|null>} */
   const prices = {};
   /** @type {Record<string, string|null>} */
   const updatedAt = {};
+  /** @type {Record<string, string>} */
+  const availability = {};
+  /** @type {Record<string, string|null>} */
+  const outOfStockSince = {};
   for (const fuel of FUEL_KEYS) {
     const column = PRICE_COLUMNS[fuel];
     prices[fuel] = parsePrice(record[`${column}_prix`] ?? nested[fuel]?.price);
     updatedAt[fuel] = cleanText(record[`${column}_maj`] ?? nested[fuel]?.updatedAt) || null;
+
+    const rupture = parseRupture(record, column, nestedRuptures[fuel]);
+    if (prices[fuel] !== null) {
+      availability[fuel] = AVAILABILITY.AVAILABLE;
+    } else {
+      availability[fuel] = rupture?.temporary ? AVAILABILITY.OUT_OF_STOCK : AVAILABILITY.NOT_SOLD;
+    }
+    outOfStockSince[fuel] =
+      availability[fuel] === AVAILABILITY.OUT_OF_STOCK ? (rupture.since ?? null) : null;
   }
 
   return {
@@ -367,6 +391,8 @@ export function parseStation(record) {
     longitude,
     prices,
     updatedAt,
+    availability,
+    outOfStockSince,
   };
 }
 
@@ -472,6 +498,90 @@ function parseNestedPrices(record) {
     }
   }
   return byFuel;
+}
+
+/**
+ * The ruptures (out of stock declarations) of the historical model: a `rupture`
+ * array (or its JSON string) holding one entry per event, e.g.
+ * `{ "@nom": "SP98", "@debut": "2026-09-18 08:09:56", "@fin": "", "@type": "temporaire" }`.
+ *
+ * A station accumulates them: the same fuel can carry a 2016 entry AND a 2026
+ * one. Only the LAST one describes the situation today, which is exactly what
+ * the flat `sp98_rupture_*` columns of the v2 model publish — so we keep the
+ * most recent entry per fuel, and drop it when it has an end date (the rupture
+ * is over).
+ *
+ * @param {Record<string, unknown>} record
+ * @returns {Record<string, { type: string, since: string }>}
+ */
+function parseNestedRuptures(record) {
+  let entries = record.rupture;
+  if (typeof entries === 'string') {
+    try {
+      entries = JSON.parse(entries);
+    } catch {
+      return {};
+    }
+  }
+  if (!Array.isArray(entries)) {
+    return {};
+  }
+
+  const byFuel = {};
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object') {
+      continue;
+    }
+    const rawName = String(entry.nom ?? entry['@nom'] ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    const fuel = NESTED_FUEL_NAMES[rawName];
+    if (!fuel) {
+      continue;
+    }
+    const since = cleanText(entry.debut ?? entry['@debut']);
+    if (byFuel[fuel] && byFuel[fuel].since >= since) {
+      // ISO-like strings compare chronologically as text.
+      continue;
+    }
+    byFuel[fuel] = {
+      type: cleanText(entry.type ?? entry['@type']),
+      since,
+      end: cleanText(entry.fin ?? entry['@fin']),
+    };
+  }
+
+  // A closed rupture says the fuel is back: forget it and let the price talk.
+  for (const [fuel, rupture] of Object.entries(byFuel)) {
+    if (rupture.end) {
+      delete byFuel[fuel];
+    }
+  }
+  return byFuel;
+}
+
+/**
+ * Is that fuel declared out of stock, and since when?
+ *
+ * The difference matters to the user: a rupture TEMPORAIRE is a price coming
+ * back (the station sells that fuel, its tank is empty), a rupture DEFINITIVE
+ * is a pump the station stopped operating — indistinguishable, for us, from a
+ * pump it never had. An empty type is read as temporary: the feed marks the
+ * definitive ones explicitly, so an unqualified rupture is not one.
+ *
+ * @param {Record<string, unknown>} record
+ * @param {string} column the flat column prefix of the fuel ("sp98")
+ * @param {{ type: string, since: string }} [nested] same info, historical model
+ * @returns {{ temporary: boolean, since: string|null }|null} null when the
+ *   station declared no rupture at all for that fuel
+ */
+function parseRupture(record, column, nested) {
+  const type = cleanText(record[`${column}_rupture_type`] ?? nested?.type).toLowerCase();
+  const since = cleanText(record[`${column}_rupture_debut`] ?? nested?.since);
+  if (!type && !since) {
+    return null;
+  }
+  return { temporary: !type.startsWith('def'), since: since || null };
 }
 
 /**
