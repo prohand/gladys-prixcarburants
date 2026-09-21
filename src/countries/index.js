@@ -16,6 +16,8 @@
 //       postalCodeExample  : a valid postal code, used in the documentation
 //       fuels              : the fuel keys (src/fuels.js) this country serves
 //       attribution        : { en, fr } credit line required by the licence
+//       mapUrl             : optional https link to the national map, shown as
+//                            a button on the "cheapest around me" widget
 //       isValidPostalCode(postalCode) -> boolean
 //       searchStations({ postalCode, radiusKm, limit }) -> Promise<Station[]>
 //       fetchStationsByIds(ids) -> Promise<Station[]>

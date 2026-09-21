@@ -9,9 +9,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { ACTIONS } from '../src/actions.js';
-import { DEFAULT_CONFIG } from '../src/config.js';
+import { DEFAULT_CONFIG, normalizeConfig } from '../src/config.js';
 import { COUNTRIES } from '../src/countries/index.js';
 import { FUEL_KEYS } from '../src/fuels.js';
+import { WIDGET_KEYS, buildWidgetManifest } from '../src/widgets/index.js';
 
 const manifest = JSON.parse(
   await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
@@ -150,4 +151,110 @@ test('section fields are purely presentational', () => {
       assert.match(link.url, /^https:\/\//, 'section links must be https');
     }
   }
+});
+
+// --- Dashboard widgets -------------------------------------------------------
+// The `widgets` field declares the IDENTITY of the cards (key, label, icon,
+// per-instance settings); their content is built at runtime by src/widgets/.
+// The declarations live in the code, so the manifest is only ever a copy — and
+// these tests are what makes sure it is still the right one.
+
+test('the manifest declares exactly the widgets the code implements', () => {
+  assert.deepEqual(manifest.widgets, buildWidgetManifest());
+});
+
+test('every widget key is registered, and every registered key is declared', () => {
+  const declared = (manifest.widgets ?? []).map((w) => w.key);
+  assert.deepEqual(declared.sort(), [...WIDGET_KEYS].sort());
+});
+
+test('widget declarations stay within the bounds the core validates', () => {
+  // Rejections here are manifest-wide: a single out-of-bounds label makes
+  // Gladys refuse the WHOLE integration, not just the widget.
+  assert.ok(manifest.widgets.length <= 5, 'at most 5 widgets per manifest');
+  const seen = new Set();
+  for (const widget of manifest.widgets) {
+    assert.match(widget.key, /^[a-z0-9_]{2,32}$/, `widget key "${widget.key}"`);
+    assert.ok(!seen.has(widget.key), `duplicate widget key "${widget.key}"`);
+    seen.add(widget.key);
+
+    for (const [lang, label] of Object.entries(widget.label)) {
+      assert.ok(
+        label.length >= 3 && label.length <= 30,
+        `widget "${widget.key}" ${lang} label must be 3-30 characters`,
+      );
+    }
+    assert.ok(widget.label.en && widget.label.fr, `widget "${widget.key}" needs both languages`);
+    for (const [lang, description] of Object.entries(widget.description ?? {})) {
+      assert.ok(description.length <= 100, `widget "${widget.key}" ${lang} description ≤ 100`);
+    }
+    if (widget.icon !== undefined) {
+      assert.match(widget.icon, /^[a-z0-9-]{1,40}$/, `widget "${widget.key}" icon`);
+    }
+    assert.ok(
+      widget.action_timeout_seconds >= 5 && widget.action_timeout_seconds <= 120,
+      `widget "${widget.key}" action timeout must be 5-120s`,
+    );
+  }
+});
+
+test('widget settings use the restricted config_schema grammar', () => {
+  // `secret`, `oauth2` and `account_link` are refused: widget settings live in
+  // the dashboard JSON, which every user of a shared dashboard can read.
+  const ALLOWED = ['string', 'number', 'boolean', 'select', 'multi_select', 'section'];
+  for (const widget of manifest.widgets) {
+    const settings = widget.settings ?? [];
+    assert.ok(settings.length <= 10, `widget "${widget.key}" declares at most 10 settings`);
+    for (const setting of settings) {
+      assert.ok(
+        ALLOWED.includes(setting.type),
+        `setting "${setting.key}" has type ${setting.type}`,
+      );
+      assert.ok(setting.label?.en, `setting "${setting.key}" needs an English label`);
+      assert.ok(setting.label?.fr, `setting "${setting.key}" needs a French label`);
+      for (const option of setting.options ?? []) {
+        assert.ok(
+          option.label?.en && option.label?.fr,
+          `option "${option.value}" needs both labels`,
+        );
+      }
+      if (setting.source !== undefined) {
+        assert.equal(setting.source, 'devices', 'the only dynamic source a widget may use');
+      }
+      assert.ok(
+        !JSON.stringify(setting).includes('{{port:'),
+        `setting "${setting.key}" must not use a {{port:…}} placeholder`,
+      );
+    }
+  }
+});
+
+test('the fuel setting of the ranking offers exactly the fuels of the catalog', () => {
+  const widget = manifest.widgets.find((w) => w.key === 'best_prices');
+  const fuel = widget.settings.find((s) => s.key === 'fuel');
+  assert.deepEqual(
+    fuel.options.map((o) => o.value),
+    FUEL_KEYS,
+  );
+  assert.ok(FUEL_KEYS.includes(fuel.default), 'the default fuel must exist in the catalog');
+});
+
+test('the house coordinates are declared, since the code asks for them', () => {
+  // `GET /api/integration/v1/house` answers 403 to an integration that did not
+  // declare it: src/house.js and this field are one feature, and the install
+  // screen shows it to the user as an authorization contract.
+  assert.equal(manifest.location, true);
+});
+
+test('the search centre select offers exactly what normalizeConfig accepts', () => {
+  const values = field('search_center').options.map((o) => o.value);
+  assert.deepEqual(values, ['house', 'postal_code']);
+  for (const value of values) {
+    assert.equal(normalizeConfig({ search_center: value }).search_center, value);
+  }
+  // Anything else falls back on the default rather than being kept as is.
+  assert.equal(
+    normalizeConfig({ search_center: 'moon' }).search_center,
+    DEFAULT_CONFIG.search_center,
+  );
 });

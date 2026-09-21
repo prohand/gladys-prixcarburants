@@ -114,6 +114,85 @@ part of the device identity: ticking an extra fuel in the configuration makes
 **new** entries appear in the Discovery tab, and your existing devices keep
 working untouched. Delete the ones you no longer need.
 
+## The dashboard widgets
+
+Beyond the devices, the integration provides **two cards** you can drop on a
+dashboard (**Edit dashboard**, then pick the card in the list, under "Prix
+carburants").
+
+### "Cheapest around me"
+
+The card answers three questions at once: where to fill up, is this a good day,
+and how much will it cost.
+
+- **Heading**: the fuel and the area — `Diesel · within 10 km of my home`
+  (or `of 35000` when Gladys does not know where the house is).
+- **Three tiles**: the cheapest price, the average of the stations found, and
+  the **7-day trend** in cents (green when it drops, red when it climbs). The
+  tile is there from day one and shows `—` until a real week of history exists.
+- **The read time**: `Prices read on 19/09/2026 at 10:30`, because a price is
+  only as good as the moment it was read.
+- **The 30-day curve** of the cheapest price of the area.
+- **The ranking** of the stations with their price **and the date the station
+  declared it** (not to be confused with the read time above: a station may not
+  have moved its prices in a week).
+- A button to the **official map** (prix-carburants.gouv.fr).
+
+Three settings: the fuel, how many stations are shown (3, 5 or 8) and the
+scope — **around your postal code** (the integration searches, as it does for
+the Discovery tab) or **my stations only** (the ones you added).
+
+#### Where the curve comes from
+
+The open data feed publishes the prices of the moment, not yesterday's: nobody
+stores "the cheapest price of your area". So the integration samples it itself,
+**at most once an hour**, and keeps 30 days in `/data`.
+
+- The curve is shown **from day one** and fills itself afterwards. It always
+  ends on the price just read, so **the axis never runs past today**; it grows
+  leftwards until it covers thirty days after a month.
+- Sampling continues **while nobody is watching** the dashboard: the refresh
+  loop takes over, from the moment the card exists somewhere (an install with
+  no widget pays nothing).
+- The **7-day trend** does wait for a real week of history: showing "0 ct" on
+  the first day would be a lie.
+- Changing the postal code or the radius **starts a new curve**, since it is no
+  longer the same area.
+- If `/data` is not writable, everything keeps working: only the curve starts
+  over after a restart.
+
+### "My station"
+
+The detail of **one** station you follow, picked in the card settings:
+
+- one price tile **per fuel** the station sells (the first four, yours first);
+- the brand, the address, the distance and the date of the last price update;
+- a **Directions** button and a **Refresh** button.
+
+The fuels you already follow (the ones with a device) are shown **live**: the
+tile moves as soon as the integration publishes a new price, without waiting
+for the card to refresh. The other fuels of the station show the value read
+from the feed.
+
+#### Where the distances start
+
+From your **Gladys house** by default. The integration asks Gladys for its
+coordinates (`Settings → House`, address field): the matching box is shown at
+install time as an authorization, the coordinates only centre the search and
+compute the distances, and they are displayed nowhere.
+
+- House located → `2.3 km from home`, and the search is centred on it.
+- House not located, or the setting **"Measure distances from: the postal
+  code"** → `2.3 km from 35000`, measured from the centre of the postal code
+  area.
+
+The postal code stays required either way: it is what queries the national
+dataset.
+
+> Widgets need a Gladys version able to render them. On an older version the
+> devices and the Discovery tab work as usual: only the cards are missing from
+> the list.
+
 ## Scene ideas
 
 - Get a notification when the diesel price of your station drops below a

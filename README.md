@@ -33,6 +33,9 @@ Configuration (country, postal code, radius, fuels)
         │                                                src/devices/
         ▼
      Discovery tab ──► the user adds / deletes stations
+        │
+        ▼
+  dashboard widgets ──► two declarative cards               src/widgets/
 ```
 
 Three decisions worth knowing before reading the code:
@@ -48,6 +51,10 @@ Three decisions worth knowing before reading the code:
 - **Devices already created are always re-published.** Moving the postal code
   must not drop a device that keeps working, so discovery publishes the search
   results _merged with_ the stations the user already added.
+- **The dashboard widgets describe, they do not draw.** A widget declares a
+  tree of components (tiles, a list, a status, buttons) in Gladys' own
+  vocabulary; the core validates it, bounds it, caches it and renders it. See
+  [Dashboard widgets](#dashboard-widgets).
 
 ## Project structure
 
@@ -59,7 +66,16 @@ Three decisions worth knowing before reading the code:
 │  ├─ fuels.js                       # fuel catalog (stable keys + labels)
 │  ├─ geo.js                         # haversine distance / centroid
 │  ├─ stationStore.js                # cache + per-country batched refresh
+│  ├─ priceHistory.js                # 30-day samples of the cheapest price (/data)
+│  ├─ house.js                       # house coordinates (GET /house) + search centre
 │  ├─ actions.js                     # the Configuration screen buttons
+│  ├─ widgets/
+│  │  ├─ index.js                    #   widget registry + SDK wiring
+│  │  ├─ sdkBridge.js                #   answers widget messages the SDK ignores
+│  │  ├─ content.js                  #   the content vocabulary, bounds, budget
+│  │  ├─ bestPrices.js               #   card "Cheapest around me"
+│  │  ├─ station.js                  #   card "My station"
+│  │  └─ format.js                   #   price / distance / directions helpers
 │  ├─ countries/
 │  │  ├─ index.js                    #   country registry (+ how to add one)
 │  │  └─ france.js                   #   France provider (open data API)
@@ -142,6 +158,59 @@ API over the internet, so `cloud` is the whole truth — declaring `local` as
 well would add the core's "Prefer local (LAN) connection" toggle to a
 configuration screen where it would mean nothing. `test/manifest.test.js`
 pins it.
+
+## Dashboard widgets
+
+The integration declares two cards in the manifest `widgets` field, filled in
+at runtime by `src/widgets/`:
+
+| Key           | Card                                                                                                                                |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `best_prices` | **Cheapest around me** — cheapest and average price as tiles, then the ranked stations with their distance, price and declared date |
+| `station`     | **My station** — one station you follow: a price tile per fuel, its address and the date of its last price update                   |
+
+Three things shape the code:
+
+- **We describe, the core renders.** No HTML, no CSS, no colour: components,
+  semantic colours and Feather icon names only. `src/widgets/content.js`
+  applies the spec's own character bounds and content budget (8 components, one
+  focal, 6 tiles, 4 buttons) so a card is never trimmed behind our back.
+- **A tracked fuel is a LIVE tile.** When the station/fuel pair has a device,
+  the tile is declared as a `device_feature` reference instead of a value: the
+  dashboard then follows the feature over the WebSocket and the price moves the
+  moment the refresh loop publishes it, with no widget pull at all.
+- **One pull path, one nudge.** The cards are built from the same station
+  store as the devices, and a refresh pass that moved a price only sends
+  `requestWidgetRefresh` — a "re-pull me" carrying no data.
+- **The curve is sampled, not fetched.** The feed publishes the prices of the
+  moment, so `src/priceHistory.js` records the cheapest price of the area at
+  most once an hour (on the searches the widget already does) and keeps 30 days
+  in `/data`. Best effort by design: an unwritable volume costs the curve and
+  nothing else, and the trend tile is absent rather than zero while the history
+  is younger than its window.
+- **Distances start at the Gladys house when it is located.** The manifest
+  declares `"location": true` and `src/house.js` reads
+  `GET /api/integration/v1/house` (Gladys ≥ 4.85, 403 without the declaration),
+  cached an hour and best effort: no house, no coordinates, an older core — the
+  search falls back on the centre of the postal code. Either way the cards say
+  which (`2.3 km from home` / `2.3 km from 35000`), and the coordinates never
+  reach a device, a state, a log or a widget content.
+
+> **Not releasable yet.** The `widgets` manifest field and the SDK handlers
+> come from [GladysAssistant/Gladys#3109](https://github.com/GladysAssistant/Gladys/pull/3109),
+> which is still open. Until it ships:
+>
+> - `npx github:GladysAssistant/integration-store .` fails with
+>   `manifest: must NOT have additional properties` — the published schema does
+>   not know `widgets` yet;
+> - `@gladysassistant/integration-sdk` (0.13.0, latest) has no `onWidgetGet`
+>   and its dispatcher ignores unknown message types silently, so
+>   `src/widgets/sdkBridge.js` answers `widget.get` / `widget.action` on the
+>   SDK's own socket. `registerWidgets()` switches to `gladys.onWidgetGet` the
+>   day the SDK ships it, and the bridge can then be deleted.
+>
+> When the PR lands: bump `gladys_version` to the first release accepting
+> `widgets`, raise the SDK dependency, re-run the store validator, and release.
 
 ## Validate before publishing
 

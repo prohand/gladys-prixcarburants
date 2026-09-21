@@ -161,11 +161,12 @@ export async function searchStations(gladys, { config, store }) {
  * @param {object} gladys SDK instance
  * @param {{ config: object, store: object }} context
  */
-export async function refreshPrices(gladys, { config, store }) {
+export async function refreshPrices(gladys, { config, store, history }) {
   // `force`: the user pressed a button, they expect a real read, not the cache.
   const { total, updated, failures } = await refreshAllDevices(gladys, {
     config,
     store,
+    history,
     force: true,
   });
 

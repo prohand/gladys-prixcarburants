@@ -20,6 +20,7 @@ export const DEFAULT_CONFIG = {
   country: DEFAULT_COUNTRY, // 'FR' — other countries can be added later
   postal_code: '', // required, no sensible default
   fuel_type: ['gazole'], // one device per station AND per selected fuel
+  search_center: 'house', // 'house' (falls back to the postal code) | 'postal_code'
   search_radius_km: 10, // 0 = the postal code only
   max_stations: 20, // safety net: how many stations discovery may publish
   poll_frequency: 3600, // seconds between two price refreshes
@@ -58,6 +59,11 @@ export function normalizeConfig(raw = {}) {
     // An empty selection would silently create no device at all: fall back to
     // the default so the user always gets something to add.
     fuel_type: fuelTypes.length > 0 ? fuelTypes : [...DEFAULT_CONFIG.fuel_type],
+    // Anything but the explicit 'postal_code' means "use the house when Gladys
+    // knows where it is": the fallback is automatic, so an unlocated house is
+    // never an error, just a distance measured from the postal code.
+    search_center:
+      raw.search_center === 'postal_code' ? 'postal_code' : DEFAULT_CONFIG.search_center,
     search_radius_km: toNumber(raw.search_radius_km, DEFAULT_CONFIG.search_radius_km, 0, 50),
     max_stations: toNumber(raw.max_stations, DEFAULT_CONFIG.max_stations, 1, 50),
     poll_frequency: toNumber(raw.poll_frequency, DEFAULT_CONFIG.poll_frequency, 600, 86400),

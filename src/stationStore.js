@@ -29,6 +29,10 @@ export function createStationStore({
   ttlMs = DEFAULT_TTL_MS,
   now = Date.now,
   resolveProvider = getProvider,
+  // Where the search circle is centred (the Gladys house, when the user asked
+  // for it and located it). Default: nothing, and the provider falls back on
+  // the centre of the postal code, exactly as before this existed.
+  resolveCenter = async () => ({ center: null, source: 'postal_code' }),
 } = {}) {
   /** @type {Map<string, { station: object, fetchedAt: number }>} */
   const cache = new Map();
@@ -64,10 +68,12 @@ export function createStationStore({
    */
   async function search(config) {
     const provider = resolveProvider(config.country);
+    const { center } = await resolveCenter(config);
     const stations = await provider.searchStations({
       postalCode: config.postal_code,
       radiusKm: config.search_radius_km,
       limit: config.max_stations,
+      center,
     });
     remember(provider.code, stations);
     return stations;

@@ -10,6 +10,7 @@ import { normalizeConfig } from '../src/config.js';
 import { createRefreshLoop, refreshAllDevices } from '../src/refresh.js';
 import { deviceExternalId } from '../src/devices/index.js';
 import { createStationStore } from '../src/stationStore.js';
+import { createPriceHistory } from '../src/priceHistory.js';
 import { createFakeGladys, createFakeProvider, createStation } from './helpers/fakeGladys.js';
 
 const config = normalizeConfig({ postal_code: '35000', fuel_type: ['gazole'] });
@@ -167,4 +168,22 @@ test('a tick fired while the previous one is still running is skipped', async ()
   await first;
 
   assert.equal(reads, 1, 'the second tick must not queue a second round of requests');
+});
+
+test('the loop keeps the widget curve filling when no dashboard is open', async () => {
+  const gladys = createFakeGladys();
+  const provider = createFakeProvider({ stations: [createStation({ prices: { gazole: 1.6 } })] });
+  const store = createStationStore({ resolveProvider: () => provider });
+  const history = createPriceHistory({ file: '/etc/hostname/nope.json' });
+
+  // Nothing follows this area yet: no card anywhere, so no search is paid for.
+  await refreshAllDevices(gladys, { config, store, history });
+  assert.equal(provider.calls.search, 0);
+
+  // A widget pull records a first point; from then on the loop keeps it alive.
+  history.record(config, await store.search(config));
+  const searchesAfterTheWidget = provider.calls.search;
+  store.invalidate();
+  await refreshAllDevices(gladys, { config, store, history });
+  assert.equal(provider.calls.search, searchesAfterTheWidget, 'not twice within the hour');
 });

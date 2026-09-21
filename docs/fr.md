@@ -123,6 +123,91 @@ apparaissent dans l'onglet Découverte, et vos appareils existants continuent
 de fonctionner sans être modifiés. Supprimez ceux dont vous n'avez plus
 besoin.
 
+## Les widgets du tableau de bord
+
+En plus des appareils, l'intégration fournit **deux cartes** à poser sur un
+tableau de bord (bouton **Modifier le tableau de bord**, puis choisissez la
+carte dans la liste, section « Prix carburants »).
+
+### « Les moins chers »
+
+La carte répond à trois questions d'un coup : où faire le plein, est-ce le bon
+jour, et combien ça coûte.
+
+- **Titre** : le carburant et la zone — `Gazole · 10 km autour de ma maison`
+  (ou `autour du 35000` si Gladys ne connaît pas les coordonnées de la maison).
+- **Trois tuiles** : le prix le moins cher, la moyenne des stations trouvées, et
+  la **tendance sur 7 jours** en centimes (vert si ça baisse, rouge si ça monte).
+  La tuile est là dès le premier jour et affiche `—` tant qu'il n'y a pas une
+  vraie semaine d'historique.
+- **L'heure du relevé** : `Prix relevés le 19/09/2026 à 10:30`, parce qu'un prix
+  ne vaut que par le moment où il a été lu.
+- **La courbe des 30 derniers jours** du prix le moins cher de la zone.
+- **Le classement** des stations avec leur prix **et la date à laquelle la
+  station l'a déclaré** (à ne pas confondre avec l'heure du relevé ci-dessus :
+  une station peut ne pas avoir bougé ses prix depuis une semaine).
+- Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
+
+Trois réglages : le carburant, le nombre de stations affichées (3, 5 ou 8) et le
+périmètre — **autour de votre code postal** (l'intégration cherche, comme pour
+l'onglet Découverte) ou **vos stations seulement** (celles que vous avez
+ajoutées).
+
+#### D'où vient la courbe
+
+Le flux open data publie les prix de l'instant, pas ceux d'hier : personne ne
+stocke « le prix le moins cher de votre zone ». L'intégration le relève donc
+elle-même, **au maximum une fois par heure**, et garde 30 jours dans `/data`.
+
+- La courbe est affichée **dès le premier jour** et se remplit toute seule
+  ensuite. Elle se termine toujours sur le prix qui vient d'être lu, donc
+  **l'axe ne va jamais au-delà d'aujourd'hui** ; il s'étend vers la gauche au
+  fur et à mesure, jusqu'à couvrir 30 jours au bout d'un mois.
+- Les relevés continuent **même quand personne ne regarde** le tableau de bord :
+  la boucle de rafraîchissement prend le relais, à partir du moment où la carte
+  existe quelque part (une installation sans widget ne paie rien).
+- La **tendance sur 7 jours**, elle, attend d'avoir vraiment une semaine
+  d'historique : afficher « 0 ct » le premier jour serait faux.
+- Changer de code postal ou de rayon **repart d'une courbe vierge**, puisque ce
+  n'est plus la même zone.
+- Si `/data` n'est pas accessible en écriture, tout continue de fonctionner :
+  seule la courbe repart de zéro au redémarrage.
+
+### « Ma station »
+
+Le détail d'**une** station que vous suivez, choisie dans les réglages de la
+carte :
+
+- une tuile de prix **par carburant** vendu par la station (les quatre
+  premiers, le vôtre en tête) ;
+- l'enseigne, l'adresse, la distance et la date du dernier relevé ;
+- un bouton **Itinéraire** et un bouton **Rafraîchir**.
+
+Les carburants que vous suivez déjà (ceux qui ont un appareil) sont affichés
+**en direct** : la tuile bouge dès que l'intégration publie un nouveau prix,
+sans attendre le rafraîchissement de la carte. Les autres carburants de la
+station affichent la valeur lue dans le flux.
+
+#### D'où partent les distances
+
+Par défaut, **de votre maison Gladys**. L'intégration demande ses coordonnées à
+Gladys (`Réglages → Maison`, champ adresse) : la case correspondante est
+affichée à l'installation comme une autorisation, les coordonnées servent
+uniquement à centrer la recherche et à calculer les distances, et elles ne sont
+affichées nulle part.
+
+- Maison localisée → `2,3 km de la maison`, et la recherche est centrée dessus.
+- Maison non localisée, ou réglage **« Mesurer les distances depuis : le code
+  postal »** → `2,3 km du 35000`, mesuré depuis le centre de la zone du code
+  postal.
+
+Le code postal reste obligatoire dans tous les cas : c'est lui qui sert à
+interroger le jeu de données national.
+
+> Les widgets demandent une version de Gladys qui sait les afficher. Sur une
+> version plus ancienne, les appareils et l'onglet Découverte fonctionnent
+> normalement : seules les cartes n'apparaissent pas dans la liste.
+
 ## Idées de scènes
 
 - Recevoir une notification quand le prix du gazole de votre station passe

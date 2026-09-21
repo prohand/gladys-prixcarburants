@@ -17,8 +17,39 @@
 
 import { createLogger } from '@gladysassistant/integration-sdk';
 import { parseTargets, pollDevice, publishIntegrationState } from './devices/index.js';
+import { notifyWidgetsChanged } from './widgets/index.js';
+import { isConfigReady } from './config.js';
 
 const logger = createLogger({ name: 'refresh' });
+
+/**
+ * Keep the widget curve filling when nobody is looking at the dashboard.
+ *
+ * The widget samples the cheapest price of the area on every pull, but the core
+ * only pulls while a dashboard shows the card: a card nobody opens for a week
+ * would have a week-long hole. So the refresh loop samples too — but ONLY for
+ * an area the history already follows (`knows`), which means a card exists
+ * somewhere, and only when the last sample is old enough to deserve a new one.
+ * An install with no widget therefore pays nothing.
+ *
+ * Best effort by construction: a failed search leaves the curve as it was.
+ *
+ * @param {{ config: object, store: object, history?: object }} context
+ */
+async function sampleForWidgets({ config, store, history }) {
+  if (!history || !isConfigReady(config) || !history.knows(config)) {
+    return;
+  }
+  const last = history.lastSampleAt(config);
+  if (last !== null && Date.now() - last < history.sampleIntervalMs) {
+    return;
+  }
+  try {
+    history.record(config, await store.search(config));
+  } catch (err) {
+    logger.debug(`Widget sampling skipped: ${err.message}`);
+  }
+}
 
 /**
  * Read every station device Gladys holds and publish its current price.
@@ -35,13 +66,16 @@ const logger = createLogger({ name: 'refresh' });
  *   nothing.
  * @returns {Promise<{ total: number, updated: number, failures: string[] }>}
  */
-export async function refreshAllDevices(gladys, { config, store, force = false }) {
+export async function refreshAllDevices(gladys, { config, store, history, force = false }) {
   const devices = await gladys.getDevices();
   const targets = parseTargets(devices);
   if (targets.length === 0) {
     // Still worth a status publish: the user may hold the integration device
     // alone, and a previous search already dated the last read of the feed.
     await publishIntegrationState(gladys, { store, devices });
+    // A user may hold no station device and still have the widget on a
+    // dashboard: the curve is worth keeping alive for them too.
+    await sampleForWidgets({ config, store, history });
     return { total: 0, updated: 0, failures: [] };
   }
 
@@ -73,6 +107,15 @@ export async function refreshAllDevices(gladys, { config, store, force = false }
   // on the dashboard, which is precisely the signal.
   await publishIntegrationState(gladys, { store, devices });
 
+  await sampleForWidgets({ config, store, history });
+
+  // Nudge the dashboard cards: their content is cached by the core for their
+  // TTL, and a pass that moved a price is exactly the moment that cache should
+  // be dropped. Fire-and-forget, rate-limited core-side, no data attached.
+  if (updated > 0) {
+    notifyWidgetsChanged(gladys);
+  }
+
   return { total: targets.length, updated, failures };
 }
 
@@ -87,7 +130,7 @@ export async function refreshAllDevices(gladys, { config, store, force = false }
  */
 export function createRefreshLoop(
   gladys,
-  { store, setTimer = setInterval, clearTimer = clearInterval },
+  { store, history, setTimer = setInterval, clearTimer = clearInterval },
 ) {
   let timer = null;
   let running = false;
@@ -102,7 +145,11 @@ export function createRefreshLoop(
     }
     running = true;
     try {
-      const { total, updated, failures } = await refreshAllDevices(gladys, { config, store });
+      const { total, updated, failures } = await refreshAllDevices(gladys, {
+        config,
+        store,
+        history,
+      });
       if (total > 0) {
         logger.info(
           `Periodic refresh: ${updated}/${total} price(s) updated` +
