@@ -88,3 +88,52 @@ export function formatInstant(instant) {
     minutes: pad(date.getMinutes()),
   });
 }
+
+// The street types that make a French address long without making it clearer:
+// the number and the street name are what tell two stations apart, "Avenue"
+// never is. Abbreviated rather than dropped, because "33 Médéric" reads wrong.
+const STREET_TYPES = [
+  [/\bavenue\b/gi, 'Av.'],
+  [/\bboulevard\b/gi, 'Bd'],
+  [/\bchemin\b/gi, 'Ch.'],
+  [/\bimpasse\b/gi, 'Imp.'],
+  [/\ball[ée]e(s)?\b/gi, 'All.'],
+  [/\bplace\b/gi, 'Pl.'],
+  [/\bquartier\b/gi, 'Qu.'],
+  [/\broute\b/gi, 'Rte'],
+  [/\brond[- ]point\b/gi, 'Rd-Pt'],
+  [/\bzone (artisanale|industrielle|commerciale)\b/gi, 'ZA'],
+];
+
+// Long enough for "104/106 Av. Médéric", short enough to stay readable next to
+// the brand, the city and the fuel in a device name.
+const MAX_ADDRESS_LENGTH = 28;
+
+/**
+ * A street, shortened for display: "33 Avenue Médéric" -> "33 Av. Médéric".
+ *
+ * Used to tell apart two stations of the same brand in the same city, which is
+ * the only thing their names differ by. The abbreviations are cosmetic — the
+ * full address stays available in the device params.
+ *
+ * @param {unknown} address
+ * @returns {string} `''` when there is no address to show
+ */
+export function shortenAddress(address) {
+  let text = cleanText(address);
+  if (!text) {
+    return '';
+  }
+  for (const [pattern, replacement] of STREET_TYPES) {
+    text = text.replace(pattern, replacement);
+  }
+  text = cleanText(text);
+  if (text.length > MAX_ADDRESS_LENGTH) {
+    // Cut on a word boundary when there is one close enough, so the result
+    // does not end mid-word.
+    const cut = text.slice(0, MAX_ADDRESS_LENGTH);
+    const space = cut.lastIndexOf(' ');
+    text = `${(space > MAX_ADDRESS_LENGTH / 2 ? cut.slice(0, space) : cut).trim()}…`;
+  }
+  return text;
+}
