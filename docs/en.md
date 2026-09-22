@@ -139,9 +139,10 @@ and how much will it cost.
   short so it stays readable on a phone: the date is reduced to the day, the
   `€/L` unit already shown by the tiles above is not repeated on every row, and
   a long station name is shortened around what tells it from the others — the
-  town is kept whole and the brand is abbreviated (`TotalEne. Acc. - Lyon 7e`),
-  and when two stations of the same chain share a town, the rows show the street
-  that tells them apart. The full name and the full timestamp are still on the
+  town is kept whole and the brand is shortened to its root
+  (`Total Access - Lyon 7e`), and when two stations of the same chain share a
+  town, the rows show the street that tells them apart
+  (`Total - Av. Jean Jaurès`). The full name and the full timestamp are still on the
   device page and on the "My station" card.
 - A button to the **official map** (prix-carburants.gouv.fr).
 

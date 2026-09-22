@@ -662,22 +662,22 @@ test('a long station name is shortened so the price and its date keep their room
   );
 });
 
-test('shortening a name serves the place first and abbreviates the brand', () => {
+test('shortening a name serves the place first and compacts the brand', () => {
   // Short enough: untouched.
   assert.equal(shortenStationName('Total - Rennes'), 'Total - Rennes');
-  // A brand of two words is abbreviated word by word, from the end, so the
-  // place stays whole: that place is the only thing telling this station from
-  // the four others of the same chain in the ranking.
-  assert.equal(shortenStationName('TotalEnergies Access - Lyon 7e'), 'TotalEne. Acc. - Lyon 7e');
-  assert.equal(shortenStationName('TotalEnergies - La Mulatière'), 'TotalEne. - La Mulatière');
+  // A compound brand goes back to its root, which loses nothing at all: a
+  // driver reads "Total" as their station, and the town stays whole — it is the
+  // only thing telling this station from the four others of the same chain.
+  assert.equal(shortenStationName('TotalEnergies - La Mulatière'), 'Total - La Mulatière');
+  assert.equal(shortenStationName('TotalEnergies Access - Lyon 7e'), 'Total Access - Lyon 7e');
   // A place too long for the row takes what the brand does not need, and the
-  // brand never falls below a readable "Total.".
+  // brand is never dropped: a row naming no brand names no station.
   assert.equal(
     shortenStationName('TotalEnergies - Oullins-Pierre-Bénite'),
-    'Total. - Oullins-Pierre…',
+    'Total - Oullins-Pierre…',
   );
-  // A street is cut, not abbreviated: "141 Bou. Émi. Zola" is noise where
-  // "141 Boulevard…" still reads as an address.
+  // A street is cut, not compacted: "141 Boulevard" reads as a street called
+  // Boulevard, where "141 Boulevard…" says plainly that something was cut.
   assert.equal(
     shortenStationName('141 Boulevard Émile Zola - Oullins'),
     '141 Boulevard… - Oullins',
@@ -685,29 +685,42 @@ test('shortening a name serves the place first and abbreviates the brand', () =>
   // Three segments in 24 characters would be three stumps: the middle one is
   // dropped, and `buildRowLabels` brings it back only where it is needed.
   assert.equal(
-    shortenStationName('TotalEnergies - Avenue du Général de Gaulle - Oullins-Pierre-Bénite'),
-    'Total. - Oullins-Pierre…',
+    shortenStationName('TotalEnergies - Av. du Général de Gaulle - Oullins-Pierre-Bénite'),
+    'Total - Oullins-Pierre…',
   );
   assert.equal(shortenStationName(undefined), '');
 });
 
 test('a ranking never shows the same label twice', () => {
-  // The five rows of a dashboard where one chain owns the area: cut on their
-  // own, they all read "TotalEne. Acc. - Lyon 7e".
+  // Three rows of a dashboard where one chain owns the area: cut on their own,
+  // the first two both read "Total Access - Lyon 7e".
   const labels = buildRowLabels([
-    'TotalEnergies Access - Avenue Jean Jaurès - Lyon 7e',
+    'TotalEnergies Access - Av. Jean Jaurès - Lyon 7e',
     'TotalEnergies Access - Rue Garibaldi - Lyon 7e',
     'TotalEnergies - Oullins',
   ]);
   assert.equal(new Set(labels).size, labels.length, 'no two rows read the same');
-  // The street is what differs, so the street is what the clashing rows show.
-  assert.ok(labels[0].includes('Jean'));
-  assert.ok(labels[1].includes('Garibaldi'));
+  // The street is what differs, so the street is what the clashing rows show —
+  // and they still say whose station it is.
+  assert.equal(labels[0], 'Total - Av. Jean Jaurès');
+  assert.equal(labels[1], 'Total - Rue Garibaldi');
   // A row that clashed with nobody is left exactly as it was.
   assert.equal(labels[2], 'TotalEnergies - Oullins');
   for (const label of labels) {
     assert.ok(label.length <= ROW_LABEL_MAX, `"${label}" fits the row`);
   }
+});
+
+test('a row with nothing more to show keeps its brand', () => {
+  // The third name has no street to reveal: rewriting it would cost it its
+  // brand although the other two stop clashing with it on their own.
+  const labels = buildRowLabels([
+    'TotalEnergies Access - Av. Jean Jaurès - Lyon 7e',
+    'TotalEnergies Access - Rue Garibaldi - Lyon 7e',
+    'TotalEnergies Access - Lyon 7e',
+  ]);
+  assert.equal(new Set(labels).size, 3);
+  assert.equal(labels[2], 'Total Access - Lyon 7e');
 });
 
 test('two long names cut to the same city fall back on the city itself', () => {
@@ -716,6 +729,7 @@ test('two long names cut to the same city fall back on the city itself', () => {
     'Intermarché - Saint-Germain-lès-Corbeil',
   ]);
   assert.equal(new Set(labels).size, 2);
+  // Nothing but the city differs, so the city is what takes the whole row.
   assert.ok(labels.every((label) => label.startsWith('Saint-Germain')));
 });
 

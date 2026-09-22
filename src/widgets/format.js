@@ -148,14 +148,14 @@ const MIN_SEGMENT = 6;
 const MIN_WORD = 3;
 
 /**
- * Words above which a segment is cut rather than abbreviated.
+ * Words above which a segment is cut rather than compacted.
  *
- * A brand is one or two words and survives being abbreviated ("TotalEnergies
- * Access" -> "TotalEn. Acc."); a street is four and does not ("141 Boulevard
- * Émile Zola" -> "141 Bou. Émi. Zola", which reads as noise where
- * "141 Boulevard…" still reads as an address).
+ * A brand is one or two words and survives being compacted ("TotalEnergies
+ * Access" -> "Total Access" -> "Total Acc." -> "Total"); a street is three or
+ * four and does not — "141 Boulevard" reads as a street called Boulevard,
+ * where "141 Boulevard…" says plainly that something was cut.
  */
-const MAX_ABBREVIATED_WORDS = 2;
+const MAX_COMPACTED_WORDS = 2;
 
 /**
  * A station name that fits a dashboard row, cut where it costs the least.
@@ -168,15 +168,11 @@ const MAX_ABBREVIATED_WORDS = 2;
  * knew. The name of the brand is not what tells two pumps apart; where they
  * stand is.
  *
- * So the place is served FIRST and the brand pays, in this order:
- *   - the brand is abbreviated word by word from the end — "TotalEnergies
- *     Access" becomes "TotalEn. Acc." — which keeps a readable sign where a cut
- *     would leave a stump;
- *   - if abbreviating is still not enough, the brand is cut, and only then does
- *     the place start losing characters;
- *   - a middle segment is dropped rather than hacked: three stumps in 24
- *     characters name nothing. `buildRowLabels` brings that street back for the
- *     rows that actually need it.
+ * So the place is served FIRST and the brand pays for it — but it is never
+ * dropped, because a row naming no brand names no station either. It is
+ * compacted instead, and a middle segment is dropped rather than left as a
+ * third stump: `buildRowLabels` brings that street back, next to the brand,
+ * for the rows that actually need it.
  *
  * @param {unknown} name
  * @param {number} [max] characters the whole name may occupy
@@ -189,7 +185,9 @@ export function shortenStationName(name, max = ROW_LABEL_MAX) {
   }
   const segments = text.split(SEPARATOR);
   if (segments.length === 1) {
-    return fitSegment(text, max);
+    // No brand to tell from a place here: whatever this is, it is cut, never
+    // compacted — an abbreviation invents a name the sign does not carry.
+    return truncateSegment(text, max);
   }
   // Two segments at most: the head the driver reads, and the place that tells
   // this station from the next one of the same chain.
@@ -202,22 +200,41 @@ export function shortenStationName(name, max = ROW_LABEL_MAX) {
  * `shortenStationName` works on one name and cannot know that the row above
  * ends up reading the same thing: two "TotalEnergies Access - Lyon 7e" a street
  * apart become one label written twice, which is exactly the row a reader
- * cannot act on. The full names are already unique (`disambiguateStationNames`
- * sees to it), so a clash here is something WE cut off — and what we cut off is
- * the segment that made them different.
+ * cannot act on. The full names are already unique
+ * (`disambiguateStationNames`), so a clash here is something WE cut off — and
+ * what we cut off is the segment that made them different.
  *
- * So a clashing group is rebuilt around its FIRST differing segment: the street
- * when the brand and the city are shared, the city alone when the city itself
- * is what got truncated. Best effort, like every other display rule here: names
- * that stay equal are left equal rather than padded with a number nobody asked
- * for.
+ * So a clashing group is rebuilt around its FIRST differing segment, KEEPING
+ * the brand in front of it: "Total - Av. Jean Jaurès" and "Total - Rue
+ * Garibaldi" rather than the street alone, because a row that names no brand
+ * names no station. The brand of a clashing group is compacted to the same
+ * width on every row of that group, so the same chain does not read three ways
+ * in three consecutive rows. The one place the brand does go is a group whose
+ * CITY is what got truncated ("Saint-Germain-en-Laye" against
+ * "Saint-Germain-lès-Corbeil"): there the brand is the part they share, and
+ * the city is the part that has to be read whole.
+ *
+ * Best effort, like every other display rule here: names that stay equal are
+ * left equal rather than padded with a number nobody asked for.
  *
  * @param {Array<unknown>} names in row order
  * @param {number} [max] characters a label may occupy
  * @returns {string[]} one label per name, same order
  */
 export function buildRowLabels(names, max = ROW_LABEL_MAX) {
-  const labels = names.map((name) => shortenStationName(name, max));
+  const segmented = names.map((name) => cleanText(name).split(SEPARATOR));
+  const labels = segmented.map((segments) => shortenStationName(segments.join(SEPARATOR), max));
+  // Two passes, because they do not cost the same thing. The first reveals a
+  // segment the label had dropped — the street — and keeps the brand; only
+  // what is STILL written twice afterwards pays the second, which gives the
+  // whole row to the place and loses the brand.
+  revealDiscriminant(labels, segmented, max);
+  widenPlace(labels, segmented, max);
+  return labels;
+}
+
+/** The rows that ended up reading the same thing, grouped. */
+function clashes(labels) {
   const groups = new Map();
   labels.forEach((label, index) => {
     const group = groups.get(label);
@@ -227,26 +244,58 @@ export function buildRowLabels(names, max = ROW_LABEL_MAX) {
       groups.set(label, [index]);
     }
   });
+  return [...groups.values()].filter((indexes) => indexes.length > 1);
+}
 
-  for (const indexes of groups.values()) {
-    if (indexes.length < 2) {
-      continue;
-    }
-    const segmented = indexes.map((index) => cleanText(names[index]).split(SEPARATOR));
-    const differing = firstDifferingSegment(segmented);
+/**
+ * Rebuild a clashing row around the segment it differs by, brand in front.
+ *
+ * Only the rows that HAVE such a segment are touched: a name of two segments
+ * clashing with a name of three has nothing more to show, and rewriting it
+ * would cost it its brand for nothing.
+ */
+function revealDiscriminant(labels, segmented, max) {
+  for (const indexes of clashes(labels)) {
+    const differing = firstDifferingSegment(indexes.map((index) => segmented[index]));
     if (differing === -1) {
       // Same name twice: nothing was lost in the cut, so nothing can be won back.
       continue;
     }
-    indexes.forEach((index, rank) => {
-      const segments = segmented[rank];
-      const place = segments[segments.length - 1];
-      const head = segments[Math.min(differing, segments.length - 1)];
-      labels[index] = head === place ? fitSegment(place, max) : fitPair(head, place, max);
-    });
+    const revealing = indexes.filter((index) => differing < segmented[index].length - 1);
+    if (revealing.length === 0) {
+      continue;
+    }
+    // The same chain must not read two ways in two consecutive rows, so the
+    // brand of the group is compacted to the narrowest width any of them has.
+    const headBudget = Math.min(
+      ...revealing.map((index) =>
+        Math.max(MIN_SEGMENT, max - SEPARATOR.length - segmented[index][differing].length),
+      ),
+    );
+    for (const index of revealing) {
+      labels[index] = fitPair(segmented[index][0], segmented[index][differing], max, headBudget);
+    }
   }
+}
 
-  return labels;
+/**
+ * Last resort for the rows that still read the same: their PLACE is what got
+ * truncated ("Saint-Germain-en-Laye" against "Saint-Germain-lès-Corbeil"), so
+ * it takes the whole row and the brand — the part they share — goes.
+ */
+function widenPlace(labels, segmented, max) {
+  for (const indexes of clashes(labels)) {
+    const places = indexes.map((index) => segmented[index][segmented[index].length - 1]);
+    if (new Set(places).size === 1) {
+      // The same place twice: widening it says nothing more, and would cost
+      // these rows the brand they still name correctly.
+      continue;
+    }
+    for (const index of indexes) {
+      const segments = segmented[index];
+      labels[index] = truncateSegment(segments[segments.length - 1], max);
+    }
+  }
 }
 
 /**
@@ -270,64 +319,106 @@ function firstDifferingSegment(segmented) {
  * @param {string} head
  * @param {string} place
  * @param {number} max
+ * @param {number} [headBudget] imposed width of the head, for a row that must
+ *   match the rows around it
  */
-function fitPair(head, place, max) {
+function fitPair(head, place, max, headBudget) {
   const budget = max - SEPARATOR.length;
   // What is left once the place is whole — never less than a readable brand.
-  const headBudget = Math.max(MIN_SEGMENT, budget - place.length);
-  const shortHead = fitSegment(head, headBudget);
+  const width = headBudget ?? Math.max(MIN_SEGMENT, budget - place.length);
+  const shortHead = fitBrand(head, width);
   return `${shortHead}${SEPARATOR}${truncateSegment(place, budget - shortHead.length)}`;
 }
 
 /**
- * One segment inside `max` characters: abbreviated if that is enough, cut
+ * The head of a name inside `max` characters: compacted if that is enough, cut
  * otherwise.
  *
  * The two are alternatives, not steps: "141 Bou. Émi…" is a worse address than
- * "141 Boulevard…", so abbreviating is only worth it when it makes the whole
- * segment fit, and only on the short segments a brand is made of.
+ * "141 Boulevard…", so compacting is only worth it when it makes the whole
+ * segment fit, and only on the one or two words a brand is made of — a name
+ * built on a street has no brand to compact, and a street is cut like a place.
  *
  * @param {string} segment
  * @param {number} max
  */
-function fitSegment(segment, max) {
+function fitBrand(segment, max) {
   if (segment.length <= max) {
     return segment;
   }
-  if (segment.split(' ').length > MAX_ABBREVIATED_WORDS) {
+  if (segment.split(' ').length > MAX_COMPACTED_WORDS) {
     return truncateSegment(segment, max);
   }
-  const abbreviated = abbreviateWords(segment, max);
-  return abbreviated.length <= max ? abbreviated : truncateSegment(segment, max);
+  const compacted = compactSegment(segment, max);
+  return compacted.length <= max ? compacted : truncateSegment(segment, max);
 }
 
 /**
- * Shorten the words of a segment, from the END, until it fits.
+ * Shorten a brand, in the order that costs the reader the least.
  *
- * The last words of a brand are its qualifiers ("Access", "Express", "Relais"),
- * so they are the ones that can lose letters without the sign becoming
- * unrecognisable: "TotalEnergies Access" in 14 characters is "TotalEn. Acc.",
- * which a driver still reads as their station.
+ *   1. its words are taken back to their root, where they have one:
+ *      "TotalEnergies Access" -> "Total Access", which loses nothing at all;
+ *   2. the last words are abbreviated — they are the qualifiers ("Access",
+ *      "Express", "Contact") — so "Total Acc." still reads as the station;
+ *   3. those qualifiers are dropped rather than reduced to a stump: "Total"
+ *      names the chain, "Tot. Acc." names nothing.
  *
  * @param {string} segment
  * @param {number} budget
- * @returns {string} the shortest form this segment has, which may still exceed
- *   the budget when every word is already at its minimum
+ * @returns {string} the shortest form this brand has, which may still exceed
+ *   the budget when one word is already longer than the row
  */
-function abbreviateWords(segment, budget) {
-  const words = segment.split(' ');
-  let text = words.join(' ');
-  for (let i = words.length - 1; i >= 0 && text.length > budget; i -= 1) {
+function compactSegment(segment, budget) {
+  const words = segment.split(' ').map(rootOfWord);
+  const abbreviate = (i) => {
     const word = words[i];
     // A word of four letters gains nothing from a dot replacing one of them.
     if (word.length <= MIN_WORD + 1 || word.endsWith('.')) {
-      continue;
+      return;
     }
-    const keep = Math.max(MIN_WORD, word.length - 1 - (text.length - budget));
+    const keep = Math.max(MIN_WORD, word.length - 1 - (words.join(' ').length - budget));
     words[i] = `${word.slice(0, keep)}.`;
-    text = words.join(' ');
+  };
+
+  // The qualifiers first, from the end...
+  for (let i = words.length - 1; i >= 1 && words.join(' ').length > budget; i -= 1) {
+    abbreviate(i);
   }
-  return text;
+  // ...then dropped altogether, which is still better than the stump reducing
+  // the name of the chain itself would leave.
+  while (words.join(' ').length > budget && words.length > 1) {
+    words.pop();
+  }
+  if (words.join(' ').length > budget) {
+    abbreviate(0);
+  }
+  return words.join(' ');
+}
+
+/**
+ * The root of a compound word, where cutting costs nothing: "TotalEnergies" is
+ * "Total" plus a suffix the sign itself writes as one word, and a driver reads
+ * "Total" as their station. Only a lowercase-to-uppercase boundary counts —
+ * cutting "Intermarché" anywhere would need a dot to say a cut happened.
+ *
+ * @param {string} word
+ * @returns {string} the word itself when it has no such boundary
+ */
+function rootOfWord(word) {
+  for (let i = MIN_WORD; i < word.length; i += 1) {
+    if (isUpperCase(word[i]) && isLowerCase(word[i - 1])) {
+      return word.slice(0, i);
+    }
+  }
+  return word;
+}
+
+function isUpperCase(char) {
+  return char !== char.toLowerCase() && char === char.toUpperCase();
+}
+
+function isLowerCase(char) {
+  return char !== char.toUpperCase() && char === char.toLowerCase();
 }
 
 /** `Oullins-Pierre-Bénite` in 8 characters is `Oullins…` — the ellipsis counts. */

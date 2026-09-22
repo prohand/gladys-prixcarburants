@@ -159,14 +159,23 @@ fuel) and `station` (one followed station, a price tile per fuel).
   Two rules do that, in `src/widgets/format.js`. `shortenStationName` serves the PLACE first
   and makes the brand pay — a name is `brand - city` or `brand - street - city`, the brand is
   the head the core would keep, and it is the one part that names nothing when five stations
-  of the same chain are ranked together. It abbreviates a brand word by word from the end
-  (`TotalEnergies Access` → `TotalEn. Acc.`), cuts a segment of more than two words instead
-  (a street: `141 Boulevard…`, never `141 Bou. Émi. Zola`), and drops a middle segment rather
-  than leaving three stumps. `buildRowLabels` then shortens the rows AGAINST EACH OTHER: the
-  full names are unique (`disambiguateStationNames`), so two identical labels are something we
-  cut off, and the clashing rows are rebuilt around their first differing segment — the street
-  that was dropped, or the city alone when the city is what got truncated. Best effort:
-  names that stay equal are left equal, never numbered. `src/refresh.js` samples too, but only for an area the history already follows
+  of the same chain are ranked together. The brand is compacted, never dropped (a row naming
+  no brand names no station): its words go back to their root where they have one
+  (`TotalEnergies` → `Total`, free), then the trailing qualifiers are abbreviated and finally
+  dropped (`Total Access` → `Total Acc.` → `Total`) rather than the name of the chain itself
+  being reduced to a stump. A segment of more than two words is a street, not a brand, so it
+  is CUT instead (`141 Boulevard…`, never `141 Boulevard`), and so is any place. A middle
+  segment is dropped rather than left as a third stump. `buildRowLabels` then shortens the
+  rows AGAINST EACH OTHER, in two passes, because they do not cost the same: the full names
+  are unique (`disambiguateStationNames`), so two identical labels are something we cut off.
+  The first pass rebuilds the clashing rows around their first differing segment WITH the
+  brand still in front (`Total - Av. Jean Jaurès` / `Total - Rue Garibaldi`), compacting that
+  brand to one width for the whole group so the same chain does not read two ways in two
+  consecutive rows, and leaves alone a row that has no such segment to reveal. Only what is
+  still written twice afterwards pays the second pass, which gives the whole row to the place
+  and loses the brand — the case where the CITY is what got truncated
+  (`Saint-Germain-en-Laye` against `Saint-Germain-lès-Corbeil`). Best effort: names that stay
+  equal are left equal, never numbered. `src/refresh.js` samples too, but only for an area the history already follows
   (`history.knows`), so the curve keeps filling with no dashboard open while an install without
   a widget pays nothing.
 - **The 30-day curve and the 7-day trend come from our own samples** (`src/priceHistory.js`):
