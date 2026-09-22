@@ -152,11 +152,15 @@ jour, et combien ça coûte.
   autour de ce qui le distingue des autres — la commune est gardée entière et
   l'enseigne est ramenée à sa racine (`Total Access - Lyon 7e`). Dès que
   plusieurs stations du classement sont dans la MÊME commune, cette commune ne
-  les distingue plus : ces lignes affichent alors leur rue
-  (`Total - Av. Tony Garnier`, `Total - Rue de Gerland`), parce que « Lyon »
-  écrit trois fois dit où est la zone, pas où est la pompe. Le nom complet,
-  l'adresse complète et l'horaire complet restent sur la page de l'appareil et
-  sur la carte « Ma station ».
+  les distingue plus à elle seule : ces lignes affichent alors leur rue, parce
+  que « Lyon » écrit trois fois dit où est la zone, pas où est la pompe. La
+  commune reste derrière la rue dès que la ligne peut tenir les deux, et la rue
+  est alors réduite à son nom — `Total - Garnier, Lyon`, `Total - Gerland,
+Lyon` — car `Av.` et `Rue de`, toutes les rues de la commune les portent
+  aussi. Quand même ça ne tient pas, ou quand raccourcir deux rues ferait deux
+  lignes identiques, la rue est gardée entière et la commune saute
+  (`Total - Av. Tony Garnier`). Le nom complet, l'adresse complète et l'horaire
+  complet restent sur la page de l'appareil et sur la carte « Ma station ».
 - Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
 
 Trois réglages : le carburant, le nombre de stations affichées (3, 5 ou 8) et le

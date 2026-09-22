@@ -141,6 +141,15 @@ export const ROW_LABEL_MAX = 24;
 /** How a station name joins its brand, its street and its city. */
 const SEPARATOR = ' - ';
 
+/**
+ * How a street joins the city it is in: `Garnier, Lyon`.
+ *
+ * A comma rather than the dash the rest of the name uses, for two characters
+ * the street gets back and because that is how an address is written — the
+ * dash separates the parts of a NAME, the comma says "in".
+ */
+const CITY_SEPARATOR = ', ';
+
 /** What the brand keeps at the very least, so `Total.` never becomes `T…`. */
 const MIN_SEGMENT = 6;
 
@@ -224,12 +233,21 @@ export function shortenStationName(name, max = ROW_LABEL_MAX) {
  * So the rule is about the PLACE, not about the clash: a city named by one row
  * is what the reader is looking for ("Oullins-Pierre-Bénite" tells that station
  * from every other of the ranking), and a city named by SEVERAL rows tells them
- * nothing — those rows show their street instead, brand still in front, because
- * a row that names no brand names no station either. The street comes from the
- * name when it carries one and from the station's own address otherwise: the
- * device name only spells the street out when two devices would collide
- * (src/countries/franceNames.js), the dashboard needs it as soon as a city is
- * shared.
+ * nothing on its own — those rows show their street, brand still in front,
+ * because a row that names no brand names no station either. The street comes
+ * from the name when it carries one and from the station's own address
+ * otherwise: the device name only spells the street out when two devices would
+ * collide (src/countries/franceNames.js), the dashboard needs it as soon as a
+ * city is shared.
+ *
+ * The city stays behind it whenever the row can hold the three of them, because
+ * a street alone asks where it is and no other row answers — "Total - Av. Tony
+ * Garnier" under "Total - La Mulatière" leaves the reader to guess that the
+ * avenue is in Lyon. What pays for the room is the STREET, shortened by what
+ * every other street of the city carries anyway (`Rue de Gerland, Lyon` ->
+ * `Gerland, Lyon`), and it only pays that far: a shortening that would make two
+ * rows read the same, or a city too long to leave a street any room, gives the
+ * city up instead — see `revealSharedPlace`.
  *
  * The brand of a chain is compacted to ONE width across the rows that reveal
  * their street, so the same chain does not read three ways in three consecutive
@@ -368,11 +386,27 @@ function streetOf(segments, room) {
 }
 
 /**
- * Give their street to every row whose city is named by another row too.
+ * Give their street to every row whose city is named by another row too — and
+ * keep that city next to it whenever the row can still hold it.
  *
- * A row keeps its city while that city tells it apart; it loses it the moment a
- * neighbour claims the same one, because from there the city is the one thing
- * the two rows agree on.
+ * A row keeps its city alone while that city tells it apart; it gains its
+ * street the moment a neighbour claims the same one, because from there the
+ * city is the one thing the two rows agree on. But a street WITHOUT its city
+ * ("Total - Av. Tony Garnier" next to "Total - La Mulatière") asks the reader
+ * where that avenue is, and the ranking no longer says: the city was the only
+ * row that carried it. So the row shows all three — brand, street, city — and
+ * the street is what pays for the room, in the order that costs the reader the
+ * least: written whole while it fits, then without the kind of way it is
+ * ("Rue de Gerland" -> "Gerland"), then reduced to the name a local uses
+ * ("Av. Tony Garnier" -> "Garnier"). A pump is found by its street NAME; "Av."
+ * and "Rue de" are what every other street carries too.
+ *
+ * One form for the whole city group, never one per row, so "Total - Garnier,
+ * Lyon" does not sit under "Total - Rue de la Gare, Lyon" as if the two said
+ * the same kind of thing. And the city is dropped again — back to
+ * "brand - street" — when even the shortest street form does not fit next to
+ * it, or when shortening the streets would make two rows of the group read the
+ * same: telling the rows APART comes first, since that is what a ranking is.
  */
 function revealSharedPlace(labels, segmented, max) {
   const byPlace = new Map();
@@ -381,28 +415,134 @@ function revealSharedPlace(labels, segmented, max) {
     byPlace.set(place, [...(byPlace.get(place) ?? []), index]);
   });
 
-  const revealing = [...byPlace.values()]
-    .filter((indexes) => indexes.length > 1)
-    // A name of two segments has no street to reveal: rewriting it would cost
-    // it its brand for nothing.
-    .flatMap((indexes) => indexes.filter((index) => segmented[index].length >= 3));
-
   // The widest a street can ever get is the row minus a readable brand.
   const room = max - SEPARATOR.length - MIN_SEGMENT;
-  const streets = new Map(revealing.map((index) => [index, streetOf(segmented[index], room)]));
+  /** @type {Map<number, { street: string, place: string|null }>} */
+  const plans = new Map();
+  for (const [place, indexes] of byPlace) {
+    // A name of two segments has no street to reveal: rewriting it would cost
+    // it its brand for nothing.
+    const revealing = indexes.length > 1 ? indexes.filter((i) => segmented[i].length >= 3) : [];
+    if (revealing.length === 0) {
+      continue;
+    }
+    const streets = new Map(revealing.map((i) => [i, streetOf(segmented[i], room)]));
+    const withCity = fitCity(revealing, streets, place, max);
+    for (const index of revealing) {
+      plans.set(index, {
+        street: withCity?.get(index) ?? streets.get(index),
+        place: withCity ? place : null,
+      });
+    }
+  }
 
   // One width per chain, across the whole ranking: a brand written "Total" on
   // one row and "Total Acc." on the next reads as two different stations.
   const budgets = new Map();
-  for (const index of revealing) {
-    const width = Math.max(MIN_SEGMENT, max - SEPARATOR.length - streets.get(index).length);
+  for (const [index, plan] of plans) {
     const head = segmented[index][0];
-    budgets.set(head, Math.min(budgets.get(head) ?? width, width));
+    budgets.set(head, Math.min(budgets.get(head) ?? Infinity, brandRoom(plan, max)));
   }
-  for (const index of revealing) {
+  for (const [index, plan] of plans) {
     const head = segmented[index][0];
-    labels[index] = fitPair(head, streets.get(index), max, budgets.get(head));
+    const budget = budgets.get(head);
+    labels[index] = plan.place
+      ? `${fitBrand(head, budget)}${SEPARATOR}${plan.street}${CITY_SEPARATOR}${plan.place}`
+      : fitPair(head, plan.street, max, budget);
   }
+}
+
+/**
+ * What a row leaves to its brand once the place it names is written.
+ * Never less than a readable brand: `Total.` is a station, `T…` is nothing.
+ */
+function brandRoom(plan, max) {
+  const place = plan.place ? CITY_SEPARATOR.length + plan.place.length : 0;
+  return Math.max(MIN_SEGMENT, max - SEPARATOR.length - plan.street.length - place);
+}
+
+/**
+ * The street of each row of a city group, shortened until the city fits behind
+ * it — or `null` when it never does.
+ *
+ * @param {number[]} indexes rows of the group that show a street
+ * @param {Map<number, string>} streets their street, house number already gone
+ * @param {string} place the city they share, always written whole
+ * @param {number} max characters a label may occupy
+ * @returns {Map<number, string>|null}
+ */
+function fitCity(indexes, streets, place, max) {
+  // Whole, because a city cut down to "Villeurb…" locates no better than the
+  // street alone and costs the street the room it took.
+  const room = max - SEPARATOR.length - CITY_SEPARATOR.length - place.length - MIN_SEGMENT;
+  if (room < MIN_STREET) {
+    return null;
+  }
+  const forms = new Map(indexes.map((index) => [index, streetForms(streets.get(index))]));
+  const distinct = new Set(streets.values()).size;
+  const levels = Math.max(...[...forms.values()].map((list) => list.length));
+  for (let level = 0; level < levels; level += 1) {
+    const shortened = new Map(
+      indexes.map((index) => {
+        const list = forms.get(index);
+        return [index, list[Math.min(level, list.length - 1)]];
+      }),
+    );
+    // A street shortened into the very name of the city ("Rue de Lyon" in
+    // Lyon) would read "Lyon, Lyon" and locate nothing.
+    const fits = (street) => street.length <= room && street.toLowerCase() !== place.toLowerCase();
+    if (![...shortened.values()].every(fits)) {
+      continue;
+    }
+    // Shortening two streets into one label would trade the answer for the
+    // context: these rows keep their street whole and lose the city instead.
+    return new Set(shortened.values()).size < distinct ? null : shortened;
+  }
+  return null;
+}
+
+/**
+ * The kind of way a street is, which every street of the city carries too:
+ * `Rue`, `Av.`, `ZA`... with the particle that follows it.
+ */
+const STREET_TYPE =
+  /^(?:rue|ruelle|av|avenue|bd|boulevard|ch|chemin|imp|impasse|all|all[ée]e|pl|place|qu|quartier|rte|route|rd-pt|rond[- ]point|za|zi|zac|cours|quai|voie|square|mont[ée]e|passage|traverse|faubourg|fbg|lieu-dit)\.?(?=\s|$)\s*/iu;
+
+/** The particle between the kind of way and the name it carries. */
+const STREET_PARTICLE = /^(?:de\s+la|de\s+l['’]|des|du|de|d['’]|la|le|les|l['’]|aux|au)\s*/iu;
+
+/** The forms of a street name, from the fullest to the shortest. */
+function streetForms(street) {
+  const forms = [street];
+  const named = cleanText(street.replace(STREET_TYPE, '').replace(STREET_PARTICLE, ''));
+  if (named.length >= MIN_STREET && named !== street) {
+    forms.push(named);
+  }
+  const last = lastName(forms[forms.length - 1]);
+  if (last !== forms[forms.length - 1]) {
+    forms.push(last);
+  }
+  return forms;
+}
+
+/** Below this, a word of a street name is a particle or a number, not a name. */
+const MIN_NAME = 3;
+
+/**
+ * The end of a street name, which is the part a local says: "Tony Garnier" is
+ * "Garnier", "Général de Gaulle" is "Gaulle". Stops on the last word that is a
+ * name — a particle or a house number says nothing on its own — and gives back
+ * the street untouched when it has no such word.
+ */
+function lastName(street) {
+  const words = street.replace(/…$/u, '').split(' ').filter(Boolean);
+  for (let i = words.length - 1; i >= 1; i -= 1) {
+    const word = words[i];
+    if (word.length >= MIN_NAME && /^\p{L}/u.test(word) && !STREET_PARTICLE.test(`${word} `)) {
+      return words.slice(i).join(' ');
+    }
+  }
+  return street;
 }
 
 /**

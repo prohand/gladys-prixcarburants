@@ -711,7 +711,7 @@ test('a ranking never shows the same label twice', () => {
   }
 });
 
-test('a row alone in a big city still says which street it is on', () => {
+test('a row alone in a big city still says which street it is on, and where', () => {
   // The row that started this: "TotalEnergies - Lyon" is a city of half a
   // million people, and three of the five rows named it. The street is not in
   // the name — the device list only spells it out to keep two devices apart —
@@ -722,12 +722,34 @@ test('a row alone in a big city still says which street it is on', () => {
     { name: 'TotalEnergies - Lyon', address: '112/116 RUE DE GERLAND' },
   ]);
   assert.equal(labels[0], 'Total - Oullins-Pierre…', 'a city of its own is kept');
-  // Capitals as the feed stores them would be a row shouting at the reader.
-  assert.equal(labels[1], 'Total - Av. Tony Garnier');
-  // The house number goes before the name of the street does: "112/116 Rue
-  // d…" locates nothing at all.
-  assert.equal(labels[2], 'Total - Rue de Gerland');
+  // The city comes back BEHIND the street, because a street on its own asks
+  // where it is and no other row answers: it is the street that pays for the
+  // room, reduced to the name a local says (the house number and the kind of
+  // way are what every other street of the city carries too).
+  assert.equal(labels[1], 'Total - Garnier, Lyon');
+  assert.equal(labels[2], 'Total - Gerland, Lyon');
   for (const label of labels) {
+    assert.ok(label.length <= ROW_LABEL_MAX, `"${label}" fits the row`);
+  }
+});
+
+test('the city is dropped again when keeping it would cost the rows their street', () => {
+  // Two streets of one avenue's name: shortened far enough to let "Lyon" in,
+  // both rows would read "… Hugo, Lyon" and the ranking would stop telling
+  // them apart — which is the one thing it is for.
+  const merging = buildRowLabels([
+    { name: 'Total - Lyon', address: 'RUE VICTOR HUGO' },
+    { name: 'Esso - Lyon', address: 'AVENUE VICTOR HUGO' },
+  ]);
+  assert.deepEqual(merging, ['Total - Rue Victor Hugo', 'Esso - Av. Victor Hugo']);
+  // A city long enough to eat the row leaves nothing for the street either:
+  // the street stays whole and the city goes, as before.
+  const crowded = buildRowLabels([
+    { name: 'Total - Villeurbanne', address: 'RUE VICTOR HUGO' },
+    { name: 'Total - Villeurbanne', address: 'AVENUE ROGER SALENGRO' },
+  ]);
+  assert.deepEqual(crowded, ['Total - Rue Victor Hugo', 'Total - Av. Roger Salen…']);
+  for (const label of [...merging, ...crowded]) {
     assert.ok(label.length <= ROW_LABEL_MAX, `"${label}" fits the row`);
   }
 });
@@ -773,8 +795,8 @@ test('a row shows the street rather than the technical id of the station', () =>
     { name: 'TotalEnergies - Oullins' },
   ]);
   assert.deepEqual(labels, [
-    'Total - Av. Tony Garnier',
-    'Total - Av. Tony Garnier',
+    'Total - Garnier, Lyon',
+    'Total - Garnier, Lyon',
     'TotalEnergies - Oullins',
   ]);
   for (const label of labels) {
@@ -800,14 +822,16 @@ test('a station named after its address does not repeat that address', () => {
     { name: 'Total - Oullins', address: 'Rue de la Gare' },
   ]);
   assert.equal(labels[0], '141 Boulevard… - Oullins');
-  assert.equal(labels[1], 'Total - Rue de la Gare');
+  assert.equal(labels[1], 'Total - Gare, Oullins');
 });
 
 test('a street is written the way a street is written, not the way the feed stores it', () => {
+  // "Lyon 7e" leaves no room for a city behind the street, so the streets are
+  // shown whole here — which is where their spelling is read.
   const labels = buildRowLabels([
-    { name: 'Total - Lyon', address: "RUE D'ARCOLE" },
-    { name: 'Avia - Lyon', address: 'ZA DE LA PLAINE' },
-    { name: 'Esso - Lyon', address: 'AVENUE TONY GARNIER' },
+    { name: 'Total - Lyon 7e', address: "RUE D'ARCOLE" },
+    { name: 'Avia - Lyon 7e', address: 'ZA DE LA PLAINE' },
+    { name: 'Esso - Lyon 7e', address: 'AVENUE TONY GARNIER' },
   ]);
   // Capitals go back to title case, the particles stay lowercase, and the
   // abbreviations `shortenAddress` produces are not turned into words.
@@ -816,4 +840,14 @@ test('a street is written the way a street is written, not the way the feed stor
     'Avia - ZA de la Plaine',
     'Esso - Av. Tony Garnier',
   ]);
+  // Shortened for a city that does fit, the street keeps its name and loses
+  // what says only what kind of way it is.
+  assert.deepEqual(
+    buildRowLabels([
+      { name: 'Total - Lyon', address: "RUE D'ARCOLE" },
+      { name: 'Avia - Lyon', address: 'ZA DE LA PLAINE' },
+      { name: 'Esso - Lyon', address: 'AVENUE TONY GARNIER' },
+    ]),
+    ['Total - Arcole, Lyon', 'Avia - Plaine, Lyon', 'Esso - Garnier, Lyon'],
+  );
 });
