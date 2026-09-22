@@ -33,6 +33,7 @@ import {
   registerWidgets,
   runWidgetAction,
 } from '../src/widgets/index.js';
+import { formatShortDate } from '../src/widgets/format.js';
 import { createFakeGladys, createFakeProvider, createStation } from './helpers/fakeGladys.js';
 
 const config = normalizeConfig({ postal_code: '35000', fuel_type: ['gazole', 'sp98'] });
@@ -128,8 +129,12 @@ test('the ranking sorts the stations by price and badges the cheapest', async ()
   assert.equal(ranking.items[0].color, 'success', 'the cheapest one stands out');
   assert.equal(
     ranking.items[0].value,
-    '1,599 €/L · 06/08/2026 à 07:12',
-    'the price, and when the station declared it',
+    `1,599 €/L · ${formatShortDate('2026-08-06T07:12:00+02:00', 'fr')}`,
+    'the price, and the day the station declared it — short enough for a phone',
+  );
+  assert.ok(
+    ranking.items[0].value.length <= 20,
+    'the row must survive a phone screen, where the front cuts it',
   );
 
   const [cheapest, average] = componentsOfType(content, 'value');
@@ -593,4 +598,31 @@ test('a single sample is anchored to the start of its day, never to the future',
     'start of the day',
   );
   assert.ok(new Date(points[1].t).getTime() <= Date.now());
+});
+
+// --- The short date of the ranking rows --------------------------------------
+
+test('the declared date is shortened to the day, in the reader language', () => {
+  const now = new Date(2026, 8, 22, 9, 30);
+
+  assert.equal(formatShortDate('2026-09-22T06:12:00+02:00', 'fr', now), 'auj.');
+  assert.equal(formatShortDate('2026-09-22T06:12:00+02:00', 'en', now), 'today');
+  assert.equal(formatShortDate('2026-09-21T23:50:00+02:00', 'fr', now), 'hier');
+  assert.equal(formatShortDate('2026-09-21T23:50:00+02:00', 'en', now), 'yest.');
+  // Inside the year, the year is implied; beyond it, it is not.
+  assert.equal(formatShortDate('2026-08-06T07:12:00+02:00', 'fr', now), '06/08');
+  assert.equal(formatShortDate('2025-12-31T07:12:00+02:00', 'fr', now), '31/12/25');
+});
+
+test('the short date keeps the declared wall-clock day, not the container one', () => {
+  // 00:30 in Paris is 22:30 the day before in UTC, where the container runs:
+  // read as an instant, a price declared today would be dated yesterday.
+  const now = new Date(2026, 8, 22, 9, 30);
+  assert.equal(formatShortDate('2026-09-22T00:30:00+02:00', 'fr', now), 'auj.');
+});
+
+test('the short date shows nothing when the feed says nothing', () => {
+  assert.equal(formatShortDate(undefined, 'fr'), '');
+  assert.equal(formatShortDate('', 'fr'), '');
+  assert.equal(formatShortDate('not a date', 'fr'), 'not a date', 'the raw value beats nothing');
 });

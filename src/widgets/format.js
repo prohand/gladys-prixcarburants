@@ -8,6 +8,8 @@
 // the sentence in it.
 // -----------------------------------------------------------------------------
 
+import { cleanText, parseDateTimeParts } from '../text.js';
+
 /** The unit every price of this integration is expressed in (6 chars max). */
 export const PRICE_UNIT = '€/L';
 
@@ -38,6 +40,56 @@ export function formatDistance(km, language = 'en') {
   }
   const text = km.toFixed(1);
   return `${language === 'fr' ? text.replace('.', ',') : text} km`;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The date a station declared its price, SHORT — because the ranking rows of
+ * the dashboard live on one line, and a phone gives that line about half the
+ * width a desktop does: `1,990 €/L · 22/09/2026 à 09:00` came back from mobile
+ * cut at `1,990 €/L · 22/09/…`, which is the one part of the row that has to
+ * stay readable (a stale price is normal, but only this date says so).
+ *
+ * So: the day, and the day only. `today` / `yesterday` while the price is
+ * fresh, because that is the answer the reader is after; `22/09` inside the
+ * current year; `22/09/24` beyond it, where the year stops being implied.
+ * The hour is dropped on purpose — a pump price does not move twice in a day,
+ * and the caption above already carries the minute WE read the feed.
+ *
+ * Parsed through `parseDateTimeParts`, textually, for the same reason
+ * `formatDateTime` is: the container runs in UTC and a `new Date(...)` here
+ * would turn a price declared at 00:30 in Paris into one declared the day
+ * before.
+ *
+ * @param {unknown} value raw timestamp from the feed
+ * @param {string} [language] ISO 639-1 sent by the core
+ * @param {Date} [now] injectable clock, so a test does not depend on the day
+ *   it runs on
+ * @returns {string} `''` when there is no date to show
+ */
+export function formatShortDate(value, language = 'en', now = new Date()) {
+  const parts = parseDateTimeParts(value);
+  if (!parts) {
+    // Unknown shape: the publisher's own string, like formatDateTime.
+    return cleanText(value);
+  }
+  const { year, month, day } = parts;
+  // Both sides reduced to a local midnight: what we compare is calendar days,
+  // not the 24 hours between two instants.
+  const declared = new Date(Number(year), Number(month) - 1, Number(day));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const elapsedDays = Math.round((today.getTime() - declared.getTime()) / DAY_MS);
+  if (elapsedDays === 0) {
+    return language === 'fr' ? 'auj.' : 'today';
+  }
+  if (elapsedDays === 1) {
+    return language === 'fr' ? 'hier' : 'yest.';
+  }
+  if (Number(year) === today.getFullYear()) {
+    return `${day}/${month}`;
+  }
+  return `${day}/${month}/${year.slice(2)}`;
 }
 
 /**

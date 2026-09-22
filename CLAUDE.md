@@ -145,7 +145,10 @@ fuel) and `station` (one followed station, a price tile per fuel).
   over 7 days" on day one is a measurement nobody made.
 - **The ranking rows carry the date the STATION declared its price**, next to the price, while
   the caption above carries the moment WE read the feed. Two different dates, both wanted:
-  a stale one in a row is normal, a stale one in the caption means the API stopped answering. `src/refresh.js` samples too, but only for an area the history already follows
+  a stale one in a row is normal, a stale one in the caption means the API stopped answering.
+  In a row that date is SHORT (`formatShortDate`: `auj.` / `hier` / `06/08` / `31/12/25`,
+  no hour) — a status row is one line and a phone cuts `1,990 €/L · 22/09/2026 à 09:00`
+  mid-date; the full `formatDateTime` stays on the device page and on the `station` card. `src/refresh.js` samples too, but only for an area the history already follows
   (`history.knows`), so the curve keeps filling with no dashboard open while an install without
   a widget pays nothing.
 - **The 30-day curve and the 7-day trend come from our own samples** (`src/priceHistory.js`):

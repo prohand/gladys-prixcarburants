@@ -133,9 +133,11 @@ and how much will it cost.
 - **The read time**: `Prices read on 19/09/2026 at 10:30`, because a price is
   only as good as the moment it was read.
 - **The 30-day curve** of the cheapest price of the area.
-- **The ranking** of the stations with their price **and the date the station
-  declared it** (not to be confused with the read time above: a station may not
-  have moved its prices in a week).
+- **The ranking** of the stations with their price **and the day the station
+  declared it** (`today`, `yest.`, `06/08`) — not to be confused with the read
+  time above: a station may not have moved its prices in a week. The date is
+  deliberately short so the row stays readable on a phone; the full timestamp
+  is still on the device page and on the "My station" card.
 - A button to the **official map** (prix-carburants.gouv.fr).
 
 Three settings: the fuel, how many stations are shown (3, 5 or 8) and the

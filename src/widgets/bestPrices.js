@@ -11,7 +11,7 @@
 //   tiles     cheapest / average / 7-day trend    — the three numbers of a decision
 //   caption   prices read on 19/09/2026 at 10:30  — how old what you read is
 //   chart     the last 30 days of the cheapest price
-//   status    the ranked stations and their price
+//   status    the ranked stations, their price and the day it was declared
 //   buttons   the official national map
 //
 // The curve and the trend come from `src/priceHistory.js`: the open data feed
@@ -28,9 +28,9 @@ import { isConfigReady } from '../config.js';
 import { resolveSearchCenter } from '../house.js';
 import { FUELS, FUEL_KEYS, fuelLabel } from '../fuels.js';
 import { getProvider } from '../countries/index.js';
-import { formatDateTime, formatInstant } from '../text.js';
+import { formatInstant } from '../text.js';
 import { COLOR, buildContent, button, chart, statusList, text, valueTile } from './content.js';
-import { PRICE_UNIT, formatPrice } from './format.js';
+import { PRICE_UNIT, formatPrice, formatShortDate } from './format.js';
 
 export const KEY = 'best_prices';
 
@@ -270,11 +270,12 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
       statusList(
         stations.slice(0, count).map((station, index) => ({
           label: station.name,
-          // The price AND the moment the station declared it: the caption above
+          // The price AND the day the station declared it: the caption above
           // says when WE read the feed, this says how old the price itself is —
           // a station that has not moved its prices in a week is normal, and
-          // only this date says so.
-          value: `${formatPrice(station.prices[fuel], language)} ${PRICE_UNIT}${declaredAt(station, fuel)}`,
+          // only this date says so. Short (`auj.`, `22/09`) because the row is
+          // one line and a phone cuts it: see `formatShortDate`.
+          value: `${formatPrice(station.prices[fuel], language)} ${PRICE_UNIT}${declaredAt(station, fuel, language)}`,
           icon: 'map-pin',
           // The cheapest one is the answer to the question; the others are the
           // context that makes it an answer.
@@ -336,13 +337,14 @@ function buildTrendTile(history, { config, fuel, scope }) {
 }
 
 /**
- * ` · 19/09/2026 à 10:30`, the moment the station declared this price, or an
- * empty string when the feed does not say. Appended to the price rather than
+ * ` · auj.`, ` · hier`, ` · 19/09` — the DAY the station declared this price, or
+ * an empty string when the feed does not say. Appended to the price rather than
  * given its own row: a status item holds one label and one value, and the label
- * is the station's name.
+ * is the station's name. Kept short so the whole row survives a phone screen;
+ * the full timestamp stays on the device page and on the "My station" card.
  */
-function declaredAt(station, fuel) {
-  const declared = formatDateTime(station.updatedAt?.[fuel]);
+function declaredAt(station, fuel, language) {
+  const declared = formatShortDate(station.updatedAt?.[fuel], language);
   return declared ? ` · ${declared}` : '';
 }
 
