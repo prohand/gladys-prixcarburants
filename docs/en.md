@@ -136,11 +136,14 @@ and how much will it cost.
 - **The ranking** of the stations with their price **and the day the station
   declared it** (`today`, `yest.`, `06/08`) — not to be confused with the read
   time above: a station may not have moved its prices in a week. The row is kept
-  short so it stays readable on a phone: the date is reduced to the day, a long
-  station name is shortened (`TotalEnergies - Oullins…`) and the `€/L` unit,
-  already shown by the tiles above, is not repeated on every row. The full name
-  and the full timestamp are still on the device page and on the "My station"
-  card.
+  short so it stays readable on a phone: the date is reduced to the day, the
+  `€/L` unit already shown by the tiles above is not repeated on every row, and
+  a long station name is shortened around what tells it from the others — the
+  town is kept whole and the brand is shortened to its root
+  (`Total Access - Lyon 7e`), and when two stations of the same chain share a
+  town, the rows show the street that tells them apart
+  (`Total - Av. Jean Jaurès`). The full name and the full timestamp are still on the
+  device page and on the "My station" card.
 - A button to the **official map** (prix-carburants.gouv.fr).
 
 Three settings: the fuel, how many stations are shown (3, 5 or 8) and the
