@@ -141,11 +141,15 @@ and how much will it cost.
   a long station name is shortened around what tells it from the others — the
   town is kept whole and the brand is shortened to its root
   (`Total Access - Lyon 7e`). As soon as several stations of the ranking are in
-  the SAME town, that town stops telling them apart, so each of those rows shows
-  its street instead (`Total - Av. Tony Garnier`, `Total - Rue de Gerland`):
-  "Lyon" written three times says where the area is, not where the pump is. The
-  full name, the full address and the full timestamp are still on the device page
-  and on the "My station" card.
+  the SAME town, that town stops telling them apart on its own, so each of those
+  rows shows its street: "Lyon" written three times says where the area is, not
+  where the pump is. The town stays behind the street whenever the row can hold
+  both, and the street is then shortened to its name — `Total - Garnier, Lyon`,
+  `Total - Gerland, Lyon` — since `Av.` and `Rue de` are what every other street
+  carries too. When even that does not fit, or when shortening two streets would
+  make two rows read the same, the street is kept whole and the town goes
+  (`Total - Av. Tony Garnier`). The full name, the full address and the full
+  timestamp are still on the device page and on the "My station" card.
 - A button to the **official map** (prix-carburants.gouv.fr).
 
 Three settings: the fuel, how many stations are shown (3, 5 or 8) and the

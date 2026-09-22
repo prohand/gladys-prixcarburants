@@ -170,15 +170,24 @@ fuel) and `station` (one followed station, a price tile per fuel).
   clash: a city named by one row is what the reader is looking for
   (`Total - Oullins-Pierre…`), a city named by SEVERAL rows tells them apart from nothing —
   `Lyon` is half a million people and five pumps. So every row sharing its city shows its
-  STREET instead, brand still in front (`Total - Av. Tony Garnier`, `Total - Rue de Gerland`),
-  the brand of a chain compacted to one width across the whole ranking so it does not read two
-  ways in two consecutive rows, and a row with no street to show is left alone rather than
-  losing its brand for nothing. The street comes from the name when it carries one and from
+  STREET, brand still in front, the brand of a chain compacted to one width across the whole
+  ranking so it does not read two ways in two consecutive rows, and a row with no street to
+  show is left alone rather than losing its brand for nothing. The city stays BEHIND that
+  street whenever the row holds all three (`Total - Garnier, Lyon`), because a street alone
+  asks where it is and no other row answers — the city was the only thing carrying it. What
+  pays for that room is the street, in the order that costs the reader the least: written
+  whole, then without the kind of way it is (`Rue de Gerland` → `Gerland`), then reduced to
+  the name a local says (`Av. Tony Garnier` → `Garnier`) — a pump is found by the NAME of its
+  street, `Av.` and `Rue de` are what every other street of the city carries too. One form for
+  the whole city group, never one per row, and the city is given up again — back to
+  `Total - Av. Tony Garnier` — when the shortest street form still does not fit behind it,
+  when it would be the city's own name (`Lyon, Lyon`), or when shortening would make two rows
+  of the group read the same: telling the rows APART comes first, that is what a ranking is. The street comes from the name when it carries one and from
   the station's `address` otherwise — the device name only spells it out when two devices
   would collide, the dashboard needs it as soon as a city is shared — and it is displayed as a
   street is written, not as the feed stores it: the house number is dropped before the name of
   the street is cut (`Rue de Gerland`, never `112/116 Rue de…`, since a map fills the number
-  in), and an ALL-CAPS word goes back to title case (`AVENUE TONY GARNIER` →
+  in, and the number goes before the city joins the row), and an ALL-CAPS word goes back to title case (`AVENUE TONY GARNIER` →
   `Av. Tony Garnier`) while `ZA` and an already-cased name stay untouched. The technical id
   `disambiguateStationNames` appends when even the street is not enough (two pumps of one
   avenue) is dropped from the row — eight digits name nothing to a driver — but only once
