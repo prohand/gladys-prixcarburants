@@ -1,6 +1,6 @@
 {
   "name": "gladys-prixcarburants",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "private": true,
   "description": "Gladys Assistant external integration following fuel prices at the petrol stations near you, from official open data.",
   "type": "module",
