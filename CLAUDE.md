@@ -166,16 +166,27 @@ fuel) and `station` (one followed station, a price tile per fuel).
   being reduced to a stump. A segment of more than two words is a street, not a brand, so it
   is CUT instead (`141 Boulevard…`, never `141 Boulevard`), and so is any place. A middle
   segment is dropped rather than left as a third stump. `buildRowLabels` then shortens the
-  rows AGAINST EACH OTHER, in two passes, because they do not cost the same: the full names
-  are unique (`disambiguateStationNames`), so two identical labels are something we cut off.
-  The first pass rebuilds the clashing rows around their first differing segment WITH the
-  brand still in front (`Total - Av. Jean Jaurès` / `Total - Rue Garibaldi`), compacting that
-  brand to one width for the whole group so the same chain does not read two ways in two
-  consecutive rows, and leaves alone a row that has no such segment to reveal. Only what is
-  still written twice afterwards pays the second pass, which gives the whole row to the place
-  and loses the brand — the case where the CITY is what got truncated
-  (`Saint-Germain-en-Laye` against `Saint-Germain-lès-Corbeil`). Best effort: names that stay
-  equal are left equal, never numbered. `src/refresh.js` samples too, but only for an area the history already follows
+  rows AGAINST EACH OTHER, in two passes, and what drives the first one is the PLACE, not a
+  clash: a city named by one row is what the reader is looking for
+  (`Total - Oullins-Pierre…`), a city named by SEVERAL rows tells them apart from nothing —
+  `Lyon` is half a million people and five pumps. So every row sharing its city shows its
+  STREET instead, brand still in front (`Total - Av. Tony Garnier`, `Total - Rue de Gerland`),
+  the brand of a chain compacted to one width across the whole ranking so it does not read two
+  ways in two consecutive rows, and a row with no street to show is left alone rather than
+  losing its brand for nothing. The street comes from the name when it carries one and from
+  the station's `address` otherwise — the device name only spells it out when two devices
+  would collide, the dashboard needs it as soon as a city is shared — and it is displayed as a
+  street is written, not as the feed stores it: the house number is dropped before the name of
+  the street is cut (`Rue de Gerland`, never `112/116 Rue de…`, since a map fills the number
+  in), and an ALL-CAPS word goes back to title case (`AVENUE TONY GARNIER` →
+  `Av. Tony Garnier`) while `ZA` and an already-cased name stay untouched. The technical id
+  `disambiguateStationNames` appends when even the street is not enough (two pumps of one
+  avenue) is dropped from the row — eight digits name nothing to a driver — but only once
+  there is a street to show instead. Only what is still written twice afterwards pays the
+  second pass, which gives the whole row to the place and loses the brand — the case where the
+  CITY is what got truncated (`Saint-Germain-en-Laye` against `Saint-Germain-lès-Corbeil`).
+  Best effort: names that stay equal are left equal, never numbered.
+  `src/refresh.js` samples too, but only for an area the history already follows
   (`history.knows`), so the curve keeps filling with no dashboard open while an install without
   a widget pays nothing.
 - **The 30-day curve and the 7-day trend come from our own samples** (`src/priceHistory.js`):
