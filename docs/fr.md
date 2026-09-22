@@ -143,9 +143,12 @@ jour, et combien ça coûte.
 - **L'heure du relevé** : `Prix relevés le 19/09/2026 à 10:30`, parce qu'un prix
   ne vaut que par le moment où il a été lu.
 - **La courbe des 30 derniers jours** du prix le moins cher de la zone.
-- **Le classement** des stations avec leur prix **et la date à laquelle la
-  station l'a déclaré** (à ne pas confondre avec l'heure du relevé ci-dessus :
-  une station peut ne pas avoir bougé ses prix depuis une semaine).
+- **Le classement** des stations avec leur prix **et le jour où la station l'a
+  déclaré** (`auj.`, `hier`, `06/08`) — à ne pas confondre avec l'heure du
+  relevé ci-dessus : une station peut ne pas avoir bougé ses prix depuis une
+  semaine. La date est volontairement courte pour que la ligne reste lisible
+  sur un téléphone ; l'horaire complet reste sur la page de l'appareil et sur
+  la carte « Ma station ».
 - Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
 
 Trois réglages : le carburant, le nombre de stations affichées (3, 5 ou 8) et le

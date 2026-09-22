@@ -24,6 +24,28 @@ export function cleanText(value) {
 const DATE_TIME_PATTERN = /(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/;
 
 /**
+ * The date and the time of a feed timestamp, as strings, or `null` when the
+ * value does not hold one.
+ *
+ * Exposed because the dashboard needs the same TEXTUAL reading for a shorter
+ * display (`06/08`, see src/widgets/format.js): re-parsing the feed string with
+ * `new Date(...)` there would re-introduce the timezone shift this module
+ * exists to avoid.
+ *
+ * @param {unknown} value raw timestamp from the feed
+ * @returns {{ year: string, month: string, day: string, hours: string,
+ *   minutes: string }|null}
+ */
+export function parseDateTimeParts(value) {
+  const match = DATE_TIME_PATTERN.exec(cleanText(value));
+  if (!match) {
+    return null;
+  }
+  const [, year, month, day, hours, minutes] = match;
+  return { year, month, day, hours, minutes };
+}
+
+/**
  * The one format every date of this integration is displayed in, on the
  * dashboard as in the device page: `08/08/2026 à 21:00`.
  */
@@ -52,14 +74,12 @@ const pad = (value) => String(value).padStart(2, '0');
  *   `''` when there is nothing to show
  */
 export function formatDateTime(value) {
-  const raw = cleanText(value);
-  const match = DATE_TIME_PATTERN.exec(raw);
-  if (!match) {
+  const parts = parseDateTimeParts(value);
+  if (!parts) {
     // Unknown shape: showing the publisher's own string beats showing nothing.
-    return raw;
+    return cleanText(value);
   }
-  const [, year, month, day, hours, minutes] = match;
-  return frenchDateTime({ year, month, day, hours, minutes });
+  return frenchDateTime(parts);
 }
 
 /**
