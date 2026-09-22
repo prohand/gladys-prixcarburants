@@ -62,6 +62,43 @@ test('the first house that actually has coordinates wins', async () => {
   assert.equal((await house.get()).name, 'Maison');
 });
 
+test('every located house is offered, and the configuration names the one used', async () => {
+  // A Gladys install can hold several houses (a home and a holiday house). The
+  // select of the Configuration screen cannot list them — the core resolves
+  // dynamic options against DEVICES only — so the user types a name, and it is
+  // matched loosely: trimmed, case- and accent-insensitive.
+  const houses = [
+    { id: '1', name: 'Maison', latitude: 48.1113, longitude: -1.6845 },
+    { id: '2', name: 'Résidence d’été', latitude: 43.2961, longitude: 5.3699 },
+  ];
+  const house = createHouseLocation(gladys, { fetchImpl: fakeFetch([{ body: houses }]).fetchImpl });
+
+  assert.deepEqual(await house.names(), ['Maison', 'Résidence d’été']);
+  assert.equal((await house.get('Résidence d’été')).latitude, 43.2961);
+  assert.equal((await house.get('  residence d’ete ')).latitude, 43.2961, 'matched loosely');
+  assert.equal((await house.get()).name, 'Maison', 'no name configured: the first one');
+  assert.equal((await house.get('')).name, 'Maison', 'an empty field is no name at all');
+  assert.equal(
+    (await house.get('Chalet')).name,
+    'Maison',
+    'a name that matches nothing falls back rather than dropping the distances',
+  );
+});
+
+test('the house named in the configuration is the one the search is centred on', async () => {
+  const houses = [
+    { id: '1', name: 'Maison', latitude: 48.1113, longitude: -1.6845 },
+    { id: '2', name: 'Bureau', latitude: 43.2961, longitude: 5.3699 },
+  ];
+  const house = createHouseLocation(gladys, { fetchImpl: fakeFetch([{ body: houses }]).fetchImpl });
+  const config = normalizeConfig({ postal_code: '35000', house_name: 'Bureau' });
+
+  assert.deepEqual(await resolveSearchCenter(config, house), {
+    center: { latitude: 43.2961, longitude: 5.3699 },
+    source: 'house',
+  });
+});
+
 test('a house nobody located gives null, not an error', async () => {
   const { fetchImpl } = fakeFetch([
     { body: [{ id: '1', name: 'Maison', latitude: null, longitude: null }] },
@@ -69,6 +106,7 @@ test('a house nobody located gives null, not an error', async () => {
   const house = createHouseLocation(gladys, { fetchImpl });
 
   assert.equal(await house.get(), null);
+  assert.deepEqual(await house.names(), [], 'nothing to offer in the Configuration screen');
 });
 
 test('a 403 (no "location" in the manifest, or an older core) gives null', async () => {

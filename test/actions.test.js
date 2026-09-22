@@ -125,3 +125,40 @@ test('refresh_prices reports the stations it could not read', async () => {
 
   assert.match(message.en, /^1\/2 price\(s\) refreshed \(1 failed\)\.$/);
 });
+
+test('search_stations says which house the distances start from, and lists the others', async () => {
+  // The "Which house" field is free text (the core has no "houses" select
+  // source), so the button that checks the postal code is also where the user
+  // reads back the names Gladys actually holds — a name nobody shows is a name
+  // they will get wrong.
+  const { store } = storeWith([createStation()]);
+  const house = {
+    get: async (name) => (name === 'Bureau' ? { name: 'Bureau' } : { name: 'Maison' }),
+    names: async () => ['Maison', 'Bureau'],
+  };
+
+  const message = await searchStations(createFakeGladys(), {
+    config: normalizeConfig({ postal_code: '35000', house_name: 'Bureau' }),
+    store,
+    house,
+  });
+  assert.match(message.fr, /depuis la maison « Bureau »/);
+  assert.match(message.fr, /Maisons connues de Gladys : Maison, Bureau\./);
+  assert.match(message.en, /from the house "Bureau"/);
+});
+
+test('search_stations names the postal code when the distances start there', async () => {
+  const { store } = storeWith([createStation()]);
+  const message = await searchStations(createFakeGladys(), {
+    config: normalizeConfig({ postal_code: '35000', search_center: 'postal_code' }),
+    store,
+    house: { get: async () => null, names: async () => [] },
+  });
+  assert.match(message.fr, /depuis le centre du 35000/);
+});
+
+test('search_stations survives an install with no house module at all', async () => {
+  const { store } = storeWith([createStation()]);
+  const message = await searchStations(createFakeGladys(), { config, store });
+  assert.match(message.fr, /station\(s\) autour de 35000/);
+});

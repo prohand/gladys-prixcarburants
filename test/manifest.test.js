@@ -281,6 +281,20 @@ test('the search centre select offers exactly what normalizeConfig accepts', () 
   );
 });
 
+test('the house is named by a free-text field, since a select cannot list them', () => {
+  // The core resolves `source` select options against an integration's DEVICES
+  // only (`SELECT_SOURCES = ['devices']`), so the houses Gladys holds cannot be
+  // offered as options: the field is a plain string the user types, and it must
+  // stay optional — a single-house install never fills it in.
+  const houseField = field('house_name');
+  assert.equal(houseField.type, 'string');
+  assert.equal(houseField.required, false);
+  assert.equal(houseField.options, undefined, 'no static list of somebody else’s houses');
+  assert.equal(houseField.source, undefined, 'the core has no "houses" source');
+  assert.equal(houseField.default, undefined);
+  assert.equal(DEFAULT_CONFIG.house_name, '', 'empty means the first located house');
+});
+
 // --- Scene triggers (GladysAssistant/Gladys#3110, preview) --------------------
 // The scene editor renders these from the manifest alone, while the code fires
 // them by key with a payload the core whitelists against them: a key declared

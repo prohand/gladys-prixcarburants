@@ -40,6 +40,8 @@ export function createStationStore({
   const tracked = new Map();
   /** @type {Map<string, Promise<void>>} in-flight refresh per country */
   const refreshes = new Map();
+  /** @type {Map<string, Promise<object[]>>} in-flight search per search criteria */
+  const searches = new Map();
 
   // When a provider call last SUCCEEDED, whatever it brought back. This is the
   // integration-wide "the data you see is this old" answer, and the only one
@@ -64,19 +66,43 @@ export function createStationStore({
   /**
    * Search the stations around the configured postal code. Results are cached
    * too: adding a station right after a scan then costs no extra request.
+   *
+   * Concurrent searches for the SAME criteria share one call, exactly like the
+   * per-country refresh below. That is not a micro-optimization: the two
+   * dashboard cards pull at the same moment, and a cold search walks concentric
+   * circles with one HTTP request per ring — doing it twice side by side is how
+   * a pull runs past the core's 15 s ack deadline and the card comes back
+   * "data unavailable".
+   *
    * @param {{ country: string, postal_code: string, search_radius_km: number, max_stations: number }} config
    */
-  async function search(config) {
-    const provider = resolveProvider(config.country);
-    const { center } = await resolveCenter(config);
-    const stations = await provider.searchStations({
-      postalCode: config.postal_code,
-      radiusKm: config.search_radius_km,
-      limit: config.max_stations,
-      center,
-    });
-    remember(provider.code, stations);
-    return stations;
+  function search(config) {
+    const key = [
+      config.country,
+      config.postal_code,
+      config.search_radius_km,
+      config.max_stations,
+    ].join('|');
+    const pending = searches.get(key);
+    if (pending) {
+      return pending;
+    }
+
+    const promise = (async () => {
+      const provider = resolveProvider(config.country);
+      const { center } = await resolveCenter(config);
+      const stations = await provider.searchStations({
+        postalCode: config.postal_code,
+        radiusKm: config.search_radius_km,
+        limit: config.max_stations,
+        center,
+      });
+      remember(provider.code, stations);
+      return stations;
+    })().finally(() => searches.delete(key));
+
+    searches.set(key, promise);
+    return promise;
   }
 
   /** Declare that a station is watched by at least one Gladys device. */

@@ -113,12 +113,59 @@ function missingFuelNotes(stations, fuels, lang) {
 }
 
 /**
+ * Where the distances of this preview start from — and, when Gladys holds more
+ * than one house, the NAMES of the houses it holds.
+ *
+ * This line exists because the "Which house" field cannot be a select: the core
+ * resolves dynamic select options against an integration's devices only, so a
+ * user with several houses has to TYPE a name, and a name nobody shows them is
+ * a name they will get wrong. The button they press to check their postal code
+ * is the natural place to read it back.
+ *
+ * Best effort like everything house-related: no house module, no coordinates,
+ * an older core — the line simply says the postal code.
+ *
+ * @param {object} config normalized configuration
+ * @param {{ get: Function, names: Function }} [house]
+ * @returns {Promise<{ en: string, fr: string }>}
+ */
+async function centerNotes(config, house) {
+  if (config.search_center !== 'house' || !house) {
+    return {
+      en: `Distances measured from the centre of ${config.postal_code}.`,
+      fr: `Distances mesurées depuis le centre du ${config.postal_code}.`,
+    };
+  }
+  const [used, names] = await Promise.all([house.get(config.house_name), house.names()]);
+  if (!used) {
+    return {
+      en: `No Gladys house has coordinates: distances measured from the centre of ${config.postal_code}.`,
+      fr: `Aucune maison Gladys n'a de coordonnées : distances mesurées depuis le centre du ${config.postal_code}.`,
+    };
+  }
+  // Only worth listing when there is a choice to make. The names come from the
+  // user's own Gladys and never leave this message — no coordinate is printed,
+  // here or anywhere else.
+  const others =
+    names.length > 1
+      ? {
+          en: ` Houses Gladys knows: ${names.join(', ')}.`,
+          fr: ` Maisons connues de Gladys : ${names.join(', ')}.`,
+        }
+      : { en: '', fr: '' };
+  return {
+    en: `Distances measured from the house "${used.name}".${others.en}`,
+    fr: `Distances mesurées depuis la maison « ${used.name} ».${others.fr}`,
+  };
+}
+
+/**
  * Preview the stations the current configuration would offer in the discovery
  * tab, without touching the device list.
  * @param {object} gladys SDK instance
- * @param {{ config: object, store: object }} context
+ * @param {{ config: object, store: object, house?: object }} context
  */
-export async function searchStations(gladys, { config, store }) {
+export async function searchStations(gladys, { config, store, house }) {
   if (!isConfigReady(config)) {
     return {
       en: 'Fill in a postal code first.',
@@ -148,10 +195,11 @@ export async function searchStations(gladys, { config, store }) {
     const lines = missingFuelNotes(stations, config.fuel_type, lang);
     return lines.length > 0 ? `\n\n${lines.join('\n')}` : '';
   };
+  const center = await centerNotes(config, house);
 
   return {
-    en: `${stations.length} station(s) around ${config.postal_code}:\n${previewLines(stations, config.fuel_type, 'en').join('\n')}${more}${notes('en')}\n\nAdd the ones you want from the Discovery tab.`,
-    fr: `${stations.length} station(s) autour de ${config.postal_code} :\n${previewLines(stations, config.fuel_type, 'fr').join('\n')}${more}${notes('fr')}\n\nAjoutez celles que vous voulez depuis l'onglet Découverte.`,
+    en: `${stations.length} station(s) around ${config.postal_code}:\n${previewLines(stations, config.fuel_type, 'en').join('\n')}${more}${notes('en')}\n\n${center.en}\n\nAdd the ones you want from the Discovery tab.`,
+    fr: `${stations.length} station(s) autour de ${config.postal_code} :\n${previewLines(stations, config.fuel_type, 'fr').join('\n')}${more}${notes('fr')}\n\n${center.fr}\n\nAjoutez celles que vous voulez depuis l'onglet Découverte.`,
   };
 }
 

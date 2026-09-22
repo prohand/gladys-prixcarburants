@@ -213,12 +213,40 @@ fuel) and `station` (one followed station, a price tile per fuel).
   (the SDK wraps no such call), which requires `"location": true` in the manifest — the two
   ship together, a 403 is the symptom of forgetting one. Cached an hour, invalidated on
   `onConfigUpdated`, and best effort everywhere: `resolveSearchCenter` falls back on the postal
-  code for an unlocated house, an older core or a network failure. The coordinates are personal
+  code for an unlocated house, an older core or a network failure. A Gladys install can hold
+  SEVERAL houses, and the route returns them all: the module keeps every located one and
+  `config.house_name` names which to measure from, matched loosely (trimmed, case- and
+  accent-insensitive), the first one winning when the field is empty or matches nothing (said
+  once in the logs, never as an error). That field is free TEXT and not a select on purpose —
+  the core resolves dynamic select options against an integration's DEVICES only
+  (`SELECT_SOURCES = ['devices']`), so no manifest can offer the houses. What makes it usable
+  is `searchStations`: the preview action names the house in use and lists the ones Gladys
+  knows, because a name nobody shows is a name the user gets wrong. The NAMES may be printed
+  there; the coordinates never are, anywhere. The coordinates are personal
   data: they centre the search and nothing else — never a device param, a state, a log or a
   widget content.
-- **A fuel with a device is published as a `device_feature` reference, not a value**: the
-  dashboard then follows the feature over the WebSocket and the tile moves as soon as the
-  refresh loop publishes a price. A fuel without a device carries the value read from the feed.
+- **A price tile carries TEXT, never a number and never a `device_feature`**: the front
+  rounds both. An inline number goes through `formatNumber` (`maximumFractionDigits: 2`) and
+  a bound feature through `DeviceFeatureValueText` (`Math.round(v * 10) / 10`), so a pump
+  price of 1,699 € reached the dashboard as `1,7` while the device page of the very same
+  feature showed 1,699 — reported by a user, and the third decimal is exactly what tells two
+  stations apart. `formatPrice` therefore builds the string, in the `language` the core sends
+  with every pull, and the tiles of both cards send it. What it costs is the live binding the
+  `station` card used to have; `notifyWidgetsChanged` pays for it, nudging the core at the end
+  of every pass that moved a price.
+- **A widget pull must answer well inside the core's 15 s ack** (`WIDGET_GET_TIMEOUT_MS`): a
+  missed ack is not a slow card, it is a DEAD one — the front shows "widget data unavailable",
+  drops the content it had and schedules NO retry, so the card stays broken until someone
+  reloads the dashboard (the user who hit this uninstalled the integration, which remounted
+  the cards). A cold container misses it easily: two cards pulling at once, a search walking
+  concentric circles at one request per ring, a postal code to geocode, names from two more
+  datasets. So `getWidgetContent` races the pull against a deadline of its own
+  (`PULL_DEADLINE_MS`, 9 s) and serves a WARMING card past it — a sentence and a 15 s TTL —
+  while the real pull keeps running and fills the store cache for the re-pull that follows.
+  A thrown error is NOT swallowed by that: the core turns it into a message the user can act
+  on, and only a missed ack is the failure with no explanation. `stationStore.search` shares
+  its in-flight promise per search criteria for the same reason the country refresh does:
+  two cards pulling side by side must cost one search, not two.
 - **Declarations live in the code**: `buildWidgetManifest()` is the source and
   `test/manifest.test.js` asserts the manifest `widgets` array deep-equals it. Change both
   together, like the rest of the manifest.

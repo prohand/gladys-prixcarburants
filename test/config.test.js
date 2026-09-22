@@ -65,3 +65,12 @@ test('the distances are measured from the house unless the user says otherwise',
   // code when Gladys has no coordinates, so this value is never a promise.
   assert.equal(normalizeConfig({ search_center: '' }).search_center, 'house');
 });
+
+test('the house name is a trimmed string, empty when nothing is typed', () => {
+  // The field only matters for an install holding several Gladys houses; empty
+  // means "the first located one", which is what every single-house install
+  // gets without touching anything.
+  assert.equal(normalizeConfig({}).house_name, '');
+  assert.equal(normalizeConfig({ house_name: '  Bureau  ' }).house_name, 'Bureau');
+  assert.equal(normalizeConfig({ house_name: null }).house_name, '');
+});

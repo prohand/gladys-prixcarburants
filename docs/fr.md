@@ -198,10 +198,12 @@ carte :
 - l'enseigne, l'adresse, la distance et la date du dernier relevé ;
 - un bouton **Itinéraire** et un bouton **Rafraîchir**.
 
-Les carburants que vous suivez déjà (ceux qui ont un appareil) sont affichés
-**en direct** : la tuile bouge dès que l'intégration publie un nouveau prix,
-sans attendre le rafraîchissement de la carte. Les autres carburants de la
-station affichent la valeur lue dans le flux.
+Tous les carburants de la station sont affichés avec les **trois décimales** du
+prix à la pompe (`1,699 €/L`). Les tuiles étaient auparavant reliées à l'appareil
+Gladys pour les carburants suivis, ce qui les mettait à jour en direct mais
+affichait `1,7` : Gladys arrondit la valeur d'un appareil affichée dans une
+tuile. Le prix exact vaut mieux — la carte se met à jour à chaque passe de
+rafraîchissement, donc en quelques secondes.
 
 #### D'où partent les distances
 
@@ -215,6 +217,14 @@ affichées nulle part.
 - Maison non localisée, ou réglage **« Mesurer les distances depuis : le code
   postal »** → `2,3 km du 35000`, mesuré depuis le centre de la zone du code
   postal.
+
+**Si Gladys contient plusieurs maisons**, remplissez le champ **« Quelle
+maison »** avec le nom de celle qui vous intéresse (la casse et les accents sont
+ignorés). Laissé vide, c'est la première maison localisée qui sert. Gladys ne
+permet pas encore à une intégration de proposer la liste des maisons dans un
+menu déroulant : pour savoir quoi écrire, cliquez sur **« Aperçu des
+stations »**, le message affiche la maison utilisée et le nom de toutes celles
+que Gladys connaît.
 
 Le code postal reste obligatoire dans tous les cas : c'est lui qui sert à
 interroger le jeu de données national.

@@ -135,7 +135,7 @@ gladys.onDeviceDeleted(async (device) => {
 // --- Manifest actions: buttons in the Configuration screen -------------------
 for (const [actionKey, handler] of Object.entries(ACTIONS)) {
   gladys.onAction(actionKey, () =>
-    handler(gladys, { config, store, history: priceHistory, sceneEvents }),
+    handler(gladys, { config, store, history: priceHistory, sceneEvents, house }),
   );
 }
 

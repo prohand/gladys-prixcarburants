@@ -37,6 +37,19 @@ const HOUSE_PATH = '/api/integration/v1/house';
 const REQUEST_TIMEOUT_MS = 5_000;
 
 /**
+ * Compare two house names the way a user types them: trimmed, case-insensitive
+ * and accent-insensitive, since "Résidence" and "residence" name one house.
+ * @param {unknown} value
+ */
+function nameKey(value) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .toLowerCase();
+}
+
+/**
  * @param {object} gladys SDK instance (for `hostApiUrl` and `token`)
  * @param {{ fetchImpl?: Function, now?: () => number, ttlMs?: number }} [options]
  *   `fetchImpl` and `now` are the seams the tests use in place of the network
@@ -46,18 +59,19 @@ export function createHouseLocation(
   gladys,
   { fetchImpl, now = Date.now, ttlMs = CACHE_TTL_MS } = {},
 ) {
-  /** @type {{ at: number, house: object|null }|null} */
+  /** @type {{ at: number, houses: object[] }|null} */
   let cached = null;
-  /** @type {Promise<object|null>|null} */
+  /** @type {Promise<object[]>|null} */
   let inFlight = null;
   let warned = false;
+  let missWarned = null;
 
   async function request() {
     const baseUrl = gladys?.hostApiUrl ?? process.env.GLADYS_HOST_API_URL;
     const token = gladys?.token ?? process.env.GLADYS_INTEGRATION_TOKEN;
     const doFetch = fetchImpl ?? fetch;
     if (!baseUrl || !token) {
-      return null;
+      return [];
     }
 
     const response = await doFetch(`${baseUrl}${HOUSE_PATH}`, {
@@ -76,63 +90,114 @@ export function createHouseLocation(
             'distances will be measured from the postal code.',
         );
       }
-      return null;
+      return [];
     }
 
     const houses = await response.json();
     if (!Array.isArray(houses)) {
-      return null;
+      return [];
     }
-    // The first LOCATED house wins (the API sorts by name): most installs have
-    // one, and a second home is not something a fuel price card can guess
-    // between.
-    const located = houses.find(
-      (house) => Number.isFinite(house?.latitude) && Number.isFinite(house?.longitude),
-    );
-    if (!located) {
+    // Every LOCATED house is kept, not just the first one: a Gladys install can
+    // hold several (a home and a holiday house, a home and an office) and the
+    // configuration names which one the distances start from.
+    const located = houses
+      .filter((house) => Number.isFinite(house?.latitude) && Number.isFinite(house?.longitude))
+      .map((house) => ({
+        name: house.name,
+        latitude: house.latitude,
+        longitude: house.longitude,
+      }));
+    if (located.length === 0) {
       if (!warned) {
         warned = true;
         logger.info(
           'No Gladys house has coordinates yet: distances will be measured from the postal code.',
         );
       }
+    }
+    return located;
+  }
+
+  /** The cached list, fetched at most once per TTL and shared between callers. */
+  function list() {
+    if (cached && now() - cached.at < ttlMs) {
+      return Promise.resolve(cached.houses);
+    }
+    // Concurrent widget pulls share one call, like the station store does.
+    inFlight ??= request()
+      .catch((err) => {
+        logger.debug(`House coordinates unavailable: ${err.message}`);
+        return [];
+      })
+      .then((houses) => {
+        cached = { at: now(), houses };
+        inFlight = null;
+        return houses;
+      });
+    return inFlight;
+  }
+
+  /**
+   * The house the configuration names, among the located ones.
+   *
+   * No name configured, or a name that matches nothing: the first located house
+   * wins, as it always did — a single-house install is the normal case and must
+   * never have to fill a field in. A name that matches nothing is said ONCE,
+   * with the names Gladys actually holds, because "it measures from the wrong
+   * house" is otherwise invisible.
+   *
+   * @param {object[]} houses
+   * @param {string} [preferredName]
+   */
+  function pick(houses, preferredName) {
+    if (houses.length === 0) {
       return null;
     }
-    return {
-      name: located.name,
-      latitude: located.latitude,
-      longitude: located.longitude,
-    };
+    const wanted = nameKey(preferredName);
+    if (wanted.length === 0) {
+      return houses[0];
+    }
+    const match = houses.find((house) => nameKey(house.name) === wanted);
+    if (match) {
+      return match;
+    }
+    if (missWarned !== wanted) {
+      missWarned = wanted;
+      logger.warn(
+        `No Gladys house named "${preferredName}": distances are measured from "${houses[0].name}". ` +
+          `Houses Gladys knows: ${houses.map((house) => house.name).join(', ')}.`,
+      );
+    }
+    return houses[0];
   }
 
   return {
     /**
-     * The located house, or `null` when there is none to be had.
+     * The located house to measure from, or `null` when there is none to be had.
      * Never throws: a failure is a fallback, not an error.
+     * @param {string} [preferredName] the house named in the configuration
      * @returns {Promise<{ name: string, latitude: number, longitude: number }|null>}
      */
-    async get() {
-      if (cached && now() - cached.at < ttlMs) {
-        return cached.house;
-      }
-      // Concurrent widget pulls share one call, like the station store does.
-      inFlight ??= request()
-        .catch((err) => {
-          logger.debug(`House coordinates unavailable: ${err.message}`);
-          return null;
-        })
-        .then((house) => {
-          cached = { at: now(), house };
-          inFlight = null;
-          return house;
-        });
-      return inFlight;
+    async get(preferredName) {
+      return pick(await list(), preferredName);
+    },
+
+    /**
+     * The names of the located houses, for the Configuration screen: a field
+     * where the user TYPES a house name is only usable if something tells them
+     * what to type (the core resolves dynamic select options against devices
+     * only, so the list cannot be offered in the form itself).
+     * @returns {Promise<string[]>}
+     */
+    async names() {
+      return (await list()).map((house) => house.name);
     },
 
     /** Forget the cached answer (the user may have just located their house). */
     invalidate() {
       cached = null;
       warned = false;
+      missWarned = null;
     },
   };
 }
@@ -153,7 +218,7 @@ export async function resolveSearchCenter(config, house) {
   if (config.search_center !== 'house' || !house) {
     return { center: null, source: 'postal_code' };
   }
-  const located = await house.get();
+  const located = await house.get(config.house_name);
   return located
     ? { center: { latitude: located.latitude, longitude: located.longitude }, source: 'house' }
     : { center: null, source: 'postal_code' };
