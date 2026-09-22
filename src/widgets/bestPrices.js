@@ -30,7 +30,7 @@ import { FUELS, FUEL_KEYS, fuelLabel } from '../fuels.js';
 import { getProvider } from '../countries/index.js';
 import { formatInstant } from '../text.js';
 import { COLOR, buildContent, button, chart, statusList, text, valueTile } from './content.js';
-import { PRICE_UNIT, formatPrice, formatShortDate, shortenStationName } from './format.js';
+import { PRICE_UNIT, buildRowLabels, formatPrice, formatShortDate } from './format.js';
 
 export const KEY = 'best_prices';
 
@@ -238,6 +238,10 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
   // Resolved AFTER the search, which has already warmed the house cache.
   const { source } = await resolveSearchCenter(config, house);
   const curve = buildChart(history, { config, fuel, label, scope, cheapest: prices[0] });
+  // The labels are built for the ranking as a WHOLE: what a row has to show is
+  // whatever tells it from the other rows, which no row can know on its own.
+  const ranked = stations.slice(0, count);
+  const rowLabels = buildRowLabels(ranked.map((station) => station.name));
 
   return buildContent(
     [
@@ -268,11 +272,13 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
         : null,
       curve,
       statusList(
-        stations.slice(0, count).map((station, index) => ({
-          // Shortened on our side: the label and the value SHARE the width of
-          // the row, so a long name is what cuts the price and its date on a
-          // phone — see `shortenStationName`.
-          label: shortenStationName(station.name),
+        ranked.map((station, index) => ({
+          // Shortened on our side, and shortened against EACH OTHER: the label
+          // and the value share the width of the row, so a long name is what
+          // cuts the price and its date on a phone, and a name cut at the brand
+          // makes five stations of the same chain five identical rows — see
+          // `buildRowLabels`.
+          label: rowLabels[index],
           // The price AND the day the station declared it: the caption above
           // says when WE read the feed, this says how old the price itself is —
           // a station that has not moved its prices in a week is normal, and

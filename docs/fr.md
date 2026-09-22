@@ -147,10 +147,13 @@ jour, et combien ça coûte.
   déclaré** (`auj.`, `hier`, `06/08`) — à ne pas confondre avec l'heure du
   relevé ci-dessus : une station peut ne pas avoir bougé ses prix depuis une
   semaine. La ligne est tenue courte pour rester lisible sur un téléphone : la
-  date est réduite au jour, le nom de la station est raccourci s'il est long
-  (`TotalEnergies - Oullins…`) et l'unité `€/L`, déjà affichée dans les tuiles
-  au-dessus, n'est pas répétée à chaque ligne. Le nom complet et l'horaire
-  complet restent sur la page de l'appareil et sur la carte « Ma station ».
+  date est réduite au jour, l'unité `€/L` déjà affichée dans les tuiles au-dessus
+  n'est pas répétée à chaque ligne, et un nom de station trop long est raccourci
+  autour de ce qui le distingue des autres — la commune est gardée entière et
+  l'enseigne est abrégée (`TotalEne. Acc. - Lyon 7e`) ; quand deux stations de la
+  même enseigne sont dans la même commune, les lignes affichent la rue qui les
+  sépare. Le nom complet et l'horaire complet restent sur la page de l'appareil
+  et sur la carte « Ma station ».
 - Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
 
 Trois réglages : le carburant, le nombre de stations affichées (3, 5 ou 8) et le

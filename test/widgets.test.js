@@ -33,7 +33,12 @@ import {
   registerWidgets,
   runWidgetAction,
 } from '../src/widgets/index.js';
-import { ROW_LABEL_MAX, formatShortDate, shortenStationName } from '../src/widgets/format.js';
+import {
+  ROW_LABEL_MAX,
+  buildRowLabels,
+  formatShortDate,
+  shortenStationName,
+} from '../src/widgets/format.js';
 import { createFakeGladys, createFakeProvider, createStation } from './helpers/fakeGladys.js';
 
 const config = normalizeConfig({ postal_code: '35000', fuel_type: ['gazole', 'sp98'] });
@@ -657,24 +662,66 @@ test('a long station name is shortened so the price and its date keep their room
   );
 });
 
-test('shortening a name spends the budget segment by segment', () => {
+test('shortening a name serves the place first and abbreviates the brand', () => {
   // Short enough: untouched.
   assert.equal(shortenStationName('Total - Rennes'), 'Total - Rennes');
-  // The brand is what the driver looks for, so the city pays first — it is the
-  // longest segment here.
+  // A brand of two words is abbreviated word by word, from the end, so the
+  // place stays whole: that place is the only thing telling this station from
+  // the four others of the same chain in the ranking.
+  assert.equal(shortenStationName('TotalEnergies Access - Lyon 7e'), 'TotalEne. Acc. - Lyon 7e');
+  assert.equal(shortenStationName('TotalEnergies - La Mulatière'), 'TotalEne. - La Mulatière');
+  // A place too long for the row takes what the brand does not need, and the
+  // brand never falls below a readable "Total.".
   assert.equal(
     shortenStationName('TotalEnergies - Oullins-Pierre-Bénite'),
-    'TotalEnergies - Oullins…',
+    'Total. - Oullins-Pierre…',
   );
-  // And the other way round: a name built on a street keeps its city.
+  // A street is cut, not abbreviated: "141 Bou. Émi. Zola" is noise where
+  // "141 Boulevard…" still reads as an address.
   assert.equal(
     shortenStationName('141 Boulevard Émile Zola - Oullins'),
     '141 Boulevard… - Oullins',
   );
-  // Three segments in 24 characters would be three stumps: cut once instead.
+  // Three segments in 24 characters would be three stumps: the middle one is
+  // dropped, and `buildRowLabels` brings it back only where it is needed.
   assert.equal(
     shortenStationName('TotalEnergies - Avenue du Général de Gaulle - Oullins-Pierre-Bénite'),
-    'TotalEnergies - Avenue…',
+    'Total. - Oullins-Pierre…',
   );
   assert.equal(shortenStationName(undefined), '');
+});
+
+test('a ranking never shows the same label twice', () => {
+  // The five rows of a dashboard where one chain owns the area: cut on their
+  // own, they all read "TotalEne. Acc. - Lyon 7e".
+  const labels = buildRowLabels([
+    'TotalEnergies Access - Avenue Jean Jaurès - Lyon 7e',
+    'TotalEnergies Access - Rue Garibaldi - Lyon 7e',
+    'TotalEnergies - Oullins',
+  ]);
+  assert.equal(new Set(labels).size, labels.length, 'no two rows read the same');
+  // The street is what differs, so the street is what the clashing rows show.
+  assert.ok(labels[0].includes('Jean'));
+  assert.ok(labels[1].includes('Garibaldi'));
+  // A row that clashed with nobody is left exactly as it was.
+  assert.equal(labels[2], 'TotalEnergies - Oullins');
+  for (const label of labels) {
+    assert.ok(label.length <= ROW_LABEL_MAX, `"${label}" fits the row`);
+  }
+});
+
+test('two long names cut to the same city fall back on the city itself', () => {
+  const labels = buildRowLabels([
+    'Intermarché - Saint-Germain-en-Laye',
+    'Intermarché - Saint-Germain-lès-Corbeil',
+  ]);
+  assert.equal(new Set(labels).size, 2);
+  assert.ok(labels.every((label) => label.startsWith('Saint-Germain')));
+});
+
+test('two stations of the very same name are left equal rather than numbered', () => {
+  // `disambiguateStationNames` already appends the id upstream when it can;
+  // there is nothing for the display layer to win back here.
+  const labels = buildRowLabels(['Total - Rennes', 'Total - Rennes']);
+  assert.deepEqual(labels, ['Total - Rennes', 'Total - Rennes']);
 });

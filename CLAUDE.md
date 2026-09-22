@@ -151,10 +151,22 @@ fuel) and `station` (one followed station, a price tile per fuel).
   mid-date; the full `formatDateTime` stays on the device page and on the `station` card.
   The LABEL and the VALUE of a status row share that line, so shortening the date was not
   enough on its own: a long name squeezes the value until the date goes too. The ranking
-  therefore bounds the name with `shortenStationName` (24 chars, the overflow paid by the
-  longest segment of `brand - street - city` so the others stay whole) and drops the `€/L`
-  the tiles above already carry — the row reads `TotalEnergies - Oullins… 1,990 · auj.`
-  Any redesign of that row must keep label + value inside about forty characters. `src/refresh.js` samples too, but only for an area the history already follows
+  therefore bounds the name to 24 chars and drops the `€/L` the tiles above already carry —
+  the row reads `TotalEne. Acc. - Lyon 7e 1,990 · auj.` Any redesign of that row must keep
+  label + value inside about forty characters, and the widget content is the same on every
+  screen (the core sends no viewport), so a wide screen changes nothing: what a phone holds
+  is what everybody gets, and the 24 characters are spent on telling the stations APART.
+  Two rules do that, in `src/widgets/format.js`. `shortenStationName` serves the PLACE first
+  and makes the brand pay — a name is `brand - city` or `brand - street - city`, the brand is
+  the head the core would keep, and it is the one part that names nothing when five stations
+  of the same chain are ranked together. It abbreviates a brand word by word from the end
+  (`TotalEnergies Access` → `TotalEn. Acc.`), cuts a segment of more than two words instead
+  (a street: `141 Boulevard…`, never `141 Bou. Émi. Zola`), and drops a middle segment rather
+  than leaving three stumps. `buildRowLabels` then shortens the rows AGAINST EACH OTHER: the
+  full names are unique (`disambiguateStationNames`), so two identical labels are something we
+  cut off, and the clashing rows are rebuilt around their first differing segment — the street
+  that was dropped, or the city alone when the city is what got truncated. Best effort:
+  names that stay equal are left equal, never numbered. `src/refresh.js` samples too, but only for an area the history already follows
   (`history.knows`), so the curve keeps filling with no dashboard open while an install without
   a widget pays nothing.
 - **The 30-day curve and the 7-day trend come from our own samples** (`src/priceHistory.js`):
