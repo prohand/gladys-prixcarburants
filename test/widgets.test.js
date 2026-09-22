@@ -33,7 +33,7 @@ import {
   registerWidgets,
   runWidgetAction,
 } from '../src/widgets/index.js';
-import { formatShortDate } from '../src/widgets/format.js';
+import { ROW_LABEL_MAX, formatShortDate, shortenStationName } from '../src/widgets/format.js';
 import { createFakeGladys, createFakeProvider, createStation } from './helpers/fakeGladys.js';
 
 const config = normalizeConfig({ postal_code: '35000', fuel_type: ['gazole', 'sp98'] });
@@ -129,11 +129,11 @@ test('the ranking sorts the stations by price and badges the cheapest', async ()
   assert.equal(ranking.items[0].color, 'success', 'the cheapest one stands out');
   assert.equal(
     ranking.items[0].value,
-    `1,599 €/L · ${formatShortDate('2026-08-06T07:12:00+02:00', 'fr')}`,
+    `1,599 · ${formatShortDate('2026-08-06T07:12:00+02:00', 'fr')}`,
     'the price, and the day the station declared it — short enough for a phone',
   );
   assert.ok(
-    ranking.items[0].value.length <= 20,
+    ranking.items[0].value.length <= 14,
     'the row must survive a phone screen, where the front cuts it',
   );
 
@@ -625,4 +625,56 @@ test('the short date shows nothing when the feed says nothing', () => {
   assert.equal(formatShortDate(undefined, 'fr'), '');
   assert.equal(formatShortDate('', 'fr'), '');
   assert.equal(formatShortDate('not a date', 'fr'), 'not a date', 'the raw value beats nothing');
+});
+
+// --- The width of a ranking row ----------------------------------------------
+
+test('a long station name is shortened so the price and its date keep their room', async () => {
+  const long = createStation({
+    id: '1',
+    name: 'TotalEnergies - Oullins-Pierre-Bénite',
+    prices: { gazole: 1.599 },
+  });
+  const { context } = contextWith([long]);
+
+  const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole', scope: 'around', count: '5' },
+    language: 'fr',
+  });
+
+  const [ranking] = componentsOfType(content, 'status');
+  assert.ok(
+    ranking.items[0].label.length <= ROW_LABEL_MAX,
+    'the label is bounded well under what the core accepts, because it shares the line',
+  );
+  assert.ok(
+    `${ranking.items[0].label} ${ranking.items[0].value}`.length <= 40,
+    'label plus value is what a phone has to fit on one line',
+  );
+  assert.ok(
+    ranking.items[0].value.endsWith(formatShortDate('2026-08-06T07:12:00+02:00', 'fr')),
+    'the date survives the row',
+  );
+});
+
+test('shortening a name spends the budget segment by segment', () => {
+  // Short enough: untouched.
+  assert.equal(shortenStationName('Total - Rennes'), 'Total - Rennes');
+  // The brand is what the driver looks for, so the city pays first — it is the
+  // longest segment here.
+  assert.equal(
+    shortenStationName('TotalEnergies - Oullins-Pierre-Bénite'),
+    'TotalEnergies - Oullins…',
+  );
+  // And the other way round: a name built on a street keeps its city.
+  assert.equal(
+    shortenStationName('141 Boulevard Émile Zola - Oullins'),
+    '141 Boulevard… - Oullins',
+  );
+  // Three segments in 24 characters would be three stumps: cut once instead.
+  assert.equal(
+    shortenStationName('TotalEnergies - Avenue du Général de Gaulle - Oullins-Pierre-Bénite'),
+    'TotalEnergies - Avenue…',
+  );
+  assert.equal(shortenStationName(undefined), '');
 });

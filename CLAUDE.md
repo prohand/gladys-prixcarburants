@@ -148,7 +148,13 @@ fuel) and `station` (one followed station, a price tile per fuel).
   a stale one in a row is normal, a stale one in the caption means the API stopped answering.
   In a row that date is SHORT (`formatShortDate`: `auj.` / `hier` / `06/08` / `31/12/25`,
   no hour) — a status row is one line and a phone cuts `1,990 €/L · 22/09/2026 à 09:00`
-  mid-date; the full `formatDateTime` stays on the device page and on the `station` card. `src/refresh.js` samples too, but only for an area the history already follows
+  mid-date; the full `formatDateTime` stays on the device page and on the `station` card.
+  The LABEL and the VALUE of a status row share that line, so shortening the date was not
+  enough on its own: a long name squeezes the value until the date goes too. The ranking
+  therefore bounds the name with `shortenStationName` (24 chars, the overflow paid by the
+  longest segment of `brand - street - city` so the others stay whole) and drops the `€/L`
+  the tiles above already carry — the row reads `TotalEnergies - Oullins… 1,990 · auj.`
+  Any redesign of that row must keep label + value inside about forty characters. `src/refresh.js` samples too, but only for an area the history already follows
   (`history.knows`), so the curve keeps filling with no dashboard open while an install without
   a widget pays nothing.
 - **The 30-day curve and the 7-day trend come from our own samples** (`src/priceHistory.js`):

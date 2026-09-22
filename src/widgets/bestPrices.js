@@ -30,7 +30,7 @@ import { FUELS, FUEL_KEYS, fuelLabel } from '../fuels.js';
 import { getProvider } from '../countries/index.js';
 import { formatInstant } from '../text.js';
 import { COLOR, buildContent, button, chart, statusList, text, valueTile } from './content.js';
-import { PRICE_UNIT, formatPrice, formatShortDate } from './format.js';
+import { PRICE_UNIT, formatPrice, formatShortDate, shortenStationName } from './format.js';
 
 export const KEY = 'best_prices';
 
@@ -269,13 +269,20 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
       curve,
       statusList(
         stations.slice(0, count).map((station, index) => ({
-          label: station.name,
+          // Shortened on our side: the label and the value SHARE the width of
+          // the row, so a long name is what cuts the price and its date on a
+          // phone — see `shortenStationName`.
+          label: shortenStationName(station.name),
           // The price AND the day the station declared it: the caption above
           // says when WE read the feed, this says how old the price itself is —
           // a station that has not moved its prices in a week is normal, and
           // only this date says so. Short (`auj.`, `22/09`) because the row is
           // one line and a phone cuts it: see `formatShortDate`.
-          value: `${formatPrice(station.prices[fuel], language)} ${PRICE_UNIT}${declaredAt(station, fuel, language)}`,
+          //
+          // No `€/L` here, unlike the tiles: the unit is the same on all five
+          // rows and is already printed twice above, and those four characters
+          // are exactly what the date needs to survive the line.
+          value: `${formatPrice(station.prices[fuel], language)}${declaredAt(station, fuel, language)}`,
           icon: 'map-pin',
           // The cheapest one is the answer to the question; the others are the
           // context that makes it an answer.
