@@ -695,17 +695,38 @@ test('a ranking never shows the same label twice', () => {
   // Three rows of a dashboard where one chain owns the area: cut on their own,
   // the first two both read "Total Access - Lyon 7e".
   const labels = buildRowLabels([
-    'TotalEnergies Access - Av. Jean Jaurès - Lyon 7e',
-    'TotalEnergies Access - Rue Garibaldi - Lyon 7e',
-    'TotalEnergies - Oullins',
+    { name: 'TotalEnergies Access - Av. Jean Jaurès - Lyon 7e' },
+    { name: 'TotalEnergies Access - Rue Garibaldi - Lyon 7e' },
+    { name: 'TotalEnergies - Oullins' },
   ]);
   assert.equal(new Set(labels).size, labels.length, 'no two rows read the same');
-  // The street is what differs, so the street is what the clashing rows show —
-  // and they still say whose station it is.
+  // The city is shared, so the city says nothing: those rows show their street
+  // instead — and they still say whose station it is.
   assert.equal(labels[0], 'Total - Av. Jean Jaurès');
   assert.equal(labels[1], 'Total - Rue Garibaldi');
-  // A row that clashed with nobody is left exactly as it was.
+  // A row that is the only one of its city is left exactly as it was.
   assert.equal(labels[2], 'TotalEnergies - Oullins');
+  for (const label of labels) {
+    assert.ok(label.length <= ROW_LABEL_MAX, `"${label}" fits the row`);
+  }
+});
+
+test('a row alone in a big city still says which street it is on', () => {
+  // The row that started this: "TotalEnergies - Lyon" is a city of half a
+  // million people, and three of the five rows named it. The street is not in
+  // the name — the device list only spells it out to keep two devices apart —
+  // so it comes from the station's own address.
+  const labels = buildRowLabels([
+    { name: 'Total - Oullins-Pierre-Bénite', address: '141 Boulevard Émile Zola' },
+    { name: 'Total - Lyon', address: 'AVENUE TONY GARNIER' },
+    { name: 'TotalEnergies - Lyon', address: '112/116 RUE DE GERLAND' },
+  ]);
+  assert.equal(labels[0], 'Total - Oullins-Pierre…', 'a city of its own is kept');
+  // Capitals as the feed stores them would be a row shouting at the reader.
+  assert.equal(labels[1], 'Total - Av. Tony Garnier');
+  // The house number goes before the name of the street does: "112/116 Rue
+  // d…" locates nothing at all.
+  assert.equal(labels[2], 'Total - Rue de Gerland');
   for (const label of labels) {
     assert.ok(label.length <= ROW_LABEL_MAX, `"${label}" fits the row`);
   }
@@ -715,9 +736,9 @@ test('a row with nothing more to show keeps its brand', () => {
   // The third name has no street to reveal: rewriting it would cost it its
   // brand although the other two stop clashing with it on their own.
   const labels = buildRowLabels([
-    'TotalEnergies Access - Av. Jean Jaurès - Lyon 7e',
-    'TotalEnergies Access - Rue Garibaldi - Lyon 7e',
-    'TotalEnergies Access - Lyon 7e',
+    { name: 'TotalEnergies Access - Av. Jean Jaurès - Lyon 7e' },
+    { name: 'TotalEnergies Access - Rue Garibaldi - Lyon 7e' },
+    { name: 'TotalEnergies Access - Lyon 7e' },
   ]);
   assert.equal(new Set(labels).size, 3);
   assert.equal(labels[2], 'Total Access - Lyon 7e');
@@ -725,8 +746,8 @@ test('a row with nothing more to show keeps its brand', () => {
 
 test('two long names cut to the same city fall back on the city itself', () => {
   const labels = buildRowLabels([
-    'Intermarché - Saint-Germain-en-Laye',
-    'Intermarché - Saint-Germain-lès-Corbeil',
+    { name: 'Intermarché - Saint-Germain-en-Laye' },
+    { name: 'Intermarché - Saint-Germain-lès-Corbeil' },
   ]);
   assert.equal(new Set(labels).size, 2);
   // Nothing but the city differs, so the city is what takes the whole row.
@@ -736,6 +757,63 @@ test('two long names cut to the same city fall back on the city itself', () => {
 test('two stations of the very same name are left equal rather than numbered', () => {
   // `disambiguateStationNames` already appends the id upstream when it can;
   // there is nothing for the display layer to win back here.
-  const labels = buildRowLabels(['Total - Rennes', 'Total - Rennes']);
+  const labels = buildRowLabels([{ name: 'Total - Rennes' }, { name: 'Total - Rennes' }]);
   assert.deepEqual(labels, ['Total - Rennes', 'Total - Rennes']);
+});
+
+test('a row shows the street rather than the technical id of the station', () => {
+  // Real rows of a Lyon dashboard: 69007008 and 69007009 are two pumps of the
+  // same avenue, declaring the very same address, so the name built upstream
+  // ends on the national id — and the row used to keep THAT and drop the
+  // street, reading "Total - Lyon (69007008)". The id names nothing to a
+  // driver; the avenue does, even written twice.
+  const labels = buildRowLabels([
+    { name: 'Total - Av. Tony Garnier - Lyon (69007008)', address: 'AVENUE TONY GARNIER' },
+    { name: 'Total - Av. Tony Garnier - Lyon (69007009)', address: 'AVENUE TONY GARNIER' },
+    { name: 'TotalEnergies - Oullins' },
+  ]);
+  assert.deepEqual(labels, [
+    'Total - Av. Tony Garnier',
+    'Total - Av. Tony Garnier',
+    'TotalEnergies - Oullins',
+  ]);
+  for (const label of labels) {
+    assert.ok(label.length <= ROW_LABEL_MAX, `"${label}" fits the row`);
+  }
+});
+
+test('a station with no street at all keeps the id that is all it has', () => {
+  // Nothing behind the id here — no street in the name, none in the station:
+  // dropping it would make the row say strictly less.
+  const labels = buildRowLabels([
+    { name: 'Total - Lyon (69007008)' },
+    { name: 'Total - Lyon (69007009)' },
+  ]);
+  assert.deepEqual(labels, ['Total - Lyon (69007008)', 'Total - Lyon (69007009)']);
+});
+
+test('a station named after its address does not repeat that address', () => {
+  // No brand: the name already IS the street, so there is nothing to insert
+  // behind it.
+  const labels = buildRowLabels([
+    { name: '141 Boulevard Émile Zola - Oullins', address: '141 Boulevard Émile Zola' },
+    { name: 'Total - Oullins', address: 'Rue de la Gare' },
+  ]);
+  assert.equal(labels[0], '141 Boulevard… - Oullins');
+  assert.equal(labels[1], 'Total - Rue de la Gare');
+});
+
+test('a street is written the way a street is written, not the way the feed stores it', () => {
+  const labels = buildRowLabels([
+    { name: 'Total - Lyon', address: "RUE D'ARCOLE" },
+    { name: 'Avia - Lyon', address: 'ZA DE LA PLAINE' },
+    { name: 'Esso - Lyon', address: 'AVENUE TONY GARNIER' },
+  ]);
+  // Capitals go back to title case, the particles stay lowercase, and the
+  // abbreviations `shortenAddress` produces are not turned into words.
+  assert.deepEqual(labels, [
+    "Total - Rue d'Arcole",
+    'Avia - ZA de la Plaine',
+    'Esso - Av. Tony Garnier',
+  ]);
 });

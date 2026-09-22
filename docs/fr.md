@@ -150,10 +150,13 @@ jour, et combien ça coûte.
   date est réduite au jour, l'unité `€/L` déjà affichée dans les tuiles au-dessus
   n'est pas répétée à chaque ligne, et un nom de station trop long est raccourci
   autour de ce qui le distingue des autres — la commune est gardée entière et
-  l'enseigne est ramenée à sa racine (`Total Access - Lyon 7e`) ; quand deux
-  stations de la même enseigne sont dans la même commune, les lignes affichent la
-  rue qui les sépare (`Total - Av. Jean Jaurès`). Le nom complet et l'horaire complet restent sur la page de l'appareil
-  et sur la carte « Ma station ».
+  l'enseigne est ramenée à sa racine (`Total Access - Lyon 7e`). Dès que
+  plusieurs stations du classement sont dans la MÊME commune, cette commune ne
+  les distingue plus : ces lignes affichent alors leur rue
+  (`Total - Av. Tony Garnier`, `Total - Rue de Gerland`), parce que « Lyon »
+  écrit trois fois dit où est la zone, pas où est la pompe. Le nom complet,
+  l'adresse complète et l'horaire complet restent sur la page de l'appareil et
+  sur la carte « Ma station ».
 - Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
 
 Trois réglages : le carburant, le nombre de stations affichées (3, 5 ou 8) et le

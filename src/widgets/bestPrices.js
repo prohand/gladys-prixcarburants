@@ -241,7 +241,7 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
   // The labels are built for the ranking as a WHOLE: what a row has to show is
   // whatever tells it from the other rows, which no row can know on its own.
   const ranked = stations.slice(0, count);
-  const rowLabels = buildRowLabels(ranked.map((station) => station.name));
+  const rowLabels = buildRowLabels(ranked);
 
   return buildContent(
     [

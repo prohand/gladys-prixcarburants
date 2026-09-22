@@ -8,7 +8,7 @@
 // the sentence in it.
 // -----------------------------------------------------------------------------
 
-import { cleanText, parseDateTimeParts } from '../text.js';
+import { cleanText, parseDateTimeParts, shortenAddress } from '../text.js';
 
 /** The unit every price of this integration is expressed in (6 chars max). */
 export const PRICE_UNIT = '€/L';
@@ -158,6 +158,19 @@ const MIN_WORD = 3;
 const MAX_COMPACTED_WORDS = 2;
 
 /**
+ * The technical id `disambiguateStationNames` appends to a name it could not
+ * tell apart any other way — `Total - Av. Tony Garnier - Lyon (69007008)`,
+ * because the two pumps of that avenue declare the very same address.
+ *
+ * It belongs to the device name, where it is the only thing keeping two entries
+ * of the device list distinct; it does not belong to a ranking row, where it is
+ * eight digits spent saying nothing. Dropped from the row so the street can be
+ * shown instead — but only when there IS a street to show, since "the code or
+ * nothing" is still better answered by the code.
+ */
+const ID_SUFFIX = /\s*\([A-Za-z0-9][A-Za-z0-9_-]{2,}\)$/u;
+
+/**
  * A station name that fits a dashboard row, cut where it costs the least.
  *
  * A name is built as `brand - city`, or `brand - street - city` when two
@@ -195,86 +208,200 @@ export function shortenStationName(name, max = ROW_LABEL_MAX) {
 }
 
 /**
- * Station names shortened for the rows of one ranking, none of them twice.
+ * Station names shortened for the rows of one ranking, none of them saying less
+ * than the row above.
  *
- * `shortenStationName` works on one name and cannot know that the row above
- * ends up reading the same thing: two "TotalEnergies Access - Lyon 7e" a street
- * apart become one label written twice, which is exactly the row a reader
- * cannot act on. The full names are already unique
- * (`disambiguateStationNames`), so a clash here is something WE cut off — and
- * what we cut off is the segment that made them different.
+ * `shortenStationName` works on one name and cannot know what the rows around
+ * it end up reading. Two things go wrong when every row is cut on its own, and
+ * both come from the last segment of a name being the CITY:
  *
- * So a clashing group is rebuilt around its FIRST differing segment, KEEPING
- * the brand in front of it: "Total - Av. Jean Jaurès" and "Total - Rue
- * Garibaldi" rather than the street alone, because a row that names no brand
- * names no station. The brand of a clashing group is compacted to the same
- * width on every row of that group, so the same chain does not read three ways
- * in three consecutive rows. The one place the brand does go is a group whose
- * CITY is what got truncated ("Saint-Germain-en-Laye" against
- * "Saint-Germain-lès-Corbeil"): there the brand is the part they share, and
- * the city is the part that has to be read whole.
+ *   - two stations of the same chain a street apart become one label written
+ *     twice ("Total Access - Lyon 7e"), which is the row a reader cannot act
+ *     on;
+ *   - and a city the size of Lyon does not locate a pump anyway — five rows
+ *     reading "Lyon" say where the area is, not where the station is.
  *
- * Best effort, like every other display rule here: names that stay equal are
+ * So the rule is about the PLACE, not about the clash: a city named by one row
+ * is what the reader is looking for ("Oullins-Pierre-Bénite" tells that station
+ * from every other of the ranking), and a city named by SEVERAL rows tells them
+ * nothing — those rows show their street instead, brand still in front, because
+ * a row that names no brand names no station either. The street comes from the
+ * name when it carries one and from the station's own address otherwise: the
+ * device name only spells the street out when two devices would collide
+ * (src/countries/franceNames.js), the dashboard needs it as soon as a city is
+ * shared.
+ *
+ * The brand of a chain is compacted to ONE width across the rows that reveal
+ * their street, so the same chain does not read three ways in three consecutive
+ * rows. What is still written twice afterwards — two stations of the very same
+ * address, or two cities truncated to the same text — pays `widenPlace`.
+ *
+ * Best effort, like every other display rule here: rows that stay equal are
  * left equal rather than padded with a number nobody asked for.
  *
- * @param {Array<unknown>} names in row order
+ * @param {Array<{ name?: string, address?: string }>} stations in row order
  * @param {number} [max] characters a label may occupy
- * @returns {string[]} one label per name, same order
+ * @returns {string[]} one label per station, same order
  */
-export function buildRowLabels(names, max = ROW_LABEL_MAX) {
-  const segmented = names.map((name) => cleanText(name).split(SEPARATOR));
+export function buildRowLabels(stations, max = ROW_LABEL_MAX) {
+  const segmented = stations.map(rowSegments);
   const labels = segmented.map((segments) => shortenStationName(segments.join(SEPARATOR), max));
   // Two passes, because they do not cost the same thing. The first reveals a
   // segment the label had dropped — the street — and keeps the brand; only
   // what is STILL written twice afterwards pays the second, which gives the
   // whole row to the place and loses the brand.
-  revealDiscriminant(labels, segmented, max);
+  revealSharedPlace(labels, segmented, max);
   widenPlace(labels, segmented, max);
   return labels;
 }
 
-/** The rows that ended up reading the same thing, grouped. */
-function clashes(labels) {
-  const groups = new Map();
-  labels.forEach((label, index) => {
-    const group = groups.get(label);
-    if (group) {
-      group.push(index);
-    } else {
-      groups.set(label, [index]);
+/**
+ * The segments a row may show: `brand - street - city`, as far as the station
+ * lets us build it.
+ *
+ * Two fixes on the name the device list uses. The street is INSERTED when the
+ * name does not carry it, since that name spells it out only to keep two
+ * devices apart — a ranking row needs it as soon as it shares its city. And the
+ * technical id `disambiguateStationNames` appends when even the street is not
+ * enough (`Total - Av. Tony Garnier - Lyon (69007008)`: two pumps of the same
+ * avenue) is DROPPED, because eight digits name nothing to a driver — but only
+ * once there is a street to show instead, since "the code or nothing" is still
+ * better answered by the code.
+ *
+ * @param {{ name?: string, address?: string }} station
+ * @returns {string[]}
+ */
+function rowSegments(station) {
+  const segments = cleanText(station?.name).split(SEPARATOR);
+  const street = shortenAddress(station?.address);
+  const head = segments[0];
+  // Nothing to insert behind a name that IS its address: a station with no
+  // brand already shows its street as its head.
+  if (segments.length === 2 && street && head !== street && head !== cleanText(station?.address)) {
+    segments.splice(1, 0, street);
+  }
+  if (segments.length >= 3) {
+    const place = segments[segments.length - 1].replace(ID_SUFFIX, '');
+    if (place) {
+      segments[segments.length - 1] = place;
     }
-  });
-  return [...groups.values()].filter((indexes) => indexes.length > 1);
+    segments[segments.length - 2] = titleCaseStreet(segments[segments.length - 2]);
+  }
+  return segments;
 }
 
 /**
- * Rebuild a clashing row around the segment it differs by, brand in front.
- *
- * Only the rows that HAVE such a segment are touched: a name of two segments
- * clashing with a name of three has nothing more to show, and rewriting it
- * would cost it its brand for nothing.
+ * The words a French street name does not capitalise, whatever the feed does.
+ * Ignored on the first word, which always carries a capital.
  */
-function revealDiscriminant(labels, segmented, max) {
-  for (const indexes of clashes(labels)) {
-    const differing = firstDifferingSegment(indexes.map((index) => segmented[index]));
-    if (differing === -1) {
-      // Same name twice: nothing was lost in the cut, so nothing can be won back.
-      continue;
-    }
-    const revealing = indexes.filter((index) => differing < segmented[index].length - 1);
-    if (revealing.length === 0) {
-      continue;
-    }
-    // The same chain must not read two ways in two consecutive rows, so the
-    // brand of the group is compacted to the narrowest width any of them has.
-    const headBudget = Math.min(
-      ...revealing.map((index) =>
-        Math.max(MIN_SEGMENT, max - SEPARATOR.length - segmented[index][differing].length),
-      ),
-    );
-    for (const index of revealing) {
-      labels[index] = fitPair(segmented[index][0], segmented[index][differing], max, headBudget);
-    }
+const LOWERCASE_WORDS = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'au', 'aux', 'et']);
+
+/** Below this length, an all-caps word is an abbreviation ("ZA"), not a shout. */
+const MIN_TITLE_CASED = 3;
+
+/**
+ * A street the way it is written on the street, not the way the feed stores it.
+ *
+ * The national feed publishes addresses in capitals — "AVENUE TONY GARNIER",
+ * "112/116 RUE DE GERLAND" — which was invisible while the street only appeared
+ * on a device page, and is a row shouting at the reader now that a shared city
+ * puts it on the dashboard. Word by word, so an address the publisher DID case
+ * is left alone and the abbreviations `shortenAddress` produces ("ZA", "Rd-Pt")
+ * survive.
+ *
+ * @param {string} street
+ * @returns {string}
+ */
+function titleCaseStreet(street) {
+  return street
+    .split(' ')
+    .map((word, index) => {
+      const lower = word.toLowerCase();
+      if (index > 0 && LOWERCASE_WORDS.has(lower)) {
+        return lower;
+      }
+      if (word !== word.toUpperCase() || word.length < MIN_TITLE_CASED) {
+        return word;
+      }
+      // A hyphen and an apostrophe both join two names, and the second one
+      // carries a capital too (Saint-Exupéry, d'Arcole) — except the elided
+      // article itself, which stays lowercase like the other particles.
+      return lower
+        .replace(/(^|[-'’])(\p{L})/gu, (_, join, letter) => `${join}${letter.toUpperCase()}`)
+        .replace(/^([DL])(['’])/u, (_, article, apostrophe) =>
+          index > 0 ? article.toLowerCase() + apostrophe : article + apostrophe,
+        );
+    })
+    .join(' ');
+}
+
+/**
+ * The house number at the head of a street, with the `bis`/`ter` that may
+ * follow it: `112/116 `, `141 `, `3 bis `.
+ */
+const HOUSE_NUMBER = /^[\d][\d\s/,-]*(?:bis|ter|quater)?\s+(?=\p{L})/iu;
+
+/** Below this, what is left of a street once its number is gone says nothing. */
+const MIN_STREET = 4;
+
+/**
+ * The street of a segmented name, which sits just before the city, in the room
+ * a row can give it.
+ *
+ * A number is only worth its characters while the street it belongs to is
+ * written whole: "112/116 Rue de…" locates nothing, where "Rue de Gerland"
+ * locates the station and "112/116" is what the driver's map fills in. So the
+ * number is dropped — and only then, and only if that is what makes the street
+ * fit — rather than the name of the street being cut.
+ *
+ * @param {string[]} segments
+ * @param {number} room the widest a row can be, brand included
+ * @returns {string}
+ */
+function streetOf(segments, room) {
+  const street = segments[segments.length - 2];
+  if (street.length <= room) {
+    return street;
+  }
+  const named = street.replace(HOUSE_NUMBER, '');
+  return named.length >= MIN_STREET && named.length <= room ? named : street;
+}
+
+/**
+ * Give their street to every row whose city is named by another row too.
+ *
+ * A row keeps its city while that city tells it apart; it loses it the moment a
+ * neighbour claims the same one, because from there the city is the one thing
+ * the two rows agree on.
+ */
+function revealSharedPlace(labels, segmented, max) {
+  const byPlace = new Map();
+  segmented.forEach((segments, index) => {
+    const place = segments[segments.length - 1];
+    byPlace.set(place, [...(byPlace.get(place) ?? []), index]);
+  });
+
+  const revealing = [...byPlace.values()]
+    .filter((indexes) => indexes.length > 1)
+    // A name of two segments has no street to reveal: rewriting it would cost
+    // it its brand for nothing.
+    .flatMap((indexes) => indexes.filter((index) => segmented[index].length >= 3));
+
+  // The widest a street can ever get is the row minus a readable brand.
+  const room = max - SEPARATOR.length - MIN_SEGMENT;
+  const streets = new Map(revealing.map((index) => [index, streetOf(segmented[index], room)]));
+
+  // One width per chain, across the whole ranking: a brand written "Total" on
+  // one row and "Total Acc." on the next reads as two different stations.
+  const budgets = new Map();
+  for (const index of revealing) {
+    const width = Math.max(MIN_SEGMENT, max - SEPARATOR.length - streets.get(index).length);
+    const head = segmented[index][0];
+    budgets.set(head, Math.min(budgets.get(head) ?? width, width));
+  }
+  for (const index of revealing) {
+    const head = segmented[index][0];
+    labels[index] = fitPair(head, streets.get(index), max, budgets.get(head));
   }
 }
 
@@ -284,7 +411,12 @@ function revealDiscriminant(labels, segmented, max) {
  * it takes the whole row and the brand — the part they share — goes.
  */
 function widenPlace(labels, segmented, max) {
-  for (const indexes of clashes(labels)) {
+  const groups = new Map();
+  labels.forEach((label, index) => {
+    groups.set(label, [...(groups.get(label) ?? []), index]);
+  });
+
+  for (const indexes of [...groups.values()].filter((group) => group.length > 1)) {
     const places = indexes.map((index) => segmented[index][segmented[index].length - 1]);
     if (new Set(places).size === 1) {
       // The same place twice: widening it says nothing more, and would cost
@@ -296,22 +428,6 @@ function widenPlace(labels, segmented, max) {
       labels[index] = truncateSegment(segments[segments.length - 1], max);
     }
   }
-}
-
-/**
- * The index of the first segment two of these names disagree on.
- * @param {string[][]} segmented
- * @returns {number} -1 when the names are identical segment for segment
- */
-function firstDifferingSegment(segmented) {
-  const longest = Math.max(...segmented.map((segments) => segments.length));
-  for (let i = 0; i < longest; i += 1) {
-    const first = segmented[0][i];
-    if (segmented.some((segments) => segments[i] !== first)) {
-      return i;
-    }
-  }
-  return -1;
 }
 
 /**
