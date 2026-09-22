@@ -7,27 +7,36 @@
 // card shows every fuel that station sells, its address, and when it declared
 // those prices.
 //
-// The interesting part is the binding. A fuel the user actually tracks has a
-// Gladys device, hence a price FEATURE — so the tile is declared as a
-// `device_feature` reference instead of a value: the core resolves it, the
-// dashboard follows it over the WebSocket, and the tile moves the moment the
-// refresh loop publishes a new price, without pulling the widget at all. The
-// fuels of the same station that the user does NOT track have no feature: those
-// tiles carry the value we read from the feed.
+// Every price tile carries TEXT we formatted ourselves, and that is a decision
+// rather than an oversight. The tiles used to be declared as `device_feature`
+// references for the fuels the user tracks — the core resolved them and the
+// dashboard followed them live over the WebSocket — but the front renders a
+// bound feature through `DeviceFeatureValueText`, which rounds to ONE decimal:
+// a pump price of 1,699 € reached the card as "1,7", while the device page of
+// the very same feature showed 1,699. An inline NUMBER is no better, since the
+// front formats it with `maximumFractionDigits: 2` ("1,7" again). A pump price
+// is written with three decimals on the roadside sign and the third one is the
+// whole point of comparing two stations, so the card sends the string
+// `1,699 €/L` and nothing downstream can round it.
+//
+// What that costs is the live binding: the tile now moves when the card is
+// re-pulled rather than on the WebSocket. It is paid for — `notifyWidgetsChanged`
+// nudges the core at the end of every refresh pass that actually moved a price,
+// so the tile still follows the loop within seconds.
 // -----------------------------------------------------------------------------
 
 import { FUELS, FUEL_KEYS, fuelLabel } from '../fuels.js';
 import { formatDateTime } from '../text.js';
-import {
-  DEVICE_TYPE,
-  FEATURE,
-  deviceExternalId,
-  parseDeviceExternalId,
-  platformId,
-} from '../devices/fuelStation.js';
+import { parseDeviceExternalId } from '../devices/fuelStation.js';
 import { resolveSearchCenter } from '../house.js';
 import { COLOR, buildContent, button, statusList, text, valueTile } from './content.js';
-import { PRICE_UNIT, directionsUrl, formatDistance, stationAddress } from './format.js';
+import {
+  PRICE_UNIT,
+  directionsUrl,
+  formatDistance,
+  formatPrice,
+  stationAddress,
+} from './format.js';
 
 export const KEY = 'station';
 
@@ -72,12 +81,18 @@ export const DECLARATION = {
 
 /**
  * Build the card.
- * @param {object} gladys SDK instance — used to forge feature external ids and
- *   to know which fuels of the station have a device
+ * @param {object} _gladys SDK instance (unused: every tile is built from the
+ *   feed, see the note at the top about the rounding of bound features)
  * @param {{ config: object, store: object }} context
- * @param {{ settings?: object }} request
+ * @param {{ settings?: object, language?: string }} request `language` only
+ *   decides the decimal separator of the prices we format ourselves; every
+ *   text of the card carries both languages and the core picks the right one
  */
-export async function getContent(gladys, { config, store, house }, { settings } = {}) {
+export async function getContent(
+  _gladys,
+  { config, store, house },
+  { settings, language = 'en' } = {},
+) {
   const target = parseDeviceExternalId(settings?.device);
 
   if (!target) {
@@ -110,16 +125,13 @@ export async function getContent(gladys, { config, store, house }, { settings } 
   }
 
   const { source } = await resolveSearchCenter(config, house);
-  const tracked = await trackedFuels(gladys, target);
   const fuels = orderFuels({ station, config, target });
   const url = directionsUrl(station);
 
   return buildContent(
     [
       text({ variant: 'heading', text: station.name }),
-      ...fuels
-        .slice(0, MAX_TILES)
-        .map((fuel) => buildTile(gladys, { station, target, fuel, tracked })),
+      ...fuels.slice(0, MAX_TILES).map((fuel) => buildTile({ station, fuel, language })),
       statusList(buildRows(station, { target, postalCode: config.postal_code, source })),
       url
         ? button({
@@ -139,25 +151,6 @@ export async function getContent(gladys, { config, store, house }, { settings } 
 }
 
 /**
- * Which fuels of this station have a Gladys device, hence a live feature.
- *
- * One host API call per widget pull, and only when a station is selected — the
- * core caches the content for a full TTL, so this is a handful of calls a day,
- * not one per dashboard render.
- *
- * @param {object} gladys SDK instance
- * @param {{ country: string, stationId: string }} target
- * @returns {Promise<Set<string>>} the fuel keys the user tracks at this station
- */
-async function trackedFuels(gladys, target) {
-  const devices = await gladys.getDevices();
-  const known = new Set(devices.map((device) => device.external_id));
-  return new Set(
-    FUEL_KEYS.filter((fuel) => known.has(deviceExternalId(gladys, { ...target, fuel }))),
-  );
-}
-
-/**
  * The order the tiles are offered in, because only the first four survive:
  * the fuel of the device the user picked, then the fuels they configured, then
  * whatever else the station sells.
@@ -172,21 +165,15 @@ function orderFuels({ station, config, target }) {
 }
 
 /**
- * One price tile — bound to the device feature when there is one (live), with
- * the value read from the feed otherwise.
+ * One price tile, as the TEXT the pump displays.
+ *
+ * Never a raw number and never a bound feature: both are rounded by the front
+ * (two decimals for a number, one for a feature), and `1,7 €/L` is not a price
+ * anybody paid. See the note at the top of this file.
  */
-function buildTile(gladys, { station, target, fuel, tracked }) {
+function buildTile({ station, fuel, language }) {
   const label = FUELS[fuel]?.label ?? fuelLabel(fuel);
-
-  if (tracked.has(fuel)) {
-    const ids = gladys.externalIds(
-      DEVICE_TYPE,
-      platformId({ country: target.country, stationId: target.stationId, fuel }),
-    );
-    return valueTile({ label, deviceFeature: ids.feature(FEATURE.PRICE) });
-  }
-
-  return valueTile({ label, value: station.prices[fuel], unit: PRICE_UNIT });
+  return valueTile({ label, value: formatPrice(station.prices[fuel], language), unit: PRICE_UNIT });
 }
 
 /** The rows under the tiles: where the station is, and how old its prices are. */

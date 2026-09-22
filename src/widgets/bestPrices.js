@@ -248,16 +248,21 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
       text({ variant: 'heading', text: buildHeading({ config, scope, label, source }) }),
       valueTile({
         label: { en: 'Cheapest', fr: 'Moins cher' },
-        value: cheapest,
+        // TEXT, not a number: the front formats an inline number with
+        // `maximumFractionDigits: 2`, so 1,699 € reached the card as "1,7" —
+        // the third decimal of a pump price is exactly what tells two stations
+        // apart. Formatted here, it survives.
+        value: formatPrice(cheapest, language),
         unit: PRICE_UNIT,
         icon: 'trending-down',
         color: COLOR.SUCCESS,
       }),
       valueTile({
         label: { en: 'Average', fr: 'Moyenne' },
-        // Rounded to the pump's own precision: an average of prices ending in
-        // .699 is not more precise than the prices it averages.
-        value: Number(average.toFixed(3)),
+        // Same, and rounded to the pump's own precision on the way: an average
+        // of prices ending in .699 is not more precise than the prices it
+        // averages.
+        value: formatPrice(average, language),
         unit: PRICE_UNIT,
         icon: 'bar-chart-2',
       }),

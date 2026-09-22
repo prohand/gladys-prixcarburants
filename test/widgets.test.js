@@ -113,6 +113,68 @@ test('the ttl is clamped to what the core accepts', () => {
   assert.equal(buildContent([], { ttlSeconds: 99999 }).ttl_seconds, LIMITS.TTL_MAX);
 });
 
+// --- The ack deadline --------------------------------------------------------
+
+test('a pull slower than the deadline answers a warming card instead of nothing', async () => {
+  // The core acks `widget.get` under 15 s and the front turns a missed ack into
+  // "widget data unavailable", drops the content it had and schedules NO retry:
+  // the card stays dead until someone reloads the dashboard. So a slow feed
+  // must never be allowed to reach that deadline.
+  let release;
+  const slow = new Promise((resolve) => {
+    release = resolve;
+  });
+  const provider = createFakeProvider({ stations: [createStation()] });
+  const searchStations = provider.searchStations;
+  provider.searchStations = async (params) => {
+    await slow;
+    return searchStations(params);
+  };
+  const store = createStationStore({ resolveProvider: () => provider });
+
+  const content = await getWidgetContent(
+    createFakeGladys(),
+    { config, store },
+    'best_prices',
+    {},
+    { deadlineMs: 5 },
+  );
+
+  assert.equal(componentsOfType(content, 'status').length, 0, 'no ranking yet');
+  assert.equal(content.components.length, 1, 'one sentence, nothing else');
+  assert.ok(content.components[0].text.fr.includes('flux open data'));
+  assert.ok(content.ttl_seconds <= 30, 'a short TTL: the core re-pulls right after');
+
+  // The abandoned pull keeps running and warms the cache, which is the whole
+  // point: the next pull is served from memory, well inside the deadline.
+  release();
+  await new Promise((resolve) => setImmediate(resolve));
+  const second = await getWidgetContent(
+    createFakeGladys(),
+    { config, store },
+    'best_prices',
+    {},
+    { deadlineMs: 1000 },
+  );
+  assert.equal(componentsOfType(second, 'status').length, 1, 'the card filled itself');
+});
+
+test('a pull that fails still reports the failure rather than a warming card', async () => {
+  const provider = createFakeProvider({ stations: [] });
+  provider.searchStations = async () => {
+    throw new Error('the open data API is down');
+  };
+  const store = createStationStore({ resolveProvider: () => provider });
+
+  // The core turns a thrown error into a message the user can act on; only a
+  // MISSED ack is the failure with no explanation, and that is what the
+  // deadline exists for.
+  await assert.rejects(
+    () => getWidgetContent(createFakeGladys(), { config, store }, 'best_prices', {}),
+    /the open data API is down/,
+  );
+});
+
 // --- "Cheapest around me" ----------------------------------------------------
 
 test('the ranking sorts the stations by price and badges the cheapest', async () => {
@@ -142,9 +204,12 @@ test('the ranking sorts the stations by price and badges the cheapest', async ()
     'the row must survive a phone screen, where the front cuts it',
   );
 
+  // TEXT, three decimals, French separator: the front rounds an inline NUMBER
+  // to two decimals, which turned 1,699 € into "1,7" on a real dashboard.
   const [cheapest, average] = componentsOfType(content, 'value');
-  assert.equal(cheapest.value, 1.599);
-  assert.equal(average.value, 1.749);
+  assert.equal(cheapest.value, '1,599');
+  assert.equal(cheapest.unit, '€/L');
+  assert.equal(average.value, '1,749');
 
   const [heading] = componentsOfType(content, 'text');
   assert.equal(heading.variant, 'heading');
@@ -208,7 +273,11 @@ test('the "my stations" scope ranks the tracked stations only', async () => {
 
 // --- "My station" ------------------------------------------------------------
 
-test('a tracked fuel is bound to its feature, an untracked one carries the value', async () => {
+test('every price tile carries the three decimals of the pump, tracked or not', async () => {
+  // The tiles used to be bound to the device feature for a tracked fuel. The
+  // front renders a bound feature through `DeviceFeatureValueText`, which
+  // rounds to ONE decimal: 1,699 € reached the card as "1,7" while the device
+  // page of the same feature showed 1,699. Text, and nothing rounds it.
   const station = createStation({ prices: { gazole: 1.699, sp98: 1.879 } });
   const { context } = contextWith([station]);
   const gladys = createFakeGladys();
@@ -217,13 +286,23 @@ test('a tracked fuel is bound to its feature, an untracked one carries the value
 
   const content = await getWidgetContent(gladys, context, 'station', {
     settings: { device: deviceExternalId(gladys, target) },
+    language: 'fr',
   });
 
   const tiles = componentsOfType(content, 'value');
-  assert.equal(tiles[0].device_feature, `${deviceExternalId(gladys, target)}:price`);
+  assert.equal(tiles[0].value, '1,699', 'the fuel the device tracks');
+  assert.equal(tiles[0].device_feature, undefined, 'no binding: the front would round it');
+  assert.equal(tiles[0].unit, '€/L');
   const sp98 = tiles.find((tile) => tile.label.en === 'SP98');
-  assert.equal(sp98.value, 1.879, 'no device for SP98: the feed value is sent');
+  assert.equal(sp98.value, '1,879', 'and the fuel no device tracks');
   assert.equal(sp98.unit, '€/L');
+
+  // English keeps the dot, since the core renders the card in the language of
+  // whoever is looking at it.
+  const inEnglish = await getWidgetContent(gladys, context, 'station', {
+    settings: { device: deviceExternalId(gladys, target) },
+  });
+  assert.equal(componentsOfType(inEnglish, 'value')[0].value, '1.699');
 });
 
 test('the station card stays within the budget and names the station', async () => {

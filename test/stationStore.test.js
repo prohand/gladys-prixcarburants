@@ -114,3 +114,31 @@ test('a station missing from the feed keeps its last known price', async () => {
 
   assert.equal(store.peek('FR', '1').prices.gazole, 1.699);
 });
+
+test('two cards searching at the same moment cost one search', async () => {
+  // The two dashboard widgets pull side by side, and a cold search walks
+  // concentric circles with one HTTP request per ring: doing it twice at once
+  // is how a pull runs past the core's 15 s ack deadline and the card comes
+  // back "data unavailable".
+  const { provider, store } = createStore();
+  const config = { country: 'FR', postal_code: '35000', search_radius_km: 10, max_stations: 20 };
+
+  const [first, second] = await Promise.all([store.search(config), store.search(config)]);
+
+  assert.equal(provider.calls.search, 1, 'one call for two cards');
+  assert.deepEqual(first, second, 'both cards get the same stations');
+
+  // Sharing is only for the calls in flight: a later search really searches.
+  await store.search(config);
+  assert.equal(provider.calls.search, 2);
+});
+
+test('a search for other criteria is not served by the one in flight', async () => {
+  const { provider, store } = createStore();
+  const near = { country: 'FR', postal_code: '35000', search_radius_km: 5, max_stations: 20 };
+  const far = { ...near, search_radius_km: 30 };
+
+  await Promise.all([store.search(near), store.search(far)]);
+
+  assert.equal(provider.calls.search, 2, 'a different radius is a different search');
+});

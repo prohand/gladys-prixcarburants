@@ -183,10 +183,11 @@ The detail of **one** station you follow, picked in the card settings:
 - the brand, the address, the distance and the date of the last price update;
 - a **Directions** button and a **Refresh** button.
 
-The fuels you already follow (the ones with a device) are shown **live**: the
-tile moves as soon as the integration publishes a new price, without waiting
-for the card to refresh. The other fuels of the station show the value read
-from the feed.
+All the fuels of the station are shown with the **three decimals** of the pump
+price (`1.699 €/L`). The tiles used to be bound to the Gladys device for the
+fuels you track, which updated them live but displayed `1.7`: Gladys rounds a
+device value shown in a tile. The exact price is worth more — the card follows
+the refresh loop, so it updates within seconds anyway.
 
 #### Where the distances start
 
@@ -199,6 +200,12 @@ compute the distances, and they are displayed nowhere.
 - House not located, or the setting **"Measure distances from: the postal
   code"** → `2.3 km from 35000`, measured from the centre of the postal code
   area.
+
+**If Gladys holds several houses**, fill in the **"Which house"** field with the
+name of the one you want (case and accents are ignored). Left empty, the first
+located house is used. Gladys does not let an integration offer the list of
+houses in a dropdown yet: to know what to type, press **"Preview the
+stations"** — the message names the house in use and every house Gladys knows.
 
 The postal code stays required either way: it is what queries the national
 dataset.

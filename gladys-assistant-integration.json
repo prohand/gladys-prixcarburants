@@ -113,6 +113,23 @@
       ]
     },
     {
+      "key": "house_name",
+      "type": "string",
+      "label": {
+        "en": "Which house",
+        "fr": "Quelle maison"
+      },
+      "description": {
+        "en": "Only useful if Gladys holds several houses: the name of the one distances start from. Leave it empty for the first located house. The \"Preview the stations\" button below lists the houses Gladys knows.",
+        "fr": "Utile seulement si Gladys contient plusieurs maisons : le nom de celle depuis laquelle les distances sont mesurées. Laissez vide pour la première maison localisée. Le bouton « Aperçu des stations » ci-dessous liste les maisons connues de Gladys."
+      },
+      "required": false,
+      "placeholder": {
+        "en": "Home",
+        "fr": "Maison"
+      }
+    },
+    {
       "key": "search_radius_km",
       "type": "number",
       "label": {
