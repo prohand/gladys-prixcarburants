@@ -118,3 +118,69 @@ export function directionsUrl(station) {
   const destination = `${station.latitude.toFixed(5)},${station.longitude.toFixed(5)}`;
   return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
 }
+
+/**
+ * How wide a ranking row may let the station's name grow.
+ *
+ * The row of a `status` list is ONE line holding a label and a value, and the
+ * front shares that line between the two: a long name does not just get its own
+ * ellipsis, it squeezes the value until the value gets one too. That is how
+ * `1,990 €/L · 22/09` came back from a phone as `1,990 €/L ·…`, with the date
+ * gone although it was already as short as a date gets.
+ *
+ * So the NAME is bounded here — well under the 40 characters the core accepts —
+ * and the price keeps its room whatever the station is called. 24 is what a
+ * phone showed intact next to a price; the full name stays in the device list,
+ * on the device page and in the "My station" card.
+ */
+export const ROW_LABEL_MAX = 24;
+
+/** Shortest a segment may be shortened to before the whole name is cut instead. */
+const MIN_SEGMENT = 5;
+
+/**
+ * A station name that fits a dashboard row, cut on ONE segment.
+ *
+ * A name is built as `brand - street - city` (src/countries/franceNames.js),
+ * and the plain truncation the core would apply keeps the head only: "141
+ * Boulevard Émile Zola - Oullins" becomes "141 Boulevard Émile Zo…", which
+ * drops the one word telling that station from the same brand two towns away.
+ *
+ * So the whole overflow is paid by the LONGEST segment, and the others are left
+ * alone: "TotalEnergies - Oullins-Pierre-Bénite" keeps its brand and shortens
+ * the town, "141 Boulevard Émile Zola - Oullins" keeps its town and shortens the
+ * street. When even that is not enough — three segments for the width of two —
+ * the name is cut once at the end, because one legible name beats three stumps.
+ *
+ * @param {unknown} name
+ * @param {number} [max] characters the whole name may occupy
+ * @returns {string}
+ */
+export function shortenStationName(name, max = ROW_LABEL_MAX) {
+  const text = cleanText(name);
+  if (text.length <= max) {
+    return text;
+  }
+  const segments = text.split(' - ');
+  let longest = 0;
+  for (let i = 1; i < segments.length; i += 1) {
+    if (segments[i].length > segments[longest].length) {
+      longest = i;
+    }
+  }
+  const budget = segments[longest].length - (text.length - max);
+  if (segments.length < 2 || budget < MIN_SEGMENT) {
+    return truncateSegment(text, max);
+  }
+  return segments
+    .map((segment, i) => (i === longest ? truncateSegment(segment, budget) : segment))
+    .join(' - ');
+}
+
+/** `Oullins-Pierre-Bénite` in 8 characters is `Oullins…` — the ellipsis counts. */
+function truncateSegment(segment, max) {
+  if (segment.length <= max) {
+    return segment;
+  }
+  return `${segment.slice(0, max - 1).trimEnd()}…`;
+}

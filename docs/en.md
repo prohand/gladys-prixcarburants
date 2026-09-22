@@ -135,9 +135,12 @@ and how much will it cost.
 - **The 30-day curve** of the cheapest price of the area.
 - **The ranking** of the stations with their price **and the day the station
   declared it** (`today`, `yest.`, `06/08`) — not to be confused with the read
-  time above: a station may not have moved its prices in a week. The date is
-  deliberately short so the row stays readable on a phone; the full timestamp
-  is still on the device page and on the "My station" card.
+  time above: a station may not have moved its prices in a week. The row is kept
+  short so it stays readable on a phone: the date is reduced to the day, a long
+  station name is shortened (`TotalEnergies - Oullins…`) and the `€/L` unit,
+  already shown by the tiles above, is not repeated on every row. The full name
+  and the full timestamp are still on the device page and on the "My station"
+  card.
 - A button to the **official map** (prix-carburants.gouv.fr).
 
 Three settings: the fuel, how many stations are shown (3, 5 or 8) and the

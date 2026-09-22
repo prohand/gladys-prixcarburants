@@ -146,9 +146,11 @@ jour, et combien ça coûte.
 - **Le classement** des stations avec leur prix **et le jour où la station l'a
   déclaré** (`auj.`, `hier`, `06/08`) — à ne pas confondre avec l'heure du
   relevé ci-dessus : une station peut ne pas avoir bougé ses prix depuis une
-  semaine. La date est volontairement courte pour que la ligne reste lisible
-  sur un téléphone ; l'horaire complet reste sur la page de l'appareil et sur
-  la carte « Ma station ».
+  semaine. La ligne est tenue courte pour rester lisible sur un téléphone : la
+  date est réduite au jour, le nom de la station est raccourci s'il est long
+  (`TotalEnergies - Oullins…`) et l'unité `€/L`, déjà affichée dans les tuiles
+  au-dessus, n'est pas répétée à chaque ligne. Le nom complet et l'horaire
+  complet restent sur la page de l'appareil et sur la carte « Ma station ».
 - Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
 
 Trois réglages : le carburant, le nombre de stations affichées (3, 5 ou 8) et le
