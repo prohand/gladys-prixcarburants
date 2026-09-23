@@ -31,6 +31,7 @@ import { FUEL_KEYS } from '../fuels.js';
 import { cleanText } from '../text.js';
 import { buildStationName, resolveStationNames } from './franceNames.js';
 import { geocodePostalCode } from './franceGeocode.js';
+import { resolveRecentFuels } from './franceRecent.js';
 
 const logger = createLogger({ name: 'provider-fr' });
 
@@ -52,6 +53,12 @@ const IDS_PER_QUERY = 25;
 const RADIUS_MAX_RECORDS = PAGE_SIZE * 5;
 // Radius of the first circle, then doubled until the one the user configured.
 const FIRST_RING_KM = 5;
+
+// The fuels of each parsed station that the feed carries NEITHER a price NOR a
+// rupture for — the ones franceRecent.js checks against the price history.
+// Kept off the station object: it is a parsing detail, not part of its shape.
+const silentFuels = new WeakMap();
+const silentFuelsOf = (station) => silentFuels.get(station) ?? [];
 
 // Flat columns of the v2 model, per fuel key.
 const PRICE_COLUMNS = {
@@ -180,9 +187,12 @@ export const france = {
     }
 
     stations.sort(compareByRelevance);
-    // Only the stations we are about to show are worth a name lookup: the
-    // radius search can bring back three hundred of them, the user sees twenty.
-    return resolveStationNames(stations.slice(0, limit));
+    // Only the stations we are about to show are worth a name lookup (and a
+    // history lookup): the radius search can bring back three hundred of them,
+    // the user sees twenty.
+    const shown = stations.slice(0, limit);
+    await resolveRecentFuels(shown, silentFuelsOf);
+    return resolveStationNames(shown);
   },
 
   /**
@@ -198,8 +208,9 @@ export const france = {
       const where = batch.map((id) => `id = "${id}"`).join(' OR ');
       stations.push(...(await queryStations(where, PAGE_SIZE)));
     }
-    // Names are cached after the first lookup, so refreshing the prices of a
-    // station already discovered costs no extra request.
+    // Names and history are cached after the first lookup, so refreshing the
+    // prices of a station already discovered costs no extra request.
+    await resolveRecentFuels(stations, silentFuelsOf);
     return resolveStationNames(stations);
   },
 };
@@ -375,6 +386,8 @@ export function parseStation(record) {
   const availability = {};
   /** @type {Record<string, string|null>} */
   const outOfStockSince = {};
+  /** @type {string[]} */
+  const silent = [];
   for (const fuel of FUEL_KEYS) {
     const column = PRICE_COLUMNS[fuel];
     prices[fuel] = parsePrice(record[`${column}_prix`] ?? nested[fuel]?.price);
@@ -385,12 +398,15 @@ export function parseStation(record) {
       availability[fuel] = AVAILABILITY.AVAILABLE;
     } else {
       availability[fuel] = rupture?.temporary ? AVAILABILITY.OUT_OF_STOCK : AVAILABILITY.NOT_SOLD;
+      if (!rupture) {
+        silent.push(fuel);
+      }
     }
     outOfStockSince[fuel] =
       availability[fuel] === AVAILABILITY.OUT_OF_STOCK ? (rupture.since ?? null) : null;
   }
 
-  return {
+  const station = {
     id,
     name: buildStationName({ id, brand, city, address }),
     brand,
@@ -404,6 +420,8 @@ export function parseStation(record) {
     availability,
     outOfStockSince,
   };
+  silentFuels.set(station, silent);
+  return station;
 }
 
 /**

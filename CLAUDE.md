@@ -75,7 +75,10 @@ devices Gladys holds, publishes discovery, arms the refresh loop and reports
   an empty price column into `available` / `out_of_stock` / `not_sold` and only the last one
   is dropped. Out of stock is published as a device, previewed as "en rupture" rather than
   "non vendu", and shown on the device's text feature ("En rupture depuis le …") so a frozen
-  price says why it is frozen.
+  price says why it is frozen. The feed can also say NOTHING about a fuel (rupture lifted,
+  price not typed back yet): `src/countries/franceRecent.js` checks those silent fuels — never
+  a definitive rupture — against 30 days of daily history, and a fuel priced in that window is
+  out of stock, not "not sold". Best effort and cached 6 h, like the names.
 - **Exactly one device is not a station**: `src/devices/integration.js`
   (`ext:<selector>:integration:status`), publishing when the feed was last read _successfully_.
   Its platform id is a constant so changing country or postal code never orphans it, it is

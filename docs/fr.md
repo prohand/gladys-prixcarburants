@@ -324,6 +324,12 @@ fonctionnalité « Last price update » indique « En rupture depuis le
 et « SP98 : non vendu » seulement quand la station ne vend pas ce carburant
 (pompe inexistante ou rupture définitive).
 
+Il arrive que le flux ne dise plus rien du tout sur un carburant : la station a
+levé sa rupture mais n'a pas encore ressaisi son prix. L'intégration regarde
+alors l'historique des prix des 30 derniers jours : un carburant que la station
+a vendu sur cette période est affiché « en rupture » (la fonctionnalité « Last
+price update » indique simplement « En rupture »), et non « non vendu ».
+
 **Le SP95 d'une station n'apparaît pas, contrairement au SP98.** C'est la
 station qui ne vend pas de SP95, pas un bug : beaucoup d'enseignes
 (TotalEnergies en particulier) l'ont remplacé par le **E10 (SP95-E10)**.
