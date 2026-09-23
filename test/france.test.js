@@ -8,6 +8,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { france, parsePrice, parseStation } from '../src/countries/france.js';
 import { resetGeocodeCache } from '../src/countries/franceGeocode.js';
+import { resetRecentFuels } from '../src/countries/franceRecent.js';
+import { resetStationNames } from '../src/countries/franceNames.js';
 
 test('parsePrice reads a decimal price', () => {
   assert.equal(parsePrice(1.699), 1.699);
@@ -392,4 +394,75 @@ test('parseStation trusts a published price over a rupture the feed still carrie
 
   assert.equal(station.availability.gazole, 'available');
   assert.equal(station.outOfStockSince.gazole, null);
+});
+
+// Reported on 104/106 av. Médéric, Noisy-le-Grand: the SP98 rupture was lifted
+// but no price typed back, so the feed carried nothing at all for SP98.
+const MEDERIC = {
+  id: '93160009',
+  cp: '93160',
+  ville: 'Noisy-le-Grand',
+  adresse: '104/106 AV MEDERIC',
+  marque: 'TotalEnergies',
+  gazole_prix: 2.25,
+  sp95_rupture_debut: '2020-11-10T14:12:05+00:00',
+  sp95_rupture_type: 'definitive',
+};
+
+test('a fuel the feed is silent about but the station priced recently is out of stock', async (t) => {
+  resetRecentFuels();
+  const urls = mockFetch(t, [
+    { results: [MEDERIC] },
+    // The history: SP98 and SP95 priced within the window, E85 never.
+    { results: [{ id: '93160009', gazole: 2.25, sp98: 1.99, sp95: 1.9, e85: null }] },
+  ]);
+
+  const [station] = await france.fetchStationsByIds(['93160009']);
+
+  assert.match(urls[1], /prix-des-carburants-j-1/, 'the history is asked');
+  assert.equal(station.availability.sp98, 'out_of_stock', 'a pump waiting for its price');
+  assert.equal(station.outOfStockSince.sp98, null, 'the feed declared no date');
+  assert.equal(station.availability.sp95, 'not_sold', 'a definitive rupture is never questioned');
+  assert.equal(station.availability.e85, 'not_sold', 'never priced: still not sold');
+  assert.equal(station.availability.gazole, 'available');
+});
+
+test('the price history is cached between two refreshes', async (t) => {
+  resetRecentFuels();
+  const urls = mockFetch(t, [
+    { results: [MEDERIC] },
+    { results: [{ id: '93160009', sp98: 1.99 }] },
+    { results: [MEDERIC] },
+  ]);
+
+  await france.fetchStationsByIds(['93160009']);
+  const [station] = await france.fetchStationsByIds(['93160009']);
+
+  assert.equal(urls.filter((url) => url.includes('prix-des-carburants-j-1')).length, 1);
+  assert.equal(station.availability.sp98, 'out_of_stock', 'the cached answer still applies');
+});
+
+test('an unreachable price history leaves the reading of the feed unchanged', async (t) => {
+  resetRecentFuels();
+  mockFetch(t, [{ results: [MEDERIC] }, { status: 500 }]);
+
+  const [station] = await france.fetchStationsByIds(['93160009']);
+
+  assert.equal(station.availability.sp98, 'not_sold');
+  assert.equal(station.availability.gazole, 'available');
+});
+
+test('a station the feed fully qualifies costs no history request', async (t) => {
+  resetRecentFuels();
+  resetStationNames();
+  const qualified = { ...MEDERIC };
+  for (const fuel of ['sp98', 'e10', 'e85', 'gplc']) {
+    qualified[`${fuel}_rupture_debut`] = '2020-01-01T00:00:00+00:00';
+    qualified[`${fuel}_rupture_type`] = 'definitive';
+  }
+  const urls = mockFetch(t, [{ results: [qualified] }]);
+
+  await france.fetchStationsByIds(['93160009']);
+
+  assert.equal(urls.filter((url) => url.includes('prix-des-carburants-j-1')).length, 0);
 });

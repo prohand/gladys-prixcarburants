@@ -298,6 +298,12 @@ is back. The **Preview the nearby stations** button then writes "SP98: out of
 stock", and keeps "SP98: not sold" for a fuel the station really does not sell
 (no pump, or a definitive rupture).
 
+The feed sometimes says nothing at all about a fuel — the station lifted its
+rupture but has not typed its price back yet. The integration then looks at the
+last 30 days of price history: a fuel the station priced in that window is shown
+as "out of stock" (the "Last price update" feature simply reads "En rupture"),
+not as "not sold".
+
 **The SP95 of a station is missing while its SP98 is there.** That station
 does not sell SP95, and it is not a bug: many brands (TotalEnergies in
 particular) replaced it with **E10 (SP95-E10)**. Tick E10 in the configuration
