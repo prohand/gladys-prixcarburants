@@ -384,6 +384,56 @@
               }
             }
           ]
+        },
+        {
+          "key": "name_length",
+          "type": "select",
+          "label": {
+            "en": "Station name length",
+            "fr": "Longueur des noms"
+          },
+          "description": {
+            "en": "Characters a station name may use. Longer is easier to read on a wide screen; on a narrow one, the date of the price may get cut.",
+            "fr": "Nombre de caractères pour le nom d’une station. Plus long se lit mieux sur un grand écran ; sur un petit écran, la date du prix risque d’être coupée."
+          },
+          "default": "24",
+          "options": [
+            {
+              "value": "24",
+              "label": {
+                "en": "24 characters (phone)",
+                "fr": "24 caractères (téléphone)"
+              }
+            },
+            {
+              "value": "28",
+              "label": {
+                "en": "28 characters",
+                "fr": "28 caractères"
+              }
+            },
+            {
+              "value": "32",
+              "label": {
+                "en": "32 characters",
+                "fr": "32 caractères"
+              }
+            },
+            {
+              "value": "36",
+              "label": {
+                "en": "36 characters",
+                "fr": "36 caractères"
+              }
+            },
+            {
+              "value": "40",
+              "label": {
+                "en": "40 characters",
+                "fr": "40 caractères"
+              }
+            }
+          ]
         }
       ],
       "action_timeout_seconds": 60

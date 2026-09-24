@@ -156,9 +156,12 @@ fuel) and `station` (one followed station, a price tile per fuel).
   enough on its own: a long name squeezes the value until the date goes too. The ranking
   therefore bounds the name to 24 chars and drops the `€/L` the tiles above already carry —
   the row reads `TotalEne. Acc. - Lyon 7e 1,990 · auj.` Any redesign of that row must keep
-  label + value inside about forty characters, and the widget content is the same on every
-  screen (the core sends no viewport), so a wide screen changes nothing: what a phone holds
-  is what everybody gets, and the 24 characters are spent on telling the stations APART.
+  label + value inside about forty characters BY DEFAULT, and the widget content is the same
+  on every screen (the core sends no viewport), so the integration cannot fit a wide screen
+  by itself: the card's `name_length` setting (`ROW_LABEL_LENGTHS`, 24 by default up to the
+  core's 40) is how a user trades a phone's safety for a wider screen's room, and every rule
+  below is written against that `max`, never against 24. Whatever the width, the characters
+  are spent on telling the stations APART.
   Two rules do that, in `src/widgets/format.js`. `shortenStationName` serves the PLACE first
   and makes the brand pay — a name is `brand - city` or `brand - street - city`, the brand is
   the head the core would keep, and it is the one part that names nothing when five stations
@@ -166,7 +169,9 @@ fuel) and `station` (one followed station, a price tile per fuel).
   no brand names no station): its words go back to their root where they have one
   (`TotalEnergies` → `Total`, free), then the trailing qualifiers are abbreviated and finally
   dropped (`Total Access` → `Total Acc.` → `Total`) rather than the name of the chain itself
-  being reduced to a stump. A segment of more than two words is a street, not a brand, so it
+  being reduced to a stump — `brandFloor` keeps that first word whole (up to half the row)
+  wherever a width is computed, so a long street pays instead: a Vichy ranking once read
+  `Carre.` on three rows because the widest street of the chain set its brand's width. A segment of more than two words is a street, not a brand, so it
   is CUT instead (`141 Boulevard…`, never `141 Boulevard`), and so is any place. A middle
   segment is dropped rather than left as a third stump. `buildRowLabels` then shortens the
   rows AGAINST EACH OTHER, in two passes, and what drives the first one is the PLACE, not a
@@ -185,19 +190,27 @@ fuel) and `station` (one followed station, a price tile per fuel).
   the whole city group, never one per row, and the city is given up again — back to
   `Total - Av. Tony Garnier` — when the shortest street form still does not fit behind it,
   when it would be the city's own name (`Lyon, Lyon`), or when shortening would make two rows
-  of the group read the same: telling the rows APART comes first, that is what a ranking is. The street comes from the name when it carries one and from
+  of the group read the same: telling the rows APART comes first, that is what a ranking is.
+  Without the city, the street goes through the same forms, only as far as the brand needs
+  to keep its chain name (`Carrefour - Peupliers`, not `Carre. - Rue des Peupli…`), and a row
+  that holds WHOLE is written `brand - street, city` like the grouped ones. The street comes from the name when it carries one and from
   the station's `address` otherwise — the device name only spells it out when two devices
   would collide, the dashboard needs it as soon as a city is shared — and it is displayed as a
   street is written, not as the feed stores it: the house number is dropped before the name of
   the street is cut (`Rue de Gerland`, never `112/116 Rue de…`, since a map fills the number
-  in, and the number goes before the city joins the row), and an ALL-CAPS word goes back to title case (`AVENUE TONY GARNIER` →
+  in, and the number goes before the city joins the row), and an ALL-CAPS or all-lowercase word goes back to title case (`AVENUE TONY GARNIER` →
   `Av. Tony Garnier`) while `ZA` and an already-cased name stay untouched. The technical id
   `disambiguateStationNames` appends when even the street is not enough (two pumps of one
   avenue) is dropped from the row — eight digits name nothing to a driver — but only once
   there is a street to show instead. Only what is still written twice afterwards pays the
   second pass, which gives the whole row to the place and loses the brand — the case where the
   CITY is what got truncated (`Saint-Germain-en-Laye` against `Saint-Germain-lès-Corbeil`).
-  Best effort: names that stay equal are left equal, never numbered.
+  Two rows of one street that only their house number tells apart get it back in front of
+  the short form (`12 Ailes` / `85 Ailes`) instead of the street being cut. Rows still equal
+  after all that — two pumps declared at the very same address — end on the TAIL of their
+  station id (`tagTwins`: ` ·001`, three digits or as many as the group needs), the ranking
+  being relabelled narrower to make the room, so the tail never pushes a label past `max`.
+  Never a rank number (`#1`), and a row with no id is left equal.
   `src/refresh.js` samples too, but only for an area the history already follows
   (`history.knows`), so the curve keeps filling with no dashboard open while an install without
   a widget pays nothing.
