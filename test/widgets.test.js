@@ -951,6 +951,7 @@ test('a row shows the street rather than the technical id of the station', () =>
     { name: 'Total - Av. Tony Garnier - Lyon (69007009)', address: 'AVENUE TONY GARNIER' },
     { name: 'TotalEnergies - Oullins' },
   ]);
+  // No id on these stations: the two rows are left equal rather than numbered.
   assert.deepEqual(labels, [
     'Total - Garnier, Lyon',
     'Total - Garnier, Lyon',
@@ -959,6 +960,62 @@ test('a row shows the street rather than the technical id of the station', () =>
   for (const label of labels) {
     assert.ok(label.length <= ROW_LABEL_MAX, `"${label}" fits the row`);
   }
+});
+
+test('two stations of the very same address end on the tail of their id', () => {
+  // Street, city and brand all equal: only the id differs, and its last three
+  // digits are enough to show two stations rather than one written twice. The
+  // label is rebuilt narrower to make room, never pushed past the width.
+  const twins = [
+    {
+      id: '03200001',
+      name: 'Carrefour - Rue des Ailes - Vichy (03200001)',
+      address: 'rue des ailes',
+    },
+    {
+      id: '03200002',
+      name: 'Carrefour - Rue des Ailes - Vichy (03200002)',
+      address: 'rue des ailes',
+    },
+    { id: '03200003', name: 'Total - Vichy', address: 'BOULEVARD DE GRAMONT' },
+  ];
+  assert.deepEqual(buildRowLabels(twins), [
+    'Carrefour - Ailes ·001',
+    'Carrefour - Ailes ·002',
+    'Total - Gramont, Vichy',
+  ]);
+  assert.deepEqual(buildRowLabels(twins, ROW_LABEL_WIDEST), [
+    'Carrefour - Rue des Ailes, Vichy ·001',
+    'Carrefour - Rue des Ailes, Vichy ·002',
+    'Total - Bd de Gramont, Vichy',
+  ]);
+  for (const length of ROW_LABEL_LENGTHS.map(Number)) {
+    for (const label of buildRowLabels(twins, length)) {
+      assert.ok(label.length <= length, `"${label}" fits ${length} characters`);
+    }
+  }
+  // As many digits as the group needs, and no more.
+  assert.deepEqual(
+    buildRowLabels([
+      { id: '03201001', name: 'Esso - Vichy', address: 'RUE DE PARIS' },
+      { id: '03202001', name: 'Esso - Vichy', address: 'RUE DE PARIS' },
+    ]),
+    ['Esso - Paris ·1001', 'Esso - Paris ·2001'],
+  );
+});
+
+test('two stations of one street are told apart by their house number', () => {
+  // Shortened to the name of the street, both rows would read "Ailes": the
+  // number is all that tells them apart, so it comes back in front of it.
+  const rows = [
+    { name: 'Carrefour - Vichy', address: '12 rue des ailes' },
+    { name: 'Carrefour - Vichy', address: '85 rue des ailes' },
+  ];
+  assert.deepEqual(buildRowLabels(rows), ['Carrefour - 12 Ailes', 'Carrefour - 85 Ailes']);
+  assert.deepEqual(buildRowLabels(rows, ROW_LABEL_WIDEST), [
+    'Carrefour - 12 Rue des Ailes, Vichy',
+    'Carrefour - 85 Rue des Ailes, Vichy',
+  ]);
 });
 
 test('a station with no street at all keeps the id that is all it has', () => {

@@ -160,7 +160,7 @@ jour, et combien ça coûte.
 Lyon` — car `Av.` et `Rue de`, toutes les rues de la commune les portent
   aussi. Quand même ça ne tient pas, ou quand raccourcir deux rues ferait deux
   lignes identiques, la commune saute et la rue est affichée aussi entière que
-  la ligne le permet (`Total - Av. Tony Garnier`, `Carrefour - Peupliers`). Le nom complet, l'adresse complète et l'horaire
+  la ligne le permet (`Total - Av. Tony Garnier`, `Carrefour - Peupliers`). Deux stations de la même rue gardent leur numéro (`Carrefour - 12 Ailes`, `Carrefour - 85 Ailes`), et deux stations déclarées à la même adresse exacte se terminent par la fin de leur code station (`Carrefour - Ailes ·001`, `Carrefour - Ailes ·002`). Le nom complet, l'adresse complète et l'horaire
   complet restent sur la page de l'appareil et sur la carte « Ma station ».
 - Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
 

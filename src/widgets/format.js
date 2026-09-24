@@ -300,6 +300,62 @@ export function shortenStationName(name, max = ROW_LABEL_MAX) {
  * @returns {string[]} one label per station, same order
  */
 export function buildRowLabels(stations, max = ROW_LABEL_MAX) {
+  const labels = labelRows(stations, max);
+  return tagTwins(labels, stations, (width) => labelRows(stations, width), max);
+}
+
+/** Characters of the station id a twin row shows at the very least: `·001`. */
+const ID_TAIL = 3;
+
+/** How the tail of the id joins the label: `Carrefour - Ailes, Vichy ·001`. */
+const ID_TAIL_SEPARATOR = ' ·';
+
+/**
+ * The last word on rows that still read the same: the END of their station id.
+ *
+ * Two pumps declared at the very same address — often one on each side of a
+ * road — have nothing left to tell them apart once the brand, the street and
+ * the city are written: only their price and its date differ. The full id is
+ * eight digits a driver cannot use, but its last three differ between the two
+ * rows and cost five characters, so the reader at least sees two stations
+ * rather than one written twice. Only as many digits as the group needs, and
+ * the label is rebuilt narrower to make the room rather than cut: the tail
+ * never pushes a label past `max`.
+ *
+ * @param {string[]} labels
+ * @param {Array<{ id?: unknown }>} stations
+ * @param {(width: number) => string[]} relabel the whole ranking at a width
+ * @param {number} max
+ */
+function tagTwins(labels, stations, relabel, max) {
+  const groups = new Map();
+  labels.forEach((label, index) => {
+    groups.set(label, [...(groups.get(label) ?? []), index]);
+  });
+  const narrower = new Map();
+  for (const indexes of groups.values()) {
+    const ids = indexes.map((index) => cleanText(stations[index]?.id));
+    if (indexes.length < 2 || ids.some((id) => !id) || new Set(ids).size < ids.length) {
+      continue;
+    }
+    let length = ID_TAIL;
+    while (new Set(ids.map((id) => id.slice(-length))).size < ids.length) {
+      length += 1;
+    }
+    const tails = ids.map((id) => `${ID_TAIL_SEPARATOR}${id.slice(-length)}`);
+    const width = max - Math.max(...tails.map((tail) => tail.length));
+    if (!narrower.has(width)) {
+      narrower.set(width, relabel(width));
+    }
+    indexes.forEach((index, i) => {
+      labels[index] = `${narrower.get(width)[index]}${tails[i]}`;
+    });
+  }
+  return labels;
+}
+
+/** The labels of a ranking at one width, before any twin gets its id. */
+function labelRows(stations, max) {
   const segmented = stations.map(rowSegments);
   const labels = segmented.map((segments) => wholeLabel(segments, max));
   // Two passes, because they do not cost the same thing. The first reveals a
@@ -494,16 +550,19 @@ function revealSharedPlace(labels, segmented, max) {
       return max - SEPARATOR.length - fitBrand(head, brandFloor(head, max)).length;
     };
     const streets = new Map(revealing.map((i) => [i, streetOf(segmented[i], room(i))]));
+    // The street as the name spells it, number included: what tells two pumps
+    // of the same street apart when nothing else does.
+    const written = new Map(revealing.map((i) => [i, segmented[i][segmented[i].length - 2]]));
     const withCity = fitStreets(
       revealing,
-      streets,
+      { streets, written },
       (index) => room(index) - CITY_SEPARATOR.length - place.length,
       place,
     );
     // No room for the city: the street alone, in the fullest form that lets
     // the brand keep its name — `Carrefour - Peupliers` rather than
     // `Carre. - Rue des Peupli…`.
-    const alone = withCity ? null : fitStreets(revealing, streets, room, null);
+    const alone = withCity ? null : fitStreets(revealing, { streets, written }, room, null);
     for (const index of revealing) {
       plans.set(index, {
         street: withCity?.get(index) ?? alone?.get(index) ?? streets.get(index),
@@ -542,8 +601,15 @@ function brandRoom(head, plan, max) {
  * The street of each row of a city group, in the fullest form that fits the
  * room of every row — or `null` when no form does.
  *
+ * Two stations of the same street (`12 Rue des Ailes`, `85 Rue des Ailes`) are
+ * told apart by their house number and nothing else, so when shortening would
+ * merge them, the number comes back in front of the short form
+ * (`12 Ailes`, `85 Ailes`) rather than the street being cut mid-word.
+ *
  * @param {number[]} indexes rows of the group that show a street
- * @param {Map<number, string>} streets their street, house number already gone
+ * @param {{ streets: Map<number, string>, written: Map<number, string> }} rows
+ *   their street as `streetOf` fits it, and as the name writes it, number
+ *   included
  * @param {(index: number) => number} room characters the street of a row may
  *   take, the brand and (when there is one) the city already paid for
  * @param {string|null} place the city written behind the street, if any —
@@ -551,32 +617,49 @@ function brandRoom(head, plan, max) {
  *   than the street alone and costs the street the room it took
  * @returns {Map<number, string>|null}
  */
-function fitStreets(indexes, streets, room, place) {
+function fitStreets(indexes, { streets, written }, room, place) {
   if (indexes.some((index) => room(index) < MIN_STREET)) {
     return null;
   }
-  const forms = new Map(indexes.map((index) => [index, streetForms(streets.get(index))]));
-  const distinct = new Set(streets.values()).size;
-  const levels = Math.max(...[...forms.values()].map((list) => list.length));
-  for (let level = 0; level < levels; level += 1) {
-    const shortened = new Map(
+  const plain = new Map(indexes.map((index) => [index, streetForms(streets.get(index))]));
+  const numbered = new Map(
+    indexes.map((index) => {
+      const number = written.get(index).match(HOUSE_NUMBER)?.[0].trim();
+      const bare = streets.get(index).replace(HOUSE_NUMBER, '');
+      return [
+        index,
+        number ? streetForms(bare).map((form) => `${number} ${form}`) : plain.get(index),
+      ];
+    }),
+  );
+  // Counted on the streets as WRITTEN: two numbers of one street are two
+  // places, even once `streetOf` has dropped the numbers to make room.
+  const distinct = new Set(written.values()).size;
+  const levels = Math.max(...[...plain.values()].map((list) => list.length));
+  const at = (forms, level) =>
+    new Map(
       indexes.map((index) => {
         const list = forms.get(index);
         return [index, list[Math.min(level, list.length - 1)]];
       }),
     );
-    // A street shortened into the very name of the city ("Rue de Lyon" in
-    // Lyon) would read "Lyon, Lyon" and locate nothing.
-    const fits = (index) => {
-      const street = shortened.get(index);
-      return street.length <= room(index) && street.toLowerCase() !== place?.toLowerCase();
-    };
-    if (!indexes.every(fits)) {
-      continue;
+  for (let level = 0; level < levels; level += 1) {
+    // Without the house numbers first, since a map fills them in; with them
+    // only when they are all that tells two rows apart.
+    for (const shortened of [at(plain, level), at(numbered, level)]) {
+      // A street shortened into the very name of the city ("Rue de Lyon" in
+      // Lyon) would read "Lyon, Lyon" and locate nothing.
+      const fits = (index) => {
+        const street = shortened.get(index);
+        return street.length <= room(index) && street.toLowerCase() !== place?.toLowerCase();
+      };
+      // Shortening two streets into one label would trade the answer for the
+      // context: such a form is never taken, and the rows keep their street
+      // whole when no shorter one tells them apart.
+      if (indexes.every(fits) && new Set(shortened.values()).size >= distinct) {
+        return shortened;
+      }
     }
-    // Shortening two streets into one label would trade the answer for the
-    // context: these rows keep their street whole instead.
-    return new Set(shortened.values()).size < distinct ? null : shortened;
   }
   return null;
 }

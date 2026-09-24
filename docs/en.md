@@ -149,7 +149,7 @@ and how much will it cost.
   `Total - Gerland, Lyon` — since `Av.` and `Rue de` are what every other street
   carries too. When even that does not fit, or when shortening two streets would
   make two rows read the same, the town goes and the street is shown as whole as
-  the row allows (`Total - Av. Tony Garnier`, `Carrefour - Peupliers`). The full name, the full address and the full
+  the row allows (`Total - Av. Tony Garnier`, `Carrefour - Peupliers`). Two stations of the same street keep their house number (`Carrefour - 12 Ailes`, `Carrefour - 85 Ailes`), and two stations declared at the very same address end on the last digits of their station code (`Carrefour - Ailes ·001`, `Carrefour - Ailes ·002`). The full name, the full address and the full
   timestamp are still on the device page and on the "My station" card.
 - A button to the **official map** (prix-carburants.gouv.fr).
 

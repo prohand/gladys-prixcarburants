@@ -205,7 +205,12 @@ fuel) and `station` (one followed station, a price tile per fuel).
   there is a street to show instead. Only what is still written twice afterwards pays the
   second pass, which gives the whole row to the place and loses the brand — the case where the
   CITY is what got truncated (`Saint-Germain-en-Laye` against `Saint-Germain-lès-Corbeil`).
-  Best effort: names that stay equal are left equal, never numbered.
+  Two rows of one street that only their house number tells apart get it back in front of
+  the short form (`12 Ailes` / `85 Ailes`) instead of the street being cut. Rows still equal
+  after all that — two pumps declared at the very same address — end on the TAIL of their
+  station id (`tagTwins`: ` ·001`, three digits or as many as the group needs), the ranking
+  being relabelled narrower to make the room, so the tail never pushes a label past `max`.
+  Never a rank number (`#1`), and a row with no id is left equal.
   `src/refresh.js` samples too, but only for an area the history already follows
   (`history.knows`), so the curve keeps filling with no dashboard open while an install without
   a widget pays nothing.
