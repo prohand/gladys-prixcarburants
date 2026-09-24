@@ -140,21 +140,26 @@ and how much will it cost.
   `€/L` unit already shown by the tiles above is not repeated on every row, and
   a long station name is shortened around what tells it from the others — the
   town is kept whole and the brand is shortened to its root
-  (`Total Access - Lyon 7e`). As soon as several stations of the ranking are in
+  (`Total Access - Lyon 7e`), never below the name of the chain itself
+  (`Carrefour`, not `Carre.`). As soon as several stations of the ranking are in
   the SAME town, that town stops telling them apart on its own, so each of those
   rows shows its street: "Lyon" written three times says where the area is, not
   where the pump is. The town stays behind the street whenever the row can hold
   both, and the street is then shortened to its name — `Total - Garnier, Lyon`,
   `Total - Gerland, Lyon` — since `Av.` and `Rue de` are what every other street
   carries too. When even that does not fit, or when shortening two streets would
-  make two rows read the same, the street is kept whole and the town goes
-  (`Total - Av. Tony Garnier`). The full name, the full address and the full
+  make two rows read the same, the town goes and the street is shown as whole as
+  the row allows (`Total - Av. Tony Garnier`, `Carrefour - Peupliers`). The full name, the full address and the full
   timestamp are still on the device page and on the "My station" card.
 - A button to the **official map** (prix-carburants.gouv.fr).
 
-Three settings: the fuel, how many stations are shown (3, 5 or 8) and the
+Four settings: the fuel, how many stations are shown (3, 5 or 8), the
 scope — **around your postal code** (the integration searches, as it does for
-the Discovery tab) or **my stations only** (the ones you added).
+the Discovery tab) or **my stations only** (the ones you added) — and the
+**station name length**, from 24 characters (the default, what a phone holds
+next to the price and its date) up to 40. Gladys does not tell the integration
+how wide the screen is, so pick the widest your screens show without cutting
+the date: at 40, `Carrefour - Rue des Peupliers, Cusset` is written whole.
 
 #### Where the curve comes from
 

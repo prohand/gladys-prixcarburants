@@ -30,7 +30,14 @@ import { FUELS, FUEL_KEYS, fuelLabel } from '../fuels.js';
 import { getProvider } from '../countries/index.js';
 import { formatInstant } from '../text.js';
 import { COLOR, buildContent, button, chart, statusList, text, valueTile } from './content.js';
-import { PRICE_UNIT, buildRowLabels, formatPrice, formatShortDate } from './format.js';
+import {
+  PRICE_UNIT,
+  ROW_LABEL_LENGTHS,
+  ROW_LABEL_MAX,
+  buildRowLabels,
+  formatPrice,
+  formatShortDate,
+} from './format.js';
 
 export const KEY = 'best_prices';
 
@@ -101,6 +108,26 @@ export const DECLARATION = {
       default: DEFAULT_COUNT,
       options: COUNTS.map((value) => ({ value, label: { en: value, fr: value } })),
     },
+    {
+      // The core sends no screen width with a pull, so the integration cannot
+      // fit the names to the screen by itself: the user picks the width their
+      // screens hold. 24 is what a phone shows next to the price and its date.
+      key: 'name_length',
+      type: 'select',
+      label: { en: 'Station name length', fr: 'Longueur des noms' },
+      description: {
+        en: 'Characters a station name may use. Longer is easier to read on a wide screen; on a narrow one, the date of the price may get cut.',
+        fr: 'Nombre de caractères pour le nom d’une station. Plus long se lit mieux sur un grand écran ; sur un petit écran, la date du prix risque d’être coupée.',
+      },
+      default: String(ROW_LABEL_MAX),
+      options: ROW_LABEL_LENGTHS.map((value) => ({
+        value,
+        label:
+          value === String(ROW_LABEL_MAX)
+            ? { en: `${value} characters (phone)`, fr: `${value} caractères (téléphone)` }
+            : { en: `${value} characters`, fr: `${value} caractères` },
+      })),
+    },
   ],
   action_timeout_seconds: 60,
 };
@@ -120,7 +147,10 @@ function readSettings(settings = {}, config) {
       (config.fuel_type[0] ?? 'gazole');
   const scope = settings.scope === SCOPE.TRACKED ? SCOPE.TRACKED : SCOPE.AROUND;
   const count = Number(COUNTS.includes(String(settings.count)) ? settings.count : DEFAULT_COUNT);
-  return { fuel, scope, count };
+  const nameLength = ROW_LABEL_LENGTHS.includes(String(settings.name_length))
+    ? Number(settings.name_length)
+    : ROW_LABEL_MAX;
+  return { fuel, scope, count, nameLength };
 }
 
 /**
@@ -186,7 +216,7 @@ function buildHeading({ config, scope, label, source }) {
  */
 export async function getContent(_gladys, context, { settings, language = 'en' } = {}) {
   const { config, store, history, house } = context;
-  const { fuel, scope, count } = readSettings(settings, config);
+  const { fuel, scope, count, nameLength } = readSettings(settings, config);
 
   if (!isConfigReady(config)) {
     return buildContent(
@@ -241,7 +271,7 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
   // The labels are built for the ranking as a WHOLE: what a row has to show is
   // whatever tells it from the other rows, which no row can know on its own.
   const ranked = stations.slice(0, count);
-  const rowLabels = buildRowLabels(ranked);
+  const rowLabels = buildRowLabels(ranked, nameLength);
 
   return buildContent(
     [

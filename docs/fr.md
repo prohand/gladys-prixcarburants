@@ -150,7 +150,8 @@ jour, et combien ça coûte.
   date est réduite au jour, l'unité `€/L` déjà affichée dans les tuiles au-dessus
   n'est pas répétée à chaque ligne, et un nom de station trop long est raccourci
   autour de ce qui le distingue des autres — la commune est gardée entière et
-  l'enseigne est ramenée à sa racine (`Total Access - Lyon 7e`). Dès que
+  l'enseigne est ramenée à sa racine (`Total Access - Lyon 7e`), sans jamais
+  couper le nom de la chaîne elle-même (`Carrefour`, pas `Carre.`). Dès que
   plusieurs stations du classement sont dans la MÊME commune, cette commune ne
   les distingue plus à elle seule : ces lignes affichent alors leur rue, parce
   que « Lyon » écrit trois fois dit où est la zone, pas où est la pompe. La
@@ -158,15 +159,19 @@ jour, et combien ça coûte.
   est alors réduite à son nom — `Total - Garnier, Lyon`, `Total - Gerland,
 Lyon` — car `Av.` et `Rue de`, toutes les rues de la commune les portent
   aussi. Quand même ça ne tient pas, ou quand raccourcir deux rues ferait deux
-  lignes identiques, la rue est gardée entière et la commune saute
-  (`Total - Av. Tony Garnier`). Le nom complet, l'adresse complète et l'horaire
+  lignes identiques, la commune saute et la rue est affichée aussi entière que
+  la ligne le permet (`Total - Av. Tony Garnier`, `Carrefour - Peupliers`). Le nom complet, l'adresse complète et l'horaire
   complet restent sur la page de l'appareil et sur la carte « Ma station ».
 - Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
 
-Trois réglages : le carburant, le nombre de stations affichées (3, 5 ou 8) et le
+Quatre réglages : le carburant, le nombre de stations affichées (3, 5 ou 8), le
 périmètre — **autour de votre code postal** (l'intégration cherche, comme pour
 l'onglet Découverte) ou **vos stations seulement** (celles que vous avez
-ajoutées).
+ajoutées) — et la **longueur des noms**, de 24 caractères (par défaut, ce qu'un
+téléphone affiche à côté du prix et de sa date) jusqu'à 40. Gladys ne donne pas
+la largeur de l'écran à l'intégration : choisissez la plus grande valeur que vos
+écrans affichent sans couper la date. À 40, `Carrefour - Rue des Peupliers,
+Cusset` est écrit en entier.
 
 #### D'où vient la courbe
 

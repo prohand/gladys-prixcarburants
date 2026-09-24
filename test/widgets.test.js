@@ -34,7 +34,9 @@ import {
   runWidgetAction,
 } from '../src/widgets/index.js';
 import {
+  ROW_LABEL_LENGTHS,
   ROW_LABEL_MAX,
+  ROW_LABEL_WIDEST,
   buildRowLabels,
   formatShortDate,
   shortenStationName,
@@ -741,6 +743,81 @@ test('a long station name is shortened so the price and its date keep their room
   );
 });
 
+/** The rows of a Vichy dashboard, as a user reported them from phone and PC. */
+const VICHY = [
+  { name: 'Total - Vichy', address: 'BOULEVARD DE GRAMONT' },
+  { name: 'Leclerc - Bellerive-sur-Allier', address: 'rue de la gare' },
+  { name: 'Carrefour - Vichy', address: 'rue des ailes' },
+  { name: 'Carrefour - Cusset', address: 'rue des peupliers' },
+  { name: 'Carrefour - Cusset', address: 'Route de Charmeil' },
+  { name: 'Carrefour - Saint-Yorre', address: 'avenue de vichy' },
+];
+
+test('the name of a chain is never cut to a stump to make room for a street', () => {
+  // Reported as `Carre. - ailes, Vichy`, `Carre. - rue des peupli…`,
+  // `Lecle. - Bellerive-sur…`: the widest street of the chain set the width of
+  // its brand on every row, and a lowercase address kept its lowercase.
+  assert.deepEqual(buildRowLabels(VICHY), [
+    'Total - Gramont, Vichy',
+    'Leclerc - Bellerive-sur…',
+    'Carrefour - Ailes, Vichy',
+    'Carrefour - Peupliers',
+    'Carrefour - Charmeil',
+    'Carrefour - Saint-Yorre',
+  ]);
+});
+
+test('a wider name length shows more of the place, never more than asked', () => {
+  for (const length of ROW_LABEL_LENGTHS.map(Number)) {
+    const labels = buildRowLabels(VICHY, length);
+    assert.equal(new Set(labels).size, labels.length, `no two rows read the same at ${length}`);
+    for (const label of labels) {
+      assert.ok(label.length <= length, `"${label}" fits ${length} characters`);
+    }
+  }
+  // At the widest, every row holds whole — and reads the same way, street and
+  // city joined by a comma, whether or not another row shares its city.
+  assert.deepEqual(buildRowLabels(VICHY, ROW_LABEL_WIDEST), [
+    'Total - Bd de Gramont, Vichy',
+    'Leclerc - Bellerive-sur-Allier',
+    'Carrefour - Rue des Ailes, Vichy',
+    'Carrefour - Rue des Peupliers, Cusset',
+    'Carrefour - Rte de Charmeil, Cusset',
+    'Carrefour - Av. de Vichy, Saint-Yorre',
+  ]);
+});
+
+test('the ranking card honours the name length its settings ask for', async () => {
+  const long = createStation({
+    id: '1',
+    name: 'TotalEnergies - Oullins-Pierre-Bénite',
+    prices: { gazole: 1.599 },
+  });
+  const { context } = contextWith([long]);
+  const labelWith = async (settings) => {
+    const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+      settings: { fuel: 'gazole', scope: 'around', count: '5', ...settings },
+      language: 'fr',
+    });
+    return componentsOfType(content, 'status')[0].items[0].label;
+  };
+
+  // The place is served first: the room goes to the town before the brand.
+  assert.equal(await labelWith({ name_length: '32' }), 'Total - Oullins-Pierre-Bénite');
+  assert.equal(await labelWith({ name_length: '40' }), 'TotalEnergies - Oullins-Pierre-Bénite');
+  // A card saved before the setting existed, or a value nobody offered, keeps
+  // the width a phone holds.
+  assert.equal(await labelWith({}), 'Total - Oullins-Pierre…');
+  assert.equal(await labelWith({ name_length: '99' }), 'Total - Oullins-Pierre…');
+});
+
+test('the name lengths offered stay within what the core accepts', () => {
+  const widths = ROW_LABEL_LENGTHS.map(Number);
+  assert.equal(widths[0], ROW_LABEL_MAX, 'the default is the narrowest, a phone');
+  assert.equal(Math.max(...widths), ROW_LABEL_WIDEST);
+  assert.ok(ROW_LABEL_WIDEST <= 40, 'the core bounds a status label to 40 characters');
+});
+
 test('shortening a name serves the place first and compacts the brand', () => {
   // Short enough: untouched.
   assert.equal(shortenStationName('Total - Rennes'), 'Total - Rennes');
@@ -822,12 +899,13 @@ test('the city is dropped again when keeping it would cost the rows their street
   ]);
   assert.deepEqual(merging, ['Total - Rue Victor Hugo', 'Esso - Av. Victor Hugo']);
   // A city long enough to eat the row leaves nothing for the street either:
-  // the street stays whole and the city goes, as before.
+  // the city goes, and the street is reduced to its name rather than cut —
+  // `Av. Roger Salen…` loses the part of the street a driver looks for.
   const crowded = buildRowLabels([
     { name: 'Total - Villeurbanne', address: 'RUE VICTOR HUGO' },
     { name: 'Total - Villeurbanne', address: 'AVENUE ROGER SALENGRO' },
   ]);
-  assert.deepEqual(crowded, ['Total - Rue Victor Hugo', 'Total - Av. Roger Salen…']);
+  assert.deepEqual(crowded, ['Total - Victor Hugo', 'Total - Roger Salengro']);
   for (const label of [...merging, ...crowded]) {
     assert.ok(label.length <= ROW_LABEL_MAX, `"${label}" fits the row`);
   }
@@ -905,12 +983,12 @@ test('a station named after its address does not repeat that address', () => {
 });
 
 test('a street is written the way a street is written, not the way the feed stores it', () => {
-  // "Lyon 7e" leaves no room for a city behind the street, so the streets are
-  // shown whole here — which is where their spelling is read.
+  // "Villeurbanne" leaves no room for a city behind the street, so the streets
+  // are shown whole here — which is where their spelling is read.
   const labels = buildRowLabels([
-    { name: 'Total - Lyon 7e', address: "RUE D'ARCOLE" },
-    { name: 'Avia - Lyon 7e', address: 'ZA DE LA PLAINE' },
-    { name: 'Esso - Lyon 7e', address: 'AVENUE TONY GARNIER' },
+    { name: 'Total - Villeurbanne', address: "RUE D'ARCOLE" },
+    { name: 'Avia - Villeurbanne', address: 'ZA DE LA PLAINE' },
+    { name: 'Esso - Villeurbanne', address: 'AVENUE TONY GARNIER' },
   ]);
   // Capitals go back to title case, the particles stay lowercase, and the
   // abbreviations `shortenAddress` produces are not turned into words.
