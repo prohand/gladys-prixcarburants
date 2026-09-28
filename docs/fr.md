@@ -200,6 +200,10 @@ carte :
 
 - une tuile de prix **par carburant** vendu par la station (les quatre
   premiers, le vôtre en tête) ;
+- le carburant de la station choisie reste **toujours** en tête, même le jour où
+  le flux ne publie pas son prix : la tuile garde alors le dernier prix connu de
+  Gladys, en orange, et une ligne dit pourquoi (« En rupture », « Aucun prix
+  publié aujourd'hui ») ;
 - l'enseigne, l'adresse, la distance et la date du dernier relevé ;
 - un bouton **Itinéraire** et un bouton **Rafraîchir**.
 

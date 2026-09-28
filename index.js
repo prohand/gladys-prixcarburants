@@ -157,7 +157,7 @@ gladys.onConfigUpdated(async (newConfig) => {
   config = normalizeConfig(newConfig);
   // The postal code, the radius or the fuel list may all have changed: drop the
   // cached stations and republish a discovery list built from the new criteria.
-  store.invalidate();
+  store.clear();
   // The user may have just located their house, or switched the origin of the
   // distances: ask Gladys again instead of serving an hour-old answer.
   house.invalidate();

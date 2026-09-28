@@ -25,9 +25,12 @@
 // so the tile still follows the loop within seconds.
 // -----------------------------------------------------------------------------
 
+import { createLogger } from '@gladysassistant/integration-sdk';
 import { FUELS, FUEL_KEYS, fuelLabel } from '../fuels.js';
 import { formatDateTime } from '../text.js';
-import { parseDeviceExternalId } from '../devices/fuelStation.js';
+import { isOutOfStock, outOfStockSince } from '../availability.js';
+import { FEATURE, parseDeviceExternalId } from '../devices/fuelStation.js';
+import { distanceKm } from '../geo.js';
 import { resolveSearchCenter } from '../house.js';
 import { COLOR, buildContent, button, statusList, text, valueTile } from './content.js';
 import {
@@ -39,6 +42,8 @@ import {
 } from './format.js';
 
 export const KEY = 'station';
+
+const logger = createLogger({ name: 'widget-station' });
 
 /** How long the core may serve this card from its cache (seconds). */
 const TTL_SECONDS = 600;
@@ -81,15 +86,15 @@ export const DECLARATION = {
 
 /**
  * Build the card.
- * @param {object} _gladys SDK instance (unused: every tile is built from the
- *   feed, see the note at the top about the rounding of bound features)
+ * @param {object} gladys SDK instance, only read for the last price Gladys
+ *   holds when the feed publishes none today (see `lastKnownPrice`)
  * @param {{ config: object, store: object }} context
  * @param {{ settings?: object, language?: string }} request `language` only
  *   decides the decimal separator of the prices we format ourselves; every
  *   text of the card carries both languages and the core picks the right one
  */
 export async function getContent(
-  _gladys,
+  gladys,
   { config, store, house },
   { settings, language = 'en' } = {},
 ) {
@@ -124,15 +129,33 @@ export async function getContent(
     );
   }
 
-  const { source } = await resolveSearchCenter(config, house);
+  const { center, source } = await resolveSearchCenter(config, house);
   const fuels = orderFuels({ station, config, target });
   const url = directionsUrl(station);
+  const priced = Number.isFinite(station.prices?.[target.fuel]);
+  // The fuel of the picked device always gets its tile, priced or not: without
+  // it the card silently showed ANOTHER fuel of the station (a user picked SP98
+  // and got GPLc) the day the feed stopped publishing the SP98 price.
+  const lastPrice = priced ? null : await lastKnownPrice(gladys, settings.device);
 
   return buildContent(
     [
       text({ variant: 'heading', text: station.name }),
-      ...fuels.slice(0, MAX_TILES).map((fuel) => buildTile({ station, fuel, language })),
-      statusList(buildRows(station, { target, postalCode: config.postal_code, source })),
+      ...fuels
+        .slice(0, MAX_TILES)
+        .map((fuel) =>
+          fuel === target.fuel && !priced
+            ? buildMissingTile({ fuel, lastPrice, language })
+            : buildTile({ station, fuel, language }),
+        ),
+      statusList(
+        buildRows(station, {
+          target,
+          postalCode: config.postal_code,
+          source,
+          distance: distanceFrom(station, center),
+        }),
+      ),
       url
         ? button({
             label: { en: 'Directions', fr: 'Itinéraire' },
@@ -152,16 +175,56 @@ export async function getContent(
 
 /**
  * The order the tiles are offered in, because only the first four survive:
- * the fuel of the device the user picked, then the fuels they configured, then
- * whatever else the station sells.
+ * the fuel of the device the user picked — ALWAYS, even with no price today,
+ * since it is the one the card was set up for — then the fuels they
+ * configured, then whatever else the station sells.
  */
 function orderFuels({ station, config, target }) {
   const available = FUEL_KEYS.filter((fuel) => Number.isFinite(station.prices?.[fuel]));
-  const priority = [target.fuel, ...config.fuel_type];
   return [
-    ...priority.filter((fuel) => available.includes(fuel)),
-    ...available.filter((fuel) => !priority.includes(fuel)),
+    target.fuel,
+    ...config.fuel_type.filter((fuel) => available.includes(fuel)),
+    ...available,
   ].filter((fuel, index, list) => list.indexOf(fuel) === index);
+}
+
+/**
+ * The last price Gladys holds for the picked device, when the feed publishes
+ * none today. `pollDevice` keeps that value on purpose (a missing price is not
+ * a hole in the chart), so it is the price the device page shows too.
+ *
+ * Best effort: the card is still right without it, a dash in place of a price.
+ *
+ * @param {object} gladys SDK instance
+ * @param {string} deviceExternalId the `device` setting of the widget
+ * @returns {Promise<number|null>}
+ */
+async function lastKnownPrice(gladys, deviceExternalId) {
+  try {
+    const devices = await gladys.getDevices();
+    const device = devices?.find((candidate) => candidate.external_id === deviceExternalId);
+    const feature = device?.features?.find(
+      (candidate) => candidate.external_id === `${deviceExternalId}:${FEATURE.PRICE}`,
+    );
+    const value = Number(feature?.last_value);
+    return feature?.last_value !== null && Number.isFinite(value) && value > 0 ? value : null;
+  } catch (err) {
+    logger.debug(`Last known price unavailable: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Where the station is from the origin of the search. Computed here when that
+ * origin is the house, because the station of this card usually comes from
+ * the batched refresh of the tracked stations, which measures nothing: the
+ * card lost its distance row a few minutes after every search.
+ */
+function distanceFrom(station, center) {
+  if (center) {
+    return distanceKm(center, station);
+  }
+  return Number.isFinite(station.distanceKm) ? station.distanceKm : null;
 }
 
 /**
@@ -176,9 +239,47 @@ function buildTile({ station, fuel, language }) {
   return valueTile({ label, value: formatPrice(station.prices[fuel], language), unit: PRICE_UNIT });
 }
 
+/**
+ * The tile of the picked fuel when the feed publishes no price for it today.
+ * It carries the last price Gladys holds (the one the device page shows), in
+ * the warning color, and the row under the tiles says why it is frozen.
+ */
+function buildMissingTile({ fuel, lastPrice, language }) {
+  const label = FUELS[fuel]?.label ?? fuelLabel(fuel);
+  return valueTile({
+    label,
+    value: lastPrice === null ? '—' : formatPrice(lastPrice, language),
+    unit: lastPrice === null ? undefined : PRICE_UNIT,
+    color: COLOR.WARNING,
+  });
+}
+
+/** Why the picked fuel has no price today, as a status row. */
+function missingPriceRow(station, fuel) {
+  const label = FUELS[fuel]?.label ?? fuelLabel(fuel);
+  if (isOutOfStock(station, fuel)) {
+    const since = formatDateTime(outOfStockSince(station, fuel));
+    return {
+      label,
+      value: since
+        ? { en: `Out of stock since ${since}`, fr: `En rupture depuis le ${since}` }
+        : { en: 'Out of stock', fr: 'En rupture' },
+      color: COLOR.WARNING,
+    };
+  }
+  return {
+    label,
+    value: { en: 'No price published today', fr: 'Aucun prix publié aujourd’hui' },
+    color: COLOR.WARNING,
+  };
+}
+
 /** The rows under the tiles: where the station is, and how old its prices are. */
-function buildRows(station, { target, postalCode, source }) {
+function buildRows(station, { target, postalCode, source, distance }) {
   const rows = [];
+  if (!Number.isFinite(station.prices?.[target.fuel])) {
+    rows.push(missingPriceRow(station, target.fuel));
+  }
   if (station.brand) {
     rows.push({ label: { en: 'Brand', fr: 'Marque' }, value: station.brand });
   }
@@ -186,7 +287,7 @@ function buildRows(station, { target, postalCode, source }) {
   if (address) {
     rows.push({ label: { en: 'Address', fr: 'Adresse' }, value: address });
   }
-  if (Number.isFinite(station.distanceKm)) {
+  if (Number.isFinite(distance)) {
     // Say WHERE it is measured from, because there are two possible origins:
     // the coordinates of the Gladys house when the user asked for them and
     // located it (`"location": true` in the manifest, src/house.js), and the
@@ -197,12 +298,12 @@ function buildRows(station, { target, postalCode, source }) {
       value:
         source === 'house'
           ? {
-              en: `${formatDistance(station.distanceKm, 'en')} from home`,
-              fr: `${formatDistance(station.distanceKm, 'fr')} de la maison`,
+              en: `${formatDistance(distance, 'en')} from home`,
+              fr: `${formatDistance(distance, 'fr')} de la maison`,
             }
           : {
-              en: `${formatDistance(station.distanceKm, 'en')} from ${postalCode}`,
-              fr: `${formatDistance(station.distanceKm, 'fr')} du ${postalCode}`,
+              en: `${formatDistance(distance, 'en')} from ${postalCode}`,
+              fr: `${formatDistance(distance, 'fr')} du ${postalCode}`,
             },
     });
   }

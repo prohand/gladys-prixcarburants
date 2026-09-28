@@ -86,6 +86,34 @@ test('invalidate forces the next read to hit the provider', async () => {
   assert.equal(provider.calls.fetchByIds.length, 2);
 });
 
+test('a refresh by id keeps the distance the last search measured', async () => {
+  // The real provider measures distances on a search only: a station read back
+  // by id has none, and the station card lost its distance row with it.
+  const provider = createFakeProvider({ stations: [createStation({ id: '1', distanceKm: 2.5 })] });
+  const store = createStationStore({ resolveProvider: () => provider });
+  const config = { country: 'FR', postal_code: '35000', search_radius_km: 10, max_stations: 5 };
+  await store.search(config);
+  provider.fetchStationsByIds = async () => [createStation({ id: '1', distanceKm: undefined })];
+
+  store.invalidate();
+  const refreshed = await store.getStation('FR', '1');
+
+  assert.equal(refreshed.distanceKm, 2.5);
+});
+
+test('clear forgets the stations, distances included', async () => {
+  const provider = createFakeProvider({ stations: [createStation({ id: '1', distanceKm: 2.5 })] });
+  const store = createStationStore({ resolveProvider: () => provider });
+  await store.search({ country: 'FR', postal_code: '35000', search_radius_km: 10 });
+  provider.fetchStationsByIds = async () => [createStation({ id: '1', distanceKm: undefined })];
+
+  store.clear();
+  const refreshed = await store.getStation('FR', '1');
+
+  assert.equal(store.peek('FR', '2'), null);
+  assert.equal(refreshed.distanceKm, undefined);
+});
+
 test('untracking a station stops refreshing it', async () => {
   const { provider, store } = createStore();
   store.setTracked([

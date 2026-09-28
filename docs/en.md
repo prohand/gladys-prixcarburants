@@ -185,6 +185,9 @@ stores "the cheapest price of your area". So the integration samples it itself,
 The detail of **one** station you follow, picked in the card settings:
 
 - one price tile **per fuel** the station sells (the first four, yours first);
+- the fuel of the picked station **always** comes first, even on a day the feed
+  publishes no price for it: the tile then keeps the last price Gladys holds, in
+  orange, and a row says why ("Out of stock", "No price published today");
 - the brand, the address, the distance and the date of the last price update;
 - a **Directions** button and a **Refresh** button.
 

@@ -55,7 +55,17 @@ export function createStationStore({
   function remember(country, stations) {
     lastFetchAt = now();
     for (const station of stations) {
-      cache.set(cacheKey(country, station.id), { station, fetchedAt: lastFetchAt });
+      const key = cacheKey(country, station.id);
+      // Only a search measures distances: the batched refresh of the tracked
+      // stations reads them by id, from no centre. Keep what the last search
+      // measured, or the station card loses its distance row a few minutes
+      // after every search. `clear()` (new postal code) forgets it.
+      const previous = cache.get(key)?.station;
+      if (!Number.isFinite(station.distanceKm) && Number.isFinite(previous?.distanceKm)) {
+        station.distanceKm = previous.distanceKm;
+        station.inPostalCode = previous.inPostalCode;
+      }
+      cache.set(key, { station, fetchedAt: lastFetchAt });
     }
   }
 
@@ -191,8 +201,18 @@ export function createStationStore({
     return cache.get(cacheKey(country, stationId))?.station ?? null;
   }
 
-  /** Force the next `getStation` to hit the network. */
+  /**
+   * Force the next `getStation` to hit the network. The entries stay, stale:
+   * the distance a search measured survives the refresh (see `remember`).
+   */
   function invalidate() {
+    for (const entry of cache.values()) {
+      entry.fetchedAt = Number.NEGATIVE_INFINITY;
+    }
+  }
+
+  /** Forget every station: the search criteria changed, so did the distances. */
+  function clear() {
     cache.clear();
   }
 
@@ -205,6 +225,7 @@ export function createStationStore({
     getStation,
     peek,
     invalidate,
+    clear,
     get trackedStations() {
       return [...tracked.values()];
     },
