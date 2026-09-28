@@ -342,6 +342,61 @@ test('the status rows carry the address and the declared date, in our date forma
   assert.ok(rows.some((row) => row.value === '06/08/2026 à 07:12'));
 });
 
+test('the picked fuel keeps its tile when the feed publishes no price for it', async () => {
+  // Reported by a user: the card of an SP98 device showed the GPLc of the
+  // station, because the feed had no SP98 price that day and the tiles only
+  // listed the priced fuels.
+  const station = createStation({
+    prices: { gazole: null, sp95: null, sp98: null, e10: null, e85: null, gplc: 0.999 },
+    updatedAt: { gplc: '2026-09-28T00:01:00+00:00' },
+    availability: { sp98: 'out_of_stock' },
+    outOfStockSince: { sp98: null },
+  });
+  const { context } = contextWith([station]);
+  const gladys = createFakeGladys();
+  const device = deviceExternalId(gladys, { country: 'FR', stationId: station.id, fuel: 'sp98' });
+  gladys.devices = [
+    { external_id: device, features: [{ external_id: `${device}:price`, last_value: 1.899 }] },
+  ];
+
+  const content = await getWidgetContent(gladys, context, 'station', {
+    settings: { device },
+    language: 'fr',
+  });
+
+  const tiles = componentsOfType(content, 'value');
+  assert.equal(tiles[0].label.fr, 'SP98', 'the fuel the widget was set up for comes first');
+  assert.equal(tiles[0].value, '1,899', 'with the last price Gladys holds');
+  assert.equal(tiles[0].color, 'warning');
+  assert.equal(tiles[1].label.fr, 'GPLc', 'the other fuels still follow');
+  const rows = componentsOfType(content, 'status')[0].items;
+  assert.equal(rows.find((row) => row.label.fr === 'SP98').value.fr, 'En rupture');
+});
+
+test('the picked fuel shows a dash when Gladys holds no price for it either', async () => {
+  const station = createStation({
+    prices: { gazole: 1.699, sp98: null },
+    updatedAt: { gazole: '2026-08-06T07:12:00+02:00' },
+  });
+  const { context } = contextWith([station]);
+  const gladys = createFakeGladys();
+  const device = deviceExternalId(gladys, { country: 'FR', stationId: station.id, fuel: 'sp98' });
+
+  const content = await getWidgetContent(gladys, context, 'station', {
+    settings: { device },
+    language: 'fr',
+  });
+
+  const tiles = componentsOfType(content, 'value');
+  assert.equal(tiles[0].label.fr, 'SP98');
+  assert.equal(tiles[0].value, '—');
+  const rows = componentsOfType(content, 'status')[0].items;
+  assert.equal(
+    rows.find((row) => row.label.fr === 'SP98').value.fr,
+    'Aucun prix publié aujourd’hui',
+  );
+});
+
 test('a widget with no station selected asks for one instead of erroring', async () => {
   const { context } = contextWith([createStation()]);
 
@@ -639,7 +694,26 @@ test('the station card measures from the house when there is one', async () => {
   });
 
   const rows = componentsOfType(content, 'status')[0].items;
-  assert.equal(rows.find((row) => row.label.fr === 'Distance').value.fr, '1,2 km de la maison');
+  // Measured from the house itself (0,4 km), not the 1,2 km the station
+  // object carries from a search centred elsewhere.
+  assert.equal(rows.find((row) => row.label.fr === 'Distance').value.fr, '0,4 km de la maison');
+});
+
+test('the station card keeps its distance from the house on a refreshed station', async () => {
+  // The batched refresh of the tracked stations measures nothing: a station
+  // read that way has no `distanceKm`, and the row used to vanish with it.
+  const { context } = contextWith([createStation({ distanceKm: undefined })]);
+  context.house = houseThat({ name: 'Maison', latitude: 48.11, longitude: -1.68 });
+  const gladys = createFakeGladys();
+
+  const content = await getWidgetContent(gladys, context, 'station', {
+    settings: {
+      device: deviceExternalId(gladys, { country: 'FR', stationId: '35000001', fuel: 'gazole' }),
+    },
+  });
+
+  const rows = componentsOfType(content, 'status')[0].items;
+  assert.equal(rows.find((row) => row.label.fr === 'Distance').value.fr, '0,4 km de la maison');
 });
 
 test('the search is centred on the house, so the provider measures from it', async () => {
