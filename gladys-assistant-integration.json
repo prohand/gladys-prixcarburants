@@ -332,16 +332,16 @@
             "fr": "Stations"
           },
           "description": {
-            "en": "Search around the configured postal code, or rank only the stations you added.",
-            "fr": "Chercher autour du code postal configuré, ou classer seulement les stations que vous avez ajoutées."
+            "en": "Search around you (the house or the postal code, as set in the configuration), or rank only the stations you added.",
+            "fr": "Chercher autour de vous (la maison ou le code postal, selon la configuration), ou classer seulement les stations que vous avez ajoutées."
           },
           "default": "around",
           "options": [
             {
               "value": "around",
               "label": {
-                "en": "Around my postal code",
-                "fr": "Autour de mon code postal"
+                "en": "Around me",
+                "fr": "Autour de moi"
               }
             },
             {
@@ -445,8 +445,8 @@
         "fr": "Ma station"
       },
       "description": {
-        "en": "Every price of one station you follow, with its address.",
-        "fr": "Tous les prix d’une station que vous suivez, avec son adresse."
+        "en": "The prices of one station you follow, with its address.",
+        "fr": "Les prix d’une station que vous suivez, avec son adresse."
       },
       "icon": "map-pin",
       "settings": [
@@ -462,6 +462,42 @@
             "en": "One of the stations you added from the Discovery tab.",
             "fr": "Une des stations que vous avez ajoutées depuis l’onglet Découverte."
           }
+        },
+        {
+          "key": "fuels",
+          "type": "select",
+          "label": {
+            "en": "Fuels shown",
+            "fr": "Carburants affichés"
+          },
+          "description": {
+            "en": "The fuel of the chosen device always comes first.",
+            "fr": "Le carburant de l’appareil choisi est toujours affiché en premier."
+          },
+          "default": "configured",
+          "options": [
+            {
+              "value": "configured",
+              "label": {
+                "en": "My fuels (configuration)",
+                "fr": "Mes carburants (configuration)"
+              }
+            },
+            {
+              "value": "device",
+              "label": {
+                "en": "Only the device’s fuel",
+                "fr": "Seulement celui de l’appareil"
+              }
+            },
+            {
+              "value": "all",
+              "label": {
+                "en": "Every fuel of the station",
+                "fr": "Tous ceux de la station"
+              }
+            }
+          ]
         }
       ],
       "action_timeout_seconds": 60

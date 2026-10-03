@@ -212,14 +212,25 @@ export function createHouseLocation(
  *
  * @param {object} config normalized configuration
  * @param {{ get: () => Promise<object|null> }} [house] the module above
- * @returns {Promise<{ center: object|null, source: 'house'|'postal_code' }>}
+ * @returns {Promise<{ center: object|null, source: 'house'|'postal_code', houseName?: string }>}
  */
 export async function resolveSearchCenter(config, house) {
   if (config.search_center !== 'house' || !house) {
     return { center: null, source: 'postal_code' };
   }
-  const located = await house.get(config.house_name);
-  return located
-    ? { center: { latitude: located.latitude, longitude: located.longitude }, source: 'house' }
-    : { center: null, source: 'postal_code' };
+  const [located, names] = await Promise.all([
+    house.get(config.house_name),
+    typeof house.names === 'function' ? house.names() : [],
+  ]);
+  if (!located) {
+    return { center: null, source: 'postal_code' };
+  }
+  return {
+    center: { latitude: located.latitude, longitude: located.longitude },
+    source: 'house',
+    // The NAME of the house, only when Gladys holds several: "my home" is then
+    // ambiguous, and a card measuring from the holiday house while the user
+    // reads "my home" is exactly what a user reported. Never the coordinates.
+    ...(names.length > 1 ? { houseName: located.name } : {}),
+  };
 }

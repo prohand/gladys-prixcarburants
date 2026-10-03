@@ -44,6 +44,19 @@ test('the series key changes with the area, so moving the postal code starts a n
   assert.notEqual(seriesKey(config, 'gazole'), seriesKey(config, 'sp95'));
 });
 
+test('naming a house starts a new curve, and no name keeps the old key', () => {
+  const area = { postal_code: '35000', search_radius_km: 10 };
+  const unnamed = normalizeConfig(area);
+  const named = normalizeConfig({ ...area, house_name: 'Mer' });
+  assert.equal(seriesKey(unnamed, 'gazole'), 'FR:35000:10:around:gazole', 'existing curves kept');
+  assert.notEqual(seriesKey(named, 'gazole'), seriesKey(unnamed, 'gazole'));
+  assert.equal(
+    seriesKey(named, 'gazole', 'tracked'),
+    seriesKey(unnamed, 'gazole', 'tracked'),
+    'my stations do not depend on the house',
+  );
+});
+
 test('only the cheapest price of the area is recorded, per fuel', () => {
   const { history } = historyAt(Date.UTC(2026, 8, 19, 10));
 

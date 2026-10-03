@@ -126,7 +126,9 @@ The card answers three questions at once: where to fill up, is this a good day,
 and how much will it cost.
 
 - **Heading**: the fuel and the area — `Diesel · within 10 km of my home`
-  (or `of 35000` when Gladys does not know where the house is).
+  (or `of 35000` when Gladys does not know where the house is). When Gladys
+  holds several houses, the heading names the one in use
+  (`Diesel · within 10 km of Seaside`).
 - **Three tiles**: the cheapest price, the average of the stations found, and
   the **7-day trend** in cents (green when it drops, red when it climbs). The
   tile is there from day one and shows `—` until a real week of history exists.
@@ -154,8 +156,8 @@ and how much will it cost.
 - A button to the **official map** (prix-carburants.gouv.fr).
 
 Four settings: the fuel, how many stations are shown (3, 5 or 8), the
-scope — **around your postal code** (the integration searches, as it does for
-the Discovery tab) or **my stations only** (the ones you added) — and the
+scope — **around me** (the integration searches, as it does for the Discovery
+tab, around the house or the postal code as the configuration says) or **my stations only** (the ones you added) — and the
 **station name length**, from 24 characters (the default, what a phone holds
 next to the price and its date) up to 40. Gladys does not tell the integration
 how wide the screen is, so pick the widest your screens show without cutting
@@ -175,8 +177,8 @@ stores "the cheapest price of your area". So the integration samples it itself,
   no widget pays nothing).
 - The **7-day trend** does wait for a real week of history: showing "0 ct" on
   the first day would be a lie.
-- Changing the postal code or the radius **starts a new curve**, since it is no
-  longer the same area.
+- Changing the postal code, the radius or the house ("Which house" field)
+  **starts a new curve**, since it is no longer the same area.
 - If `/data` is not writable, everything keeps working: only the curve starts
   over after a restart.
 
@@ -184,14 +186,16 @@ stores "the cheapest price of your area". So the integration samples it itself,
 
 The detail of **one** station you follow, picked in the card settings:
 
-- one price tile **per fuel** the station sells (the first four, yours first);
+- one price tile for **your fuels** (the ones ticked in the configuration, four
+  at most, the device's first). The **"Fuels shown"** setting can also keep
+  only the device's fuel, or show every fuel of the station;
 - the fuel of the picked station **always** comes first, even on a day the feed
   publishes no price for it: the tile then keeps the last price Gladys holds, in
   orange, and a row says why ("Out of stock", "No price published today");
 - the brand, the address, the distance and the date of the last price update;
 - a **Directions** button and a **Refresh** button.
 
-All the fuels of the station are shown with the **three decimals** of the pump
+Prices are shown with the **three decimals** of the pump
 price (`1.699 €/L`). The tiles used to be bound to the Gladys device for the
 fuels you track, which updated them live but displayed `1.7`: Gladys rounds a
 device value shown in a tile. The exact price is worth more — the card follows
@@ -204,14 +208,16 @@ coordinates (`Settings → House`, address field): the matching box is shown at
 install time as an authorization, the coordinates only centre the search and
 compute the distances, and they are displayed nowhere.
 
-- House located → `2.3 km from home`, and the search is centred on it.
+- House located → `2.3 km from home` (or `2.3 km from Seaside` when Gladys
+  holds several houses), and the search is centred on it.
 - House not located, or the setting **"Measure distances from: the postal
   code"** → `2.3 km from 35000`, measured from the centre of the postal code
   area.
 
 **If Gladys holds several houses**, fill in the **"Which house"** field with the
 name of the one you want (case and accents are ignored). Left empty, the first
-located house is used. Gladys does not let an integration offer the list of
+located house is used — not necessarily the one you are at: both cards show
+its name so you can check. Gladys does not let an integration offer the list of
 houses in a dropdown yet: to know what to type, press **"Preview the
 stations"** — the message names the house in use and every house Gladys knows.
 

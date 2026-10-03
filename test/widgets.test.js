@@ -287,7 +287,7 @@ test('every price tile carries the three decimals of the pump, tracked or not', 
   gladys.devices = [{ external_id: deviceExternalId(gladys, target), name: 'Ma station' }];
 
   const content = await getWidgetContent(gladys, context, 'station', {
-    settings: { device: deviceExternalId(gladys, target) },
+    settings: { device: deviceExternalId(gladys, target), fuels: 'all' },
     language: 'fr',
   });
 
@@ -360,7 +360,7 @@ test('the picked fuel keeps its tile when the feed publishes no price for it', a
   ];
 
   const content = await getWidgetContent(gladys, context, 'station', {
-    settings: { device },
+    settings: { device, fuels: 'all' },
     language: 'fr',
   });
 
@@ -371,6 +371,28 @@ test('the picked fuel keeps its tile when the feed publishes no price for it', a
   assert.equal(tiles[1].label.fr, 'GPLc', 'the other fuels still follow');
   const rows = componentsOfType(content, 'status')[0].items;
   assert.equal(rows.find((row) => row.label.fr === 'SP98').value.fr, 'En rupture');
+});
+
+test('the station card keeps to the configured fuels unless asked for more', async () => {
+  // Reported by a user: the card listed every fuel of the station whatever
+  // fuels the configuration follows.
+  const station = createStation({
+    prices: { gazole: 1.699, sp95: 1.799, sp98: 1.879, e85: 0.899 },
+  });
+  const { context } = contextWith([station]);
+  context.config = { ...context.config, fuel_type: ['gazole', 'sp98'] };
+  const gladys = createFakeGladys();
+  const device = deviceExternalId(gladys, { country: 'FR', stationId: station.id, fuel: 'sp98' });
+  const labels = async (settings) =>
+    componentsOfType(
+      await getWidgetContent(gladys, context, 'station', { settings: { device, ...settings } }),
+      'value',
+    ).map((tile) => tile.label.en);
+
+  assert.deepEqual(await labels({}), ['SP98', 'Diesel'], 'default: the configured fuels');
+  assert.deepEqual(await labels({ fuels: 'device' }), ['SP98'], 'only the device fuel');
+  const all = await labels({ fuels: 'all' });
+  assert.deepEqual(all.slice(0, 3), ['SP98', 'Diesel', 'SP95'], 'every fuel of the station');
 });
 
 test('the picked fuel shows a dash when Gladys holds no price for it either', async () => {
@@ -669,6 +691,24 @@ test('the heading says the distances start at the house when they do', async () 
   const [heading] = componentsOfType(content, 'text');
   assert.equal(heading.text.fr, 'Gazole · 10 km autour de ma maison');
   assert.equal(heading.text.en, 'Diesel · within 10 km of my home');
+});
+
+test('with several houses, the heading names the one it measures from', async () => {
+  // Reported by a user with a holiday house: "autour de ma maison" while the
+  // card was centred on the other house.
+  const { context } = contextWith([createStation()]);
+  context.house = {
+    get: async () => ({ name: 'Mer', latitude: 48.11, longitude: -1.68 }),
+    names: async () => ['Mer', 'Maison'],
+  };
+
+  const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole' },
+  });
+
+  const [heading] = componentsOfType(content, 'text');
+  assert.equal(heading.text.fr, 'Gazole · 10 km autour de Mer');
+  assert.equal(heading.text.en, 'Diesel · within 10 km of Mer');
 });
 
 test('an unlocated house falls back on the postal code, in the wording too', async () => {

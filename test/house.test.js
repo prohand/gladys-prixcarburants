@@ -96,7 +96,17 @@ test('the house named in the configuration is the one the search is centred on',
   assert.deepEqual(await resolveSearchCenter(config, house), {
     center: { latitude: 43.2961, longitude: 5.3699 },
     source: 'house',
+    // Named because Gladys holds two: "my home" would not say which one.
+    houseName: 'Bureau',
   });
+});
+
+test('a single house is not named: "my home" says it all', async () => {
+  const houses = [{ id: '1', name: 'Maison', latitude: 48.1113, longitude: -1.6845 }];
+  const house = createHouseLocation(gladys, { fetchImpl: fakeFetch([{ body: houses }]).fetchImpl });
+  const config = normalizeConfig({ postal_code: '35000' });
+
+  assert.equal((await resolveSearchCenter(config, house)).houseName, undefined);
 });
 
 test('a house nobody located gives null, not an error', async () => {

@@ -4,8 +4,9 @@
 // The other half of the need: not "where is it cheapest" but "what does MY
 // station charge today". The user picks one of the station devices they added
 // (a `source: "devices"` setting, so the core offers them by name), and the
-// card shows every fuel that station sells, its address, and when it declared
-// those prices.
+// card shows the prices of the fuels the user configured (or every fuel the
+// station sells, or only the device's, as the `fuels` setting says), its
+// address, and when it declared those prices.
 //
 // Every price tile carries TEXT we formatted ourselves, and that is a decision
 // rather than an oversight. The tiles used to be declared as `device_feature`
@@ -53,6 +54,9 @@ const TTL_SECONDS = 600;
 // fuels at one station is already more than any driver puts in one tank.
 const MAX_TILES = 4;
 
+/** Which fuels get a tile, as the `fuels` setting names them. */
+const FUELS_SHOWN = { CONFIGURED: 'configured', DEVICE: 'device', ALL: 'all' };
+
 /**
  * Manifest declaration. Mirrored in `gladys-assistant-integration.json` and
  * checked both ways by test/manifest.test.js — this object is the source.
@@ -61,8 +65,8 @@ export const DECLARATION = {
   key: KEY,
   label: { en: 'My station', fr: 'Ma station' },
   description: {
-    en: 'Every price of one station you follow, with its address.',
-    fr: 'Tous les prix d’une station que vous suivez, avec son adresse.',
+    en: 'The prices of one station you follow, with its address.',
+    fr: 'Les prix d’une station que vous suivez, avec son adresse.',
   },
   icon: 'map-pin',
   settings: [
@@ -79,6 +83,32 @@ export const DECLARATION = {
         en: 'One of the stations you added from the Discovery tab.',
         fr: 'Une des stations que vous avez ajoutées depuis l’onglet Découverte.',
       },
+    },
+    {
+      // A user asked why the card showed every fuel of the station when they
+      // follow one: by default it keeps to the fuels of the configuration.
+      key: 'fuels',
+      type: 'select',
+      label: { en: 'Fuels shown', fr: 'Carburants affichés' },
+      description: {
+        en: 'The fuel of the chosen device always comes first.',
+        fr: 'Le carburant de l’appareil choisi est toujours affiché en premier.',
+      },
+      default: FUELS_SHOWN.CONFIGURED,
+      options: [
+        {
+          value: FUELS_SHOWN.CONFIGURED,
+          label: { en: 'My fuels (configuration)', fr: 'Mes carburants (configuration)' },
+        },
+        {
+          value: FUELS_SHOWN.DEVICE,
+          label: { en: 'Only the device’s fuel', fr: 'Seulement celui de l’appareil' },
+        },
+        {
+          value: FUELS_SHOWN.ALL,
+          label: { en: 'Every fuel of the station', fr: 'Tous ceux de la station' },
+        },
+      ],
     },
   ],
   action_timeout_seconds: 60,
@@ -129,8 +159,8 @@ export async function getContent(
     );
   }
 
-  const { center, source } = await resolveSearchCenter(config, house);
-  const fuels = orderFuels({ station, config, target });
+  const { center, source, houseName } = await resolveSearchCenter(config, house);
+  const fuels = orderFuels({ station, config, target, shown: settings.fuels });
   const url = directionsUrl(station);
   const priced = Number.isFinite(station.prices?.[target.fuel]);
   // The fuel of the picked device always gets its tile, priced or not: without
@@ -153,6 +183,7 @@ export async function getContent(
           target,
           postalCode: config.postal_code,
           source,
+          houseName,
           distance: distanceFrom(station, center),
         }),
       ),
@@ -177,14 +208,19 @@ export async function getContent(
  * The order the tiles are offered in, because only the first four survive:
  * the fuel of the device the user picked — ALWAYS, even with no price today,
  * since it is the one the card was set up for — then the fuels they
- * configured, then whatever else the station sells.
+ * configured, then (only when the `fuels` setting asks for it) whatever else
+ * the station sells. A box saved before the setting existed reaches us without
+ * it and gets the default: the configured fuels.
  */
-function orderFuels({ station, config, target }) {
+function orderFuels({ station, config, target, shown }) {
+  if (shown === FUELS_SHOWN.DEVICE) {
+    return [target.fuel];
+  }
   const available = FUEL_KEYS.filter((fuel) => Number.isFinite(station.prices?.[fuel]));
   return [
     target.fuel,
     ...config.fuel_type.filter((fuel) => available.includes(fuel)),
-    ...available,
+    ...(shown === FUELS_SHOWN.ALL ? available : []),
   ].filter((fuel, index, list) => list.indexOf(fuel) === index);
 }
 
@@ -275,7 +311,7 @@ function missingPriceRow(station, fuel) {
 }
 
 /** The rows under the tiles: where the station is, and how old its prices are. */
-function buildRows(station, { target, postalCode, source, distance }) {
+function buildRows(station, { target, postalCode, source, houseName, distance }) {
   const rows = [];
   if (!Number.isFinite(station.prices?.[target.fuel])) {
     rows.push(missingPriceRow(station, target.fuel));
@@ -297,10 +333,15 @@ function buildRows(station, { target, postalCode, source, distance }) {
       label: { en: 'Distance', fr: 'Distance' },
       value:
         source === 'house'
-          ? {
-              en: `${formatDistance(distance, 'en')} from home`,
-              fr: `${formatDistance(distance, 'fr')} de la maison`,
-            }
+          ? houseName
+            ? {
+                en: `${formatDistance(distance, 'en')} from ${houseName}`,
+                fr: `${formatDistance(distance, 'fr')} de ${houseName}`,
+              }
+            : {
+                en: `${formatDistance(distance, 'en')} from home`,
+                fr: `${formatDistance(distance, 'fr')} de la maison`,
+              }
           : {
               en: `${formatDistance(distance, 'en')} from ${postalCode}`,
               fr: `${formatDistance(distance, 'fr')} du ${postalCode}`,

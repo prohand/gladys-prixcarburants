@@ -217,7 +217,8 @@ fuel) and `station` (one followed station, a price tile per fuel).
 - **The 30-day curve and the 7-day trend come from our own samples** (`src/priceHistory.js`):
   no device holds "the cheapest price of the area", and the feed publishes the present only.
   Samples are taken on the searches the widget already runs, at most one an hour, kept 30 days
-  in `/data`, keyed by country + postal code + radius + SCOPE + fuel so moving the area (or
+  in `/data`, keyed by country + postal code + radius + SCOPE + fuel (+ the house name when
+  one is set) so moving the area (or
   switching the card between "around me" and "my stations") starts a new
   curve. Best effort: an unwritable `/data` costs the curve, never the integration, and the
   trend tile is ABSENT rather than zero while the history is younger than its window — the one

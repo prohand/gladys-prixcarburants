@@ -47,12 +47,20 @@ const SAVE_DELAY_MS = 5_000;
  * cheapest of my stations" are two different questions: mixing their samples
  * would draw a curve that answers neither.
  *
- * @param {{ country: string, postal_code: string, search_radius_km: number }} config
+ * @param {{ country: string, postal_code: string, search_radius_km: number, search_center?: string, house_name?: string }} config
  * @param {string} fuel
  * @param {string} [scope]
  */
 export function seriesKey(config, fuel, scope = 'around') {
-  return `${config.country}:${config.postal_code}:${config.search_radius_km}:${scope}:${fuel}`;
+  const key = `${config.country}:${config.postal_code}:${config.search_radius_km}:${scope}:${fuel}`;
+  // A named house is another centre, hence another area: picking the right one
+  // among several must not keep the curve drawn around the wrong one. Appended
+  // only when a name is set, so the curves of every other install keep their key.
+  const house =
+    scope === 'around' && config.search_center === 'house' && config.house_name
+      ? `:${String(config.house_name).trim().toLowerCase()}`
+      : '';
+  return `${key}${house}`;
 }
 
 /**
