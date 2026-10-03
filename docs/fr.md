@@ -136,6 +136,8 @@ jour, et combien ça coûte.
 
 - **Titre** : le carburant et la zone — `Gazole · 10 km autour de ma maison`
   (ou `autour du 35000` si Gladys ne connaît pas les coordonnées de la maison).
+  Si Gladys contient plusieurs maisons, le titre donne le nom de celle utilisée
+  (`Gazole · 10 km autour de Mer`).
 - **Trois tuiles** : le prix le moins cher, la moyenne des stations trouvées, et
   la **tendance sur 7 jours** en centimes (vert si ça baisse, rouge si ça monte).
   La tuile est là dès le premier jour et affiche `—` tant qu'il n'y a pas une
@@ -165,8 +167,8 @@ Lyon` — car `Av.` et `Rue de`, toutes les rues de la commune les portent
 - Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
 
 Quatre réglages : le carburant, le nombre de stations affichées (3, 5 ou 8), le
-périmètre — **autour de votre code postal** (l'intégration cherche, comme pour
-l'onglet Découverte) ou **vos stations seulement** (celles que vous avez
+périmètre — **autour de moi** (l'intégration cherche, comme pour l'onglet
+Découverte, autour de la maison ou du code postal selon la configuration) ou **vos stations seulement** (celles que vous avez
 ajoutées) — et la **longueur des noms**, de 24 caractères (par défaut, ce qu'un
 téléphone affiche à côté du prix et de sa date) jusqu'à 40. Gladys ne donne pas
 la largeur de l'écran à l'intégration : choisissez la plus grande valeur que vos
@@ -188,8 +190,8 @@ elle-même, **au maximum une fois par heure**, et garde 30 jours dans `/data`.
   existe quelque part (une installation sans widget ne paie rien).
 - La **tendance sur 7 jours**, elle, attend d'avoir vraiment une semaine
   d'historique : afficher « 0 ct » le premier jour serait faux.
-- Changer de code postal ou de rayon **repart d'une courbe vierge**, puisque ce
-  n'est plus la même zone.
+- Changer de code postal, de rayon ou de maison (champ « Quelle maison »)
+  **repart d'une courbe vierge**, puisque ce n'est plus la même zone.
 - Si `/data` n'est pas accessible en écriture, tout continue de fonctionner :
   seule la courbe repart de zéro au redémarrage.
 
@@ -198,8 +200,10 @@ elle-même, **au maximum une fois par heure**, et garde 30 jours dans `/data`.
 Le détail d'**une** station que vous suivez, choisie dans les réglages de la
 carte :
 
-- une tuile de prix **par carburant** vendu par la station (les quatre
-  premiers, le vôtre en tête) ;
+- une tuile de prix pour **vos carburants** (ceux cochés dans la configuration,
+  quatre au plus, celui de l'appareil en tête). Le réglage **« Carburants
+  affichés »** permet aussi de n'afficher que celui de l'appareil, ou tous ceux
+  de la station ;
 - le carburant de la station choisie reste **toujours** en tête, même le jour où
   le flux ne publie pas son prix : la tuile garde alors le dernier prix connu de
   Gladys, en orange, et une ligne dit pourquoi (« En rupture », « Aucun prix
@@ -207,7 +211,7 @@ carte :
 - l'enseigne, l'adresse, la distance et la date du dernier relevé ;
 - un bouton **Itinéraire** et un bouton **Rafraîchir**.
 
-Tous les carburants de la station sont affichés avec les **trois décimales** du
+Les prix sont affichés avec les **trois décimales** du
 prix à la pompe (`1,699 €/L`). Les tuiles étaient auparavant reliées à l'appareil
 Gladys pour les carburants suivis, ce qui les mettait à jour en direct mais
 affichait `1,7` : Gladys arrondit la valeur d'un appareil affichée dans une
@@ -222,14 +226,17 @@ affichée à l'installation comme une autorisation, les coordonnées servent
 uniquement à centrer la recherche et à calculer les distances, et elles ne sont
 affichées nulle part.
 
-- Maison localisée → `2,3 km de la maison`, et la recherche est centrée dessus.
+- Maison localisée → `2,3 km de la maison` (ou `2,3 km de Mer` si Gladys
+  contient plusieurs maisons), et la recherche est centrée dessus.
 - Maison non localisée, ou réglage **« Mesurer les distances depuis : le code
   postal »** → `2,3 km du 35000`, mesuré depuis le centre de la zone du code
   postal.
 
 **Si Gladys contient plusieurs maisons**, remplissez le champ **« Quelle
 maison »** avec le nom de celle qui vous intéresse (la casse et les accents sont
-ignorés). Laissé vide, c'est la première maison localisée qui sert. Gladys ne
+ignorés). Laissé vide, c'est la première maison localisée qui sert — pas
+forcément celle où vous êtes : les deux cartes affichent son nom pour le
+vérifier. Gladys ne
 permet pas encore à une intégration de proposer la liste des maisons dans un
 menu déroulant : pour savoir quoi écrire, cliquez sur **« Aperçu des
 stations »**, le message affiche la maison utilisée et le nom de toutes celles

@@ -89,14 +89,17 @@ export const DECLARATION = {
       type: 'select',
       label: { en: 'Stations', fr: 'Stations' },
       description: {
-        en: 'Search around the configured postal code, or rank only the stations you added.',
-        fr: 'Chercher autour du code postal configuré, ou classer seulement les stations que vous avez ajoutées.',
+        en: 'Search around you (the house or the postal code, as set in the configuration), or rank only the stations you added.',
+        fr: 'Chercher autour de vous (la maison ou le code postal, selon la configuration), ou classer seulement les stations que vous avez ajoutées.',
       },
       default: SCOPE.AROUND,
       options: [
         {
           value: SCOPE.AROUND,
-          label: { en: 'Around my postal code', fr: 'Autour de mon code postal' },
+          // Not "around my postal code": the search is centred on the house
+          // whenever the configuration says so, and that label sent a user
+          // with several houses looking for a bug in the wrong place.
+          label: { en: 'Around me', fr: 'Autour de moi' },
         },
         { value: SCOPE.TRACKED, label: { en: 'My stations only', fr: 'Mes stations seulement' } },
       ],
@@ -186,16 +189,20 @@ async function collectStations({ config, store, history }, scope) {
  * knows (an integration has no access to it), so the card names its own
  * reference point rather than letting the reader assume another one.
  */
-function buildHeading({ config, scope, label, source }) {
+function buildHeading({ config, scope, label, source, houseName }) {
   if (scope === SCOPE.TRACKED) {
     return { en: `${label.en} · my stations`, fr: `${label.fr} · mes stations` };
   }
   // "autour de ma maison" but "autour DU 35000": the French article belongs to
   // the reference point, not to the sentence around it.
+  // With several houses, "my home" says nothing: the card names the one it
+  // measures from, so a holiday house picked by default shows on the card.
   const from =
-    source === 'house'
-      ? { en: 'my home', fr: 'de ma maison' }
-      : { en: config.postal_code, fr: `du ${config.postal_code}` };
+    source !== 'house'
+      ? { en: config.postal_code, fr: `du ${config.postal_code}` }
+      : houseName
+        ? { en: houseName, fr: `de ${houseName}` }
+        : { en: 'my home', fr: 'de ma maison' };
   if (config.search_radius_km > 0) {
     return {
       en: `${label.en} · within ${config.search_radius_km} km of ${from.en}`,
@@ -266,7 +273,7 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
   const readAt = formatInstant(store.lastFetchAt);
   const mapUrl = getProvider(config.country).mapUrl;
   // Resolved AFTER the search, which has already warmed the house cache.
-  const { source } = await resolveSearchCenter(config, house);
+  const { source, houseName } = await resolveSearchCenter(config, house);
   const curve = buildChart(history, { config, fuel, label, scope, cheapest: prices[0] });
   // The labels are built for the ranking as a WHOLE: what a row has to show is
   // whatever tells it from the other rows, which no row can know on its own.
@@ -275,7 +282,7 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
 
   return buildContent(
     [
-      text({ variant: 'heading', text: buildHeading({ config, scope, label, source }) }),
+      text({ variant: 'heading', text: buildHeading({ config, scope, label, source, houseName }) }),
       valueTile({
         label: { en: 'Cheapest', fr: 'Moins cher' },
         // TEXT, not a number: the front formats an inline number with
