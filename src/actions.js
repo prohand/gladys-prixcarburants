@@ -127,11 +127,16 @@ function missingFuelNotes(stations, fuels, lang) {
  *
  * @param {object} config normalized configuration
  * @param {{ get: Function, names: Function }} [house]
- * @returns {Promise<{ en: string, fr: string }>}
+ * @returns {Promise<{ area: { en: string, fr: string }, en: string, fr: string }>}
  */
 async function centerNotes(config, house) {
+  // `area` heads the message ("12 station(s) around …"): it names the same
+  // centre as the note, since a head saying the postal code over a search
+  // centred on the house sent a user looking for a bug that was not there.
+  const postalArea = { en: config.postal_code, fr: config.postal_code };
   if (config.search_center !== 'house' || !house) {
     return {
+      area: postalArea,
       en: `Distances measured from the centre of ${config.postal_code}.`,
       fr: `Distances mesurées depuis le centre du ${config.postal_code}.`,
     };
@@ -139,6 +144,7 @@ async function centerNotes(config, house) {
   const [used, names] = await Promise.all([house.get(config.house_name), house.names()]);
   if (!used) {
     return {
+      area: postalArea,
       en: `No Gladys house has coordinates: distances measured from the centre of ${config.postal_code}.`,
       fr: `Aucune maison Gladys n'a de coordonnées : distances mesurées depuis le centre du ${config.postal_code}.`,
     };
@@ -154,6 +160,7 @@ async function centerNotes(config, house) {
         }
       : { en: '', fr: '' };
   return {
+    area: { en: `the house "${used.name}"`, fr: `la maison « ${used.name} »` },
     en: `Distances measured from the house "${used.name}".${others.en}`,
     fr: `Distances mesurées depuis la maison « ${used.name} ».${others.fr}`,
   };
@@ -181,11 +188,11 @@ export async function searchStations(gladys, { config, store, house }) {
     };
   }
 
-  const stations = await store.search(config);
+  const [stations, center] = await Promise.all([store.search(config), centerNotes(config, house)]);
   if (stations.length === 0) {
     return {
-      en: `No station found around ${config.postal_code}. Try a wider search radius.`,
-      fr: `Aucune station trouvée autour de ${config.postal_code}. Essayez un rayon de recherche plus large.`,
+      en: `No station found around ${center.area.en}. Try a wider search radius.`,
+      fr: `Aucune station trouvée autour de ${center.area.fr}. Essayez un rayon de recherche plus large.`,
     };
   }
 
@@ -195,11 +202,10 @@ export async function searchStations(gladys, { config, store, house }) {
     const lines = missingFuelNotes(stations, config.fuel_type, lang);
     return lines.length > 0 ? `\n\n${lines.join('\n')}` : '';
   };
-  const center = await centerNotes(config, house);
 
   return {
-    en: `${stations.length} station(s) around ${config.postal_code}:\n${previewLines(stations, config.fuel_type, 'en').join('\n')}${more}${notes('en')}\n\n${center.en}\n\nAdd the ones you want from the Discovery tab.`,
-    fr: `${stations.length} station(s) autour de ${config.postal_code} :\n${previewLines(stations, config.fuel_type, 'fr').join('\n')}${more}${notes('fr')}\n\n${center.fr}\n\nAjoutez celles que vous voulez depuis l'onglet Découverte.`,
+    en: `${stations.length} station(s) around ${center.area.en}:\n${previewLines(stations, config.fuel_type, 'en').join('\n')}${more}${notes('en')}\n\n${center.en}\n\nAdd the ones you want from the Discovery tab.`,
+    fr: `${stations.length} station(s) autour de ${center.area.fr} :\n${previewLines(stations, config.fuel_type, 'fr').join('\n')}${more}${notes('fr')}\n\n${center.fr}\n\nAjoutez celles que vous voulez depuis l'onglet Découverte.`,
   };
 }
 

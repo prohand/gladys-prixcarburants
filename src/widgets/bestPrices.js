@@ -96,10 +96,14 @@ export const DECLARATION = {
       options: [
         {
           value: SCOPE.AROUND,
-          // Not "around my postal code": the search is centred on the house
-          // whenever the configuration says so, and that label sent a user
-          // with several houses looking for a bug in the wrong place.
-          label: { en: 'Around me', fr: 'Autour de moi' },
+          // Neither "around my postal code" (the search is centred on the
+          // house whenever the configuration says so, and that label sent a
+          // user with several houses looking for a bug in the wrong place) nor
+          // "around me" (read as the PHONE's position, which nothing asks for).
+          label: {
+            en: 'Around the house or postal code',
+            fr: 'Autour de la maison ou du code postal',
+          },
         },
         { value: SCOPE.TRACKED, label: { en: 'My stations only', fr: 'Mes stations seulement' } },
       ],

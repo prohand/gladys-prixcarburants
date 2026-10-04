@@ -156,8 +156,8 @@ and how much will it cost.
 - A button to the **official map** (prix-carburants.gouv.fr).
 
 Four settings: the fuel, how many stations are shown (3, 5 or 8), the
-scope — **around me** (the integration searches, as it does for the Discovery
-tab, around the house or the postal code as the configuration says) or **my stations only** (the ones you added) — and the
+scope — **around the house or postal code** (like the Discovery tab, as the "Measure
+distances from" setting says; not the phone's position) or **my stations only** (the ones you added) — and the
 **station name length**, from 24 characters (the default, what a phone holds
 next to the price and its date) up to 40. Gladys does not tell the integration
 how wide the screen is, so pick the widest your screens show without cutting
