@@ -340,8 +340,8 @@
             {
               "value": "around",
               "label": {
-                "en": "Around me",
-                "fr": "Autour de moi"
+                "en": "Around the house or postal code",
+                "fr": "Autour de la maison ou du code postal"
               }
             },
             {

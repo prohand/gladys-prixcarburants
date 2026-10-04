@@ -145,6 +145,10 @@ test('search_stations says which house the distances start from, and lists the o
   assert.match(message.fr, /depuis la maison « Bureau »/);
   assert.match(message.fr, /Maisons connues de Gladys : Maison, Bureau\./);
   assert.match(message.en, /from the house "Bureau"/);
+  // The head names the same centre: "autour de 35000" over a search centred on
+  // the house is what a user read as "the house is ignored".
+  assert.match(message.fr, /station\(s\) autour de la maison « Bureau » :/);
+  assert.match(message.en, /station\(s\) around the house "Bureau":/);
 });
 
 test('search_stations names the postal code when the distances start there', async () => {

@@ -167,8 +167,8 @@ Lyon` — car `Av.` et `Rue de`, toutes les rues de la commune les portent
 - Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
 
 Quatre réglages : le carburant, le nombre de stations affichées (3, 5 ou 8), le
-périmètre — **autour de moi** (l'intégration cherche, comme pour l'onglet
-Découverte, autour de la maison ou du code postal selon la configuration) ou **vos stations seulement** (celles que vous avez
+périmètre — **autour de la maison ou du code postal** (comme l'onglet Découverte, selon le
+réglage « Mesurer les distances depuis » ; ce n'est pas la position du téléphone) ou **vos stations seulement** (celles que vous avez
 ajoutées) — et la **longueur des noms**, de 24 caractères (par défaut, ce qu'un
 téléphone affiche à côté du prix et de sa date) jusqu'à 40. Gladys ne donne pas
 la largeur de l'écran à l'intégration : choisissez la plus grande valeur que vos
