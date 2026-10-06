@@ -187,16 +187,27 @@ gladys.on('connected', async () => {
     //    refresh batches them all in one request.
     await syncTrackedStations();
 
-    // 3) Publish the discovery list (and re-publish the created devices).
-    await runDiscovery();
-
-    // 4) Arm our own refresh timer and publish a first round of prices right
-    //    away, so a restarted container does not leave the dashboard waiting a
-    //    full interval.
+    // 3) Arm our own refresh timer BEFORE anything reaches the open data API:
+    //    a search failing right after a container start (network not up yet,
+    //    API down) used to throw out of this handler before the loop was
+    //    armed, and no price was refreshed until a reconnection or a config
+    //    change.
     refreshLoop.start(config);
+
+    // 4) Publish the discovery list (and re-publish the created devices). A
+    //    failure here only costs the Discovery tab until the next scan: the
+    //    devices already created keep being refreshed by the loop.
+    try {
+      await runDiscovery();
+    } catch (err) {
+      logger.error('Discovery failed, the created devices keep refreshing', err);
+    }
+
+    // 5) Publish a first round of prices right away, so a restarted container
+    //    does not leave the dashboard waiting a full interval.
     await refreshLoop.runNow(config);
 
-    // 5) Report the application-level status, shown in the Configuration
+    // 6) Report the application-level status, shown in the Configuration
     //    screen. Distinct from the container state: the integration can be
     //    RUNNING and still unable to reach the open data API.
     await gladys.setConnectionStatus(true);

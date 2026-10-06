@@ -15,6 +15,10 @@ All notable changes to this integration are documented here. The format follows
 
 - Development dependencies updated to their latest versions (ESLint 10.12, Prettier 3.9.9, globals 17.13).
 
+### Fixed
+
+- A search failing right after a container start (network not up yet, open data API down) no longer stops every price refresh until a reconnection or a configuration change: the refresh loop is armed before the first search, and a failed discovery only costs the Discovery tab until the next scan.
+
 ## [2.0.11] - 2026-10-04
 
 ### Changed
