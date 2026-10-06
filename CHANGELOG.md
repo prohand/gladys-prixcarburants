@@ -6,6 +6,8 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-06
+
 ### Added
 
 - `SECURITY.md`: how to report a vulnerability.
@@ -164,7 +166,8 @@ First public release.
 - Show the station brand in Discovery and in the preview
 - Fetch the station name, and unblock "Add to Gladys" (HTTP 422)
 
-[Unreleased]: https://github.com/prohand/gladys-prixcarburants/compare/v2.0.11...HEAD
+[Unreleased]: https://github.com/prohand/gladys-prixcarburants/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/prohand/gladys-prixcarburants/compare/v2.0.11...v2.1.0
 [2.0.11]: https://github.com/prohand/gladys-prixcarburants/compare/v2.0.10...v2.0.11
 [2.0.10]: https://github.com/prohand/gladys-prixcarburants/compare/v2.0.9...v2.0.10
 [2.0.9]: https://github.com/prohand/gladys-prixcarburants/compare/v2.0.8...v2.0.9
