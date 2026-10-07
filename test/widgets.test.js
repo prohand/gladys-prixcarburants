@@ -12,6 +12,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { validateWidgetContent } from '@gladysassistant/integration-sdk';
 import { normalizeConfig } from '../src/config.js';
 import { createStationStore } from '../src/stationStore.js';
 import { createPriceHistory } from '../src/priceHistory.js';
@@ -1178,4 +1179,39 @@ test('a street is written the way a street is written, not the way the feed stor
     ]),
     ['Total - Arcole, Lyon', 'Avia - Plaine, Lyon', 'Esso - Garnier, Lyon'],
   );
+});
+
+// --- The core's own checks ---------------------------------------------------
+
+test('every card is rendered by the core exactly as sent', async () => {
+  // validateWidgetContent is the SDK copy of the core's checks: anything it
+  // reports is something the core would trim or drop from a dashboard.
+  const stations = Array.from({ length: 12 }, (_, index) =>
+    createStation({
+      id: String(index + 1),
+      name: `TotalEnergies Access - Station numéro ${index + 1}`,
+      prices: { gazole: 1.6 + index / 100, sp95: 1.8, sp98: 1.9, e10: 1.7, e85: 0.9, gplc: 1 },
+    }),
+  );
+  const history = historyWith([
+    { daysAgo: 20, price: 1.7 },
+    { daysAgo: 8, price: 1.65 },
+    { daysAgo: 1, price: 1.62 },
+  ]);
+  const { context } = contextWith(stations, { history });
+  const gladys = createFakeGladys();
+  const target = { country: 'FR', stationId: '1', fuel: 'gazole' };
+  gladys.devices = [{ external_id: deviceExternalId(gladys, target), name: 'Ma station' }];
+
+  const pulls = [
+    ['best_prices', { settings: { fuel: 'gazole', scope: 'around', count: '10' }, language: 'fr' }],
+    ['best_prices', { settings: { fuel: 'gazole', scope: 'mine', count: '5' }, language: 'en' }],
+    ['best_prices', { settings: { fuel: 'e85', scope: 'around', name_length: '40' } }],
+    ['station', { settings: { device: deviceExternalId(gladys, target) }, language: 'fr' }],
+    ['station', { settings: {}, language: 'fr' }],
+  ];
+  for (const [key, request] of pulls) {
+    const content = await getWidgetContent(gladys, context, key, request);
+    assert.deepEqual(validateWidgetContent(content), [], `${key} ${JSON.stringify(request)}`);
+  }
 });
