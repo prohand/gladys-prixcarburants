@@ -153,7 +153,9 @@ export function createSceneEvents(gladys, { publish = publishSceneEvent } = {}) 
   // Optimistic on purpose: a container that starts while the API is down fires
   // "unavailable" on its first failed pass, which is the whole point of the
   // trigger. A container that starts on a healthy feed fires nothing.
-  let feedAvailable = true;
+  // null until a first pass recorded it: no baseline, no event — a container
+  // restarted while the API is down must not announce an outage it never saw start.
+  let feedAvailable = null;
   // Flipped by the first 404: this Gladys does not know the route (the feature
   // is not released yet), or no longer declares the key. Either way, retrying
   // every hour would only fill the logs.
@@ -210,7 +212,7 @@ export function createSceneEvents(gladys, { publish = publishSceneEvent } = {}) 
     reset() {
       lastPrices.clear();
       leaders.clear();
-      feedAvailable = true;
+      feedAvailable = null;
     },
 
     /** Is the publisher still trying? False once the core answered 404. */
@@ -287,6 +289,15 @@ export function createSceneEvents(gladys, { publish = publishSceneEvent } = {}) 
             }
             const winner = cheapest(list);
             const previous = leaders.get(fuel);
+            // The leader did not report a price this pass (a feed gap, a pump
+            // waiting for a tanker): nothing says another station undercut it.
+            // Keep it, or the cheapest station would change and change back.
+            if (
+              previous !== undefined &&
+              !list.some((reading) => reading.target.stationId === previous.stationId)
+            ) {
+              continue;
+            }
             leaders.set(fuel, {
               stationId: winner.target.stationId,
               name: winner.station.name,
@@ -313,7 +324,9 @@ export function createSceneEvents(gladys, { publish = publishSceneEvent } = {}) 
 
           // 3. The feed itself, on transition only.
           const available = !failed;
-          if (available !== feedAvailable) {
+          if (feedAvailable === null) {
+            feedAvailable = available;
+          } else if (available !== feedAvailable) {
             feedAvailable = available;
             const data = {
               status: available ? FEED_STATUSES.AVAILABLE : FEED_STATUSES.UNAVAILABLE,

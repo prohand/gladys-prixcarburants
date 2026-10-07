@@ -288,3 +288,38 @@ test('a station read with no price is not a reading at all', async () => {
 
   assert.deepEqual(sent, [], 'a missing price is a hole, not a change');
 });
+
+test('a restart while the feed is down announces no outage it never saw start', async () => {
+  const { sent, publish } = recorder();
+  const events = createSceneEvents({}, { publish });
+
+  await pass(events, [], { failed: true, error: new Error('fetch failed') });
+  assert.deepEqual(sent, [], 'the first pass only records');
+
+  await pass(events, [reading('1', 'gazole', 1.699)]);
+  const up = sent.filter((e) => e.key === SCENE_TRIGGERS.FEED_STATUS_CHANGED);
+  assert.equal(up.length, 1, 'coming back is a real transition');
+  assert.equal(up[0].data.status, FEED_STATUSES.AVAILABLE);
+});
+
+test('a cheapest station missing from one pass does not change the leader back and forth', async () => {
+  const { sent, publish } = recorder();
+  const events = createSceneEvents({}, { publish });
+
+  await pass(events, [
+    reading('1', 'gazole', 1.599),
+    reading('2', 'gazole', 1.699),
+    reading('3', 'gazole', 1.799),
+  ]);
+  // Station 1 reports no price this pass, then comes back unchanged.
+  await pass(events, [reading('2', 'gazole', 1.699), reading('3', 'gazole', 1.799)]);
+  await pass(events, [
+    reading('1', 'gazole', 1.599),
+    reading('2', 'gazole', 1.699),
+    reading('3', 'gazole', 1.799),
+  ]);
+  assert.deepEqual(
+    sent.filter((e) => e.key === SCENE_TRIGGERS.CHEAPEST_STATION_CHANGED),
+    [],
+  );
+});
