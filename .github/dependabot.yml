@@ -1,0 +1,16 @@
+# Weekly update PRs for the npm dependencies (the Gladys SDK first of all) and
+# monthly ones for the GitHub Actions. Development tools are grouped in one PR.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dev-dependencies:
+        dependency-type: development
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

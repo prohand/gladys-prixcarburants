@@ -43,3 +43,22 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  store:
+    # The store indexer's own admission checks (manifest schema, version
+    # couplings, cover, image). Pull requests only: a release commit reaches main
+    # before build.yml has pushed its image, and the check refuses a missing one.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    name: Store admission checks
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate like the store indexer
+        run: npx --yes github:GladysAssistant/integration-store .
