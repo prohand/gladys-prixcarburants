@@ -1,0 +1,75 @@
+# -----------------------------------------------------------------------------
+# Publish a GitHub Release for every `vX.Y.Z` tag that has none yet.
+#
+# Gladys links the version shown on the Supervision page to
+# `<repo>/releases?q=X.Y.Z OR vX.Y.Z`: a tag alone shows an empty page there,
+# so every version needs a Release of its own.
+#
+# Idempotent: it only creates what is missing, oldest first, so it can run on
+# every push to main (that is what back-fills the versions published before it
+# existed), by hand, and from release.yml right after a new tag — a tag pushed
+# with the default GITHUB_TOKEN triggers no workflow on its own.
+#
+# The notes are the version's section of CHANGELOG.md when there is one, the
+# pull requests GitHub lists since the previous tag otherwise.
+# -----------------------------------------------------------------------------
+name: GitHub releases
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: github-releases
+  cancel-in-progress: false
+
+jobs:
+  releases:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the releases
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create the missing releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch --force --tags origin
+
+          existing="$(gh release list --limit 1000 --json tagName --jq '.[].tagName')"
+          latest="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1)"
+
+          for tag in $(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=v:refname); do
+            if grep -qxF "$tag" <<<"$existing"; then
+              continue
+            fi
+            version="${tag#v}"
+
+            notes=""
+            if [ -f CHANGELOG.md ]; then
+              # The lines between "## [X.Y.Z]" (or "## X.Y.Z") and the next "## ", read
+              # from the current changelog: it also covers the versions tagged
+              # before the file existed.
+              notes="$(awk -v v="$version" '
+                /^## / { if (found) exit; if (index($0, "[" v "]") || $2 == v) { found = 1; next } }
+                found { print }
+              ' CHANGELOG.md || true)"
+            fi
+
+            is_latest=false
+            [ "$tag" = "$latest" ] && is_latest=true
+
+            if [ -n "$(tr -d '[:space:]' <<<"$notes")" ]; then
+              gh release create "$tag" --verify-tag --title "$tag" --notes "$notes" --latest="$is_latest"
+            else
+              gh release create "$tag" --verify-tag --title "$tag" --generate-notes --latest="$is_latest"
+            fi
+            echo "Created release $tag"
+          done

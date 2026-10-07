@@ -114,3 +114,11 @@ jobs:
       packages: write
     with:
       version: ${{ needs.prepare.outputs.version }}
+
+  # Publish the GitHub Release of the new tag: Gladys links the version on the
+  # Supervision page to the repository's releases.
+  github-release:
+    needs: prepare
+    uses: ./.github/workflows/github-release.yml
+    permissions:
+      contents: write
