@@ -71,7 +71,10 @@ test('a discovered device carries a price feature and an update feature', () => 
   assert.equal(params.station_id, '35000001');
   assert.equal(params.fuel, 'gazole');
   assert.equal(params.address, '1 rue de Nantes 35000 Rennes');
-  assert.equal(params.distance_km, '1.2');
+  // Measured from the Gladys house when the search is centred on it: a stored
+  // param would let anyone reading the devices triangulate the house.
+  assert.equal(params.distance_km, undefined);
+  assert.equal(params.latitude, '48.1113', 'the STATION coordinates are public data');
 });
 
 test('every feature declares a min and a max', () => {
@@ -254,4 +257,89 @@ test('a created device we know nothing about still gets a valid payload', () => 
   assert.equal(device.external_id, external_id);
   assert.equal(device.name, 'Chez moi');
   assert.equal(device.features.length, 2);
+});
+
+test('a restart re-reads a created station outside the search instead of blanking its params', async () => {
+  const gladys = createFakeGladys();
+  // The search area moved: the station is not in the search, only in the feed.
+  const provider = createFakeProvider({
+    stations: [createStation({ id: '99', brand: 'Leclerc' })],
+  });
+  provider.searchStations = async () => [];
+  const store = createStationStore({ resolveProvider: () => provider });
+  const external_id = deviceExternalId(gladys, { country: 'FR', stationId: '99', fuel: 'gazole' });
+
+  await publishDiscovery(gladys, {
+    config,
+    store,
+    createdDevices: [{ external_id, name: 'Bureau' }],
+  });
+
+  assert.deepEqual(provider.calls.fetchByIds, [['99']], 'one batched read, before publishing');
+  const params = Object.fromEntries(gladys.discovered[0][0].params.map((p) => [p.name, p.value]));
+  assert.equal(params.brand, 'Leclerc');
+  assert.equal(params.address, '1 rue de Nantes 35000 Rennes');
+  assert.equal(params.latitude, '48.1113');
+});
+
+test('a created station nobody could read is re-published with its identity params only', async () => {
+  const gladys = createFakeGladys();
+  const provider = createFakeProvider({ stations: [] });
+  provider.fetchStationsByIds = async () => {
+    throw new Error('open data API is down');
+  };
+  const store = createStationStore({ resolveProvider: () => provider });
+  const external_id = deviceExternalId(gladys, { country: 'FR', stationId: '99', fuel: 'gazole' });
+
+  await publishDiscovery(gladys, {
+    config,
+    store,
+    createdDevices: [{ external_id, name: 'Bureau' }],
+  });
+
+  // The core upserts the params it is sent: an empty brand or address here
+  // would overwrite the real ones Gladys already stores.
+  const [device] = gladys.discovered[0];
+  assert.deepEqual(
+    device.params.map((p) => p.name),
+    ['country', 'station_id', 'fuel'],
+  );
+  assert.equal(device.name, 'Bureau');
+});
+
+test('a distance stored by an older version is blanked, never resent with a value', () => {
+  // The core never deletes a param it stores: leaving `distance_km` out kept the
+  // distance from the house on every device created before 2.3, so it is
+  // overwritten with an empty string — and only where a value is still stored.
+  const gladys = createFakeGladys();
+  const { store } = storeWith([createStation({ id: '99' })]);
+  const external_id = deviceExternalId(gladys, { country: 'FR', stationId: '99', fuel: 'gazole' });
+  const distanceOf = (device) => device.params.filter((p) => p.name === 'distance_km');
+
+  const [legacy] = buildCreatedDevices(
+    gladys,
+    config,
+    [{ external_id, params: [{ name: 'distance_km', value: '2.3' }] }],
+    store,
+  );
+  assert.deepEqual(distanceOf(legacy), [{ name: 'distance_km', value: '' }]);
+
+  const [unread] = buildCreatedDevices(
+    gladys,
+    config,
+    [{ external_id, params: [{ name: 'distance_km', value: '2.3' }] }],
+    storeWith([]).store,
+  );
+  assert.deepEqual(distanceOf(unread), [{ name: 'distance_km', value: '' }], 'even unread');
+
+  const [cleared] = buildCreatedDevices(
+    gladys,
+    config,
+    [{ external_id, params: [{ name: 'distance_km', value: '' }] }],
+    store,
+  );
+  assert.deepEqual(distanceOf(cleared), [], 'already blank: nothing to send');
+
+  const [fresh] = buildCreatedDevices(gladys, config, [{ external_id }], store);
+  assert.deepEqual(distanceOf(fresh), [], 'a recent device never sees the param');
 });

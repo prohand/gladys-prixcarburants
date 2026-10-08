@@ -54,9 +54,17 @@ config (country, postal code, radius, fuels)
 ```
 
 `index.js` is pure wiring: it registers every SDK handler _before_ `connect()` and holds no
-business logic. On `connected` it re-reads the config, syncs the tracked station set from the
-devices Gladys holds, publishes discovery, arms the refresh loop and reports
-`setConnectionStatus`.
+business logic. On `connected` (`src/lifecycle.js`, testable because index.js connects on
+import) it re-reads the config, ARMS THE REFRESH LOOP, then syncs the tracked station set from
+the devices Gladys holds, publishes discovery, runs a first pass and reports
+`setConnectionStatus`. Arming comes first and again in a `finally` with the config in force:
+a reconnection is when the host API answers 429/5xx, and a failure that skipped the arming
+used to leave no timer at all until the next reconnection.
+
+A refresh pass is **single-flight** (`refreshAllDevices` in `src/refresh.js`): the timer, the
+reconnection, the "refresh now" button and the scene action all start one, and a request made
+while one runs JOINS it. Only a forced request arriving during an unforced pass queues a
+follow-up, one, shared by every forced request meanwhile — never two passes side by side.
 
 ### Invariants that shape the code
 
@@ -89,13 +97,24 @@ devices Gladys holds, publishes discovery, arms the refresh loop and reports
   a stale one here means the API stopped answering, so a failed pass must leave it ageing.
 - **Dates are displayed as `08/08/2026 à 21:00`**, via `formatDateTime` (feed strings, parsed
   TEXTUALLY so the container timezone cannot shift a declared wall-clock time) and
-  `formatInstant` (instants we observed, in container-local time) in `src/text.js`.
+  `formatInstant` (instants we observed) in `src/text.js`. An observed instant — the read time,
+  the "auj."/"hier" of a ranking row, the midnight anchor of the curve — is expressed in
+  `displayTimeZone()` through `Intl` (`zonedParts`, `startOfZonedDay`), NEVER the container's
+  local time: the sandbox sets no `TZ`, so that is UTC and 11:00 in Paris showed as 09:00.
+  `Europe/Paris` by default, `TZ` wins when it names a zone the runtime knows.
 - **Devices carry no `poll_frequency`.** Gladys' `poll_frequency` is an enum capped at 60s;
   any other value makes it reject the _entire_ discovery payload (the Discovery tab silently
   stays empty). The 10 min–24 h interval the user configures is honoured by
   `createRefreshLoop` in `src/refresh.js` instead. `onPoll` stays registered anyway.
 - **Every feature needs `min` and `max`**, including text ones — they are NOT NULL in Gladys,
   and omitting them fails device creation with `HTTP 422 - min cannot be null`.
+- **All state writes go through `publishStates` in `src/statePublisher.js`.** The host API
+  takes 100 states per request and 300 a minute per integration (429 beyond). A refresh pass
+  BUILDS its states (`readDeviceStates`, `integrationStates`) and sends them in one request
+  per hundred; `pollDevice` / `publishIntegrationState` are the single-device shortcuts. A
+  429 is waited out once (60 s, the window of the limit — the SDK's `GladysApiError` carries no
+  `Retry-After`), a second refusal fails the pass: no widget nudge, no scene pass closed, so
+  the next pass fires what this one could not deliver. Never call `gladys.publishState`.
 - **All station reads go through `stationStore`.** Gladys polls devices one by one; the store
   batches every tracked station of a country into one request and shares the in-flight
   promise, so ten devices cost one HTTP call. Never call a provider directly from a device or
@@ -220,7 +239,8 @@ fuel) and `station` (one followed station, a price tile per fuel).
   in `/data`, keyed by country + postal code + radius + SCOPE + fuel (+ the house name when
   one is set) so moving the area (or
   switching the card between "around me" and "my stations") starts a new
-  curve. Best effort: an unwritable `/data` costs the curve, never the integration, and the
+  curve. Best effort: an unwritable `/data` costs the curve, never the integration (said ONCE
+  at warn level — a debug line was the only trace of a curve restarting at every boot), and the
   trend tile is ABSENT rather than zero while the history is younger than its window — the one
   exception to "no state that must survive a restart", and it is additive by construction.
 - **Distances start at the Gladys house when it is located**, at the centre of the postal code
@@ -228,7 +248,9 @@ fuel) and `station` (one followed station, a price tile per fuel).
   `10 km autour de ma maison` / `autour du 35000`) — do not let a redesign drop that word.
   `src/house.js` reads `GET /api/integration/v1/house` with the SDK's own base URL and token
   (the SDK wraps no such call), which requires `"location": true` in the manifest — the two
-  ship together, a 403 is the symptom of forgetting one. Cached an hour, invalidated on
+  ship together, a 403 is the symptom of forgetting one. Cached an hour (a 401/403/404 too,
+  which no retry fixes) — but a TRANSIENT failure (network, 429, 5xx) for 2 minutes only, or a
+  blip measured every distance from the postal code for an hour. Invalidated on
   `onConfigUpdated`, and best effort everywhere: `resolveSearchCenter` falls back on the postal
   code for an unlocated house, an older core or a network failure. A Gladys install can hold
   SEVERAL houses, and the route returns them all: the module keeps every located one and
@@ -241,7 +263,18 @@ fuel) and `station` (one followed station, a price tile per fuel).
   knows, because a name nobody shows is a name the user gets wrong. The NAMES may be printed
   there; the coordinates never are, anywhere. The coordinates are personal
   data: they centre the search and nothing else — never a device param, a state, a log or a
-  widget content.
+  widget content. A DISTANCE measured from the house is the same data once three stations
+  are known, so `distance_km` is not a device param either (the core stores and shows params
+  like any device data); it lives on the widgets, the preview action and the scene action
+  outputs, all read by the user for themselves. Logs blank `POINT(...)` (`src/http.js`). The
+  core never DELETES a param (`upsertDeviceParams` adds and updates only), so a device that
+  still stores a distance from an older version is re-published with `distance_km: ''` —
+  the one way to wipe it — and a device that holds none never sees the param.
+- **A created device we have not read is re-published with its IDENTITY params only**
+  (`country`, `station_id`, `fuel`): the core upserts the params it receives, so the empty
+  brand/address/coordinates of a station not yet in the cache used to overwrite the real ones
+  on every restart. `publishDiscovery` first reads the created stations the search did not
+  bring back (one batch per country, the one the first refresh pass would send anyway).
 - **A price tile carries TEXT, never a number and never a `device_feature`**: the front
   rounds both. An inline number goes through `formatNumber` (`maximumFractionDigits: 2`) and
   a bound feature through `DeviceFeatureValueText` (`Math.round(v * 10) / 10`), so a pump
@@ -263,7 +296,13 @@ fuel) and `station` (one followed station, a price tile per fuel).
   A thrown error is NOT swallowed by that: the core turns it into a message the user can act
   on, and only a missed ack is the failure with no explanation. `stationStore.search` shares
   its in-flight promise per search criteria for the same reason the country refresh does:
-  two cards pulling side by side must cost one search, not two.
+  two cards pulling side by side must cost one search, not two. And it keeps the RESULT for
+  `searchTtlMs` (5 min, the station TTL — under the 10 min card TTL and the 10 min shortest
+  refresh interval), keyed by country, postal code, radius, limit, centre and house name: a
+  cold search is 2 to 6 requests, and every pull, dashboard and nudge re-pull used to pay
+  them. The cached list is served THROUGH the station cache, so a station the refresh pass
+  re-read shows its new price; `clear()` (config change) and `invalidate()` (the button)
+  drop it, a failed search is never cached.
 - **Declarations live in the code**: `buildWidgetManifest()` is the source and
   `test/manifest.test.js` asserts the manifest `widgets` array deep-equals it. Change both
   together, like the rest of the manifest.
@@ -305,6 +344,14 @@ the circle needs a centre: the average position of the stations of the postal co
 any, and otherwise `franceGeocode.js`, which asks the Base Adresse Nationale where the postal
 code is — without it, a postal code with no station of its own returned nothing at any radius.
 Best effort like the names: no centre means the stations of the postal code only, never an error.
+
+Every external read goes through `fetchJson` in `src/http.js` — never a bare `fetch` in a
+provider. It keeps each caller's timeout and retries ONCE on a 429, a 5xx or a request that
+never reached the server, honouring `Retry-After` capped at 5 s (a widget pull waits on these
+behind the 9 s `PULL_DEADLINE_MS`); a 4xx and a timeout are not retried. It is also what logs
+the request, with every `POINT(...)` blanked: the circle may be centred on the house, and
+coordinates never reach a log line. Tests skip the wait with `setRetrySleep(async () => {})`,
+and a scripted 5xx is consumed twice.
 
 ### The manifest is part of the contract
 

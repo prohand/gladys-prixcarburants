@@ -27,8 +27,11 @@ For **every station you add**, a device with two read-only features:
   It is read per station **and** per fuel, so the diesel and the SP98 of the
   same station each carry their own date.
 
-The address, the brand, the GPS coordinates and the distance to the postal
-code are stored in the device parameters.
+The address, the brand and the GPS coordinates of the station are stored in
+the device parameters. The distance is not: when it is measured from your
+house, storing it next to the station would give your house away. It is shown
+on the dashboard cards instead. (On a device created by an earlier version, the
+distance it was given is erased: the `distance_km` parameter stays, empty.)
 
 ### The "Prix carburants - Mise à jour des données" device
 
@@ -38,7 +41,9 @@ the whole integration**, with one feature:
 - **Dernière lecture des données** — the date and time, as
   `08/08/2026 à 21:00`, of the last **successful** read of the open data feed
   by the integration. The device and its feature are named in French, like the
-  data source they report on.
+  data source they report on. The time is on the French clock (Europe/Paris),
+  whatever clock the container runs on; an install elsewhere can set the `TZ`
+  environment variable of the container to its own zone (`America/Martinique`).
 
 This is not the same information as a station's "Last price update": that one
 tells you when the station moved its prices (a week ago is perfectly normal),
@@ -155,6 +160,11 @@ and how much will it cost.
   timestamp are still on the device page and on the "My station" card.
 - A button to the **official map** (prix-carburants.gouv.fr).
 
+The list of stations around you is searched again at most every five minutes,
+whatever the number of dashboards showing the card; the prices of the stations
+you added are the ones of the last refresh, and the **Refresh the prices now**
+button starts a new search.
+
 Four settings: the fuel, how many stations are shown (3, 5 or 8), the
 scope — **around the house or postal code** (like the Discovery tab, as the "Measure
 distances from" setting says; not the phone's position) or **my stations only** (the ones you added) — and the
@@ -180,7 +190,8 @@ stores "the cheapest price of your area". So the integration samples it itself,
 - Changing the postal code, the radius or the house ("Which house" field)
   **starts a new curve**, since it is no longer the same area.
 - If `/data` is not writable, everything keeps working: only the curve starts
-  over after a restart.
+  over after a restart. The integration logs say so once, as a warning
+  ("Price history cannot be written").
 
 ### "My station"
 
@@ -296,6 +307,11 @@ you to test that result.
 **No station in the Discovery tab.** Check the postal code (5 digits in
 France) and raise the search radius. The **Preview the nearby stations**
 button shows the exact error message.
+
+**A refresh failed once and worked on the next try.** Every request to the
+open data APIs is retried once, a second later, when the server answers "too
+many requests" or a server error, or does not answer at all. Only a failure
+that persists reaches the logs and the buttons.
 
 **The price stopped updating.** A station can temporarily disappear from the
 national feed (roadworks, closure). The last known price stays displayed;

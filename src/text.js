@@ -53,6 +53,111 @@ function frenchDateTime({ year, month, day, hours, minutes }) {
   return `${day}/${month}/${year} à ${hours}:${minutes}`;
 }
 
+/**
+ * The timezone the user reads their dashboard in, when nothing says otherwise.
+ * France is the only country a provider exists for — and the price feed itself
+ * declares its times on the French wall clock.
+ */
+export const DEFAULT_TIME_ZONE = 'Europe/Paris';
+
+/** @type {Map<string, Intl.DateTimeFormat>} */
+const formatters = new Map();
+
+/**
+ * A formatter giving the wall-clock fields of an instant in `timeZone`, or
+ * `null` when the zone is not one the runtime knows.
+ * @param {string} timeZone
+ */
+function wallClockFormatter(timeZone) {
+  if (!formatters.has(timeZone)) {
+    let formatter = null;
+    try {
+      formatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      });
+    } catch {
+      // RangeError: unknown zone.
+    }
+    formatters.set(timeZone, formatter);
+  }
+  return formatters.get(timeZone);
+}
+
+/**
+ * The timezone the instants WE observe are displayed in.
+ *
+ * Never the container's own clock: the Gladys sandbox sets no `TZ`, so the
+ * container runs in UTC and a feed read at 11:00 in Paris was dated 09:00 on
+ * the dashboard. `TZ` still wins when it is set to a zone the runtime knows —
+ * an install outside France can say so — and anything else (unset, empty,
+ * `:/etc/localtime`, a typo) falls back on `Europe/Paris`.
+ *
+ * @param {Record<string, string|undefined>} [env]
+ * @returns {string} an IANA zone name
+ */
+export function displayTimeZone(env = process.env) {
+  const zone = String(env.TZ ?? '').trim();
+  if (zone && !zone.startsWith(':') && wallClockFormatter(zone)) {
+    return zone;
+  }
+  return DEFAULT_TIME_ZONE;
+}
+
+/**
+ * The wall-clock date and time of an instant in a timezone, as numbers.
+ * @param {Date|number} instant
+ * @param {string} [timeZone]
+ * @returns {{ year: number, month: number, day: number, hours: number,
+ *   minutes: number }|null} `null` for an invalid instant
+ */
+export function zonedParts(instant, timeZone = displayTimeZone()) {
+  const date = instant instanceof Date ? instant : new Date(instant);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  const formatter = wallClockFormatter(timeZone) ?? wallClockFormatter(DEFAULT_TIME_ZONE);
+  const fields = {};
+  for (const { type, value } of formatter.formatToParts(date)) {
+    fields[type] = Number(value);
+  }
+  return {
+    year: fields.year,
+    month: fields.month,
+    day: fields.day,
+    hours: fields.hour,
+    minutes: fields.minute,
+  };
+}
+
+/** How far `timeZone` is ahead of UTC at that instant, in ms (minute precision). */
+function zoneOffsetMs(epochMs, timeZone) {
+  const parts = zonedParts(epochMs, timeZone);
+  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hours, parts.minutes);
+  return asUtc - (epochMs - (((epochMs % 60_000) + 60_000) % 60_000));
+}
+
+/**
+ * The instant of the midnight that opened the day of `instant`, in `timeZone`.
+ * The offset is read again AT that midnight, so a day that changes to or from
+ * summer time still starts at 00:00 on the local clock.
+ * @param {Date|number} instant
+ * @param {string} [timeZone]
+ * @returns {Date}
+ */
+export function startOfZonedDay(instant, timeZone = displayTimeZone()) {
+  const epochMs = instant instanceof Date ? instant.getTime() : Number(instant);
+  const { year, month, day } = zonedParts(epochMs, timeZone);
+  const midnightUtc = Date.UTC(year, month - 1, day);
+  const guess = midnightUtc - zoneOffsetMs(epochMs, timeZone);
+  return new Date(midnightUtc - zoneOffsetMs(guess, timeZone));
+}
+
 const pad = (value) => String(value).padStart(2, '0');
 
 /**
@@ -86,26 +191,29 @@ export function formatDateTime(value) {
  * Same display, for an instant WE observed rather than one the feed declared —
  * the moment the integration last read the open data API.
  *
- * Here the local time of the container is the right frame: it is the timezone
- * the Gladys box runs in, hence the one the user reads their dashboard in.
+ * Expressed in `displayTimeZone()` — the user's wall clock, `Europe/Paris`
+ * unless `TZ` names another zone — and NOT in the container's local time: the
+ * sandbox sets no `TZ`, so that local time is UTC and a read at 11:00 in Paris
+ * used to show as 09:00.
  *
  * @param {Date|number|null|undefined} instant a Date or an epoch in ms
+ * @param {{ timeZone?: string }} [options] the zone, for the tests
  * @returns {string} `''` when there is no instant to show
  */
-export function formatInstant(instant) {
+export function formatInstant(instant, { timeZone = displayTimeZone() } = {}) {
   if (instant === null || instant === undefined) {
     return '';
   }
-  const date = instant instanceof Date ? instant : new Date(instant);
-  if (Number.isNaN(date.getTime())) {
+  const parts = zonedParts(instant, timeZone);
+  if (!parts) {
     return '';
   }
   return frenchDateTime({
-    year: date.getFullYear(),
-    month: pad(date.getMonth() + 1),
-    day: pad(date.getDate()),
-    hours: pad(date.getHours()),
-    minutes: pad(date.getMinutes()),
+    year: parts.year,
+    month: pad(parts.month),
+    day: pad(parts.day),
+    hours: pad(parts.hours),
+    minutes: pad(parts.minutes),
   });
 }
 

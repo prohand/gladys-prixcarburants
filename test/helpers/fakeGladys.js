@@ -11,6 +11,8 @@ export function createFakeGladys({ devices = [] } = {}) {
   const published = [];
   const discovered = [];
   const connectionStatuses = [];
+  // One entry per request to the states route, to assert the batching.
+  const stateRequests = [];
 
   // Built as a named object so `getDevices` reads the CURRENT `devices`
   // property: a test may assign it after construction, once it has used
@@ -19,6 +21,7 @@ export function createFakeGladys({ devices = [] } = {}) {
     published,
     discovered,
     connectionStatuses,
+    stateRequests,
     devices,
 
     externalIds(type, platformId) {
@@ -41,9 +44,19 @@ export function createFakeGladys({ devices = [] } = {}) {
       published.push({ featureExternalId, state });
     },
 
+    // Recorded in the shape `publishState` uses, so a test reads a text state
+    // as `{ text }` whichever route published it. Like the host API, a batch
+    // over 100 states is refused outright.
     async publishStates(states) {
+      if (states.length > 100) {
+        throw new Error('publishStates: maximum 100 states per request');
+      }
+      stateRequests.push(states.length);
       for (const s of states) {
-        published.push({ featureExternalId: s.device_feature_external_id, state: s.state });
+        published.push({
+          featureExternalId: s.device_feature_external_id,
+          state: s.text !== undefined ? { text: s.text } : s.state,
+        });
       }
     },
 

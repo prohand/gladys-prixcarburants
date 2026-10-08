@@ -35,6 +35,7 @@ export {
   parseDeviceExternalId,
   platformId,
   pollDevice,
+  readDeviceStates,
 } from './fuelStation.js';
 
 export {
@@ -42,6 +43,7 @@ export {
   FEATURE as INTEGRATION_FEATURE,
   buildIntegrationDevice,
   integrationExternalId,
+  integrationStates,
   isIntegrationDevice,
   publishIntegrationState,
 } from './integration.js';
@@ -91,11 +93,42 @@ export function parseTargets(devices = []) {
     .filter(Boolean);
 }
 
+/** The params that identify a device, and only those: see `buildCreatedDevices`. */
+const IDENTITY_PARAMS = new Set(['country', 'station_id', 'fuel']);
+
+/**
+ * Up to 2.2.0 a station carried a `distance_km` param, measured from the Gladys
+ * house when the search is centred on it — enough to locate the house once three
+ * stations are known. The core upserts the params it receives and NEVER deletes
+ * one (`upsertDeviceParams`; its `removeDeviceParams` is reserved to the
+ * `GLADYS_TRANSPORT*` params), so leaving the param out kept the old value
+ * forever. Overwriting it with an empty string is the only way to wipe it, and
+ * only a device that still holds a value gets one: a device created since never
+ * sees the param at all.
+ */
+const BLANK_DISTANCE = Object.freeze({ name: 'distance_km', value: '' });
+
+/**
+ * @param {{ params?: Array<{ name: string, value: string }> }} device
+ * @returns {boolean} true when Gladys still stores a non-empty distance for it
+ */
+function hasStoredDistance(device) {
+  return (device.params ?? []).some((p) => p?.name === 'distance_km' && p.value !== '');
+}
+
 /**
  * Rebuild the discovery payload of the devices the user already added, from the
  * freshest station data we have. Nothing is fetched here: `store.peek` returns
  * the cached station or null, and a device we know nothing about is rebuilt
  * from the name Gladys already stores.
+ *
+ * Such a device carries its IDENTITY params only. The core upserts the params
+ * of a created device on every re-publish, so sending the empty brand, address
+ * and coordinates of a station we simply have not read yet used to overwrite
+ * the real ones: every restart erased them on a device outside the search area,
+ * until the next refresh pass happened to re-publish nothing (a refresh
+ * publishes states, never params). A param we do not send is a param the core
+ * leaves alone.
  *
  * @param {object} gladys SDK instance
  * @param {object} config normalized configuration
@@ -120,9 +153,48 @@ export function buildCreatedDevices(gladys, config, createdDevices, store) {
       outOfStockSince: {},
     };
     const payload = buildDevice(gladys, { station, country, fuel });
-    // A created device keeps the name the user gave it; do not fight over it.
-    return { ...payload, name: device.name ?? payload.name };
+    const known = store.peek(country, stationId) !== null;
+    const params = known
+      ? payload.params
+      : payload.params.filter((p) => IDENTITY_PARAMS.has(p.name));
+    return {
+      ...payload,
+      // A created device keeps the name the user gave it; do not fight over it.
+      name: device.name ?? payload.name,
+      params: hasStoredDistance(device) ? [...params, BLANK_DISTANCE] : params,
+    };
   });
+}
+
+/**
+ * Read the created stations the search did not bring back, in one batch per
+ * country, so their params are re-published with real values rather than left
+ * out. On `connected` the discovery runs before the first refresh pass, and a
+ * station outside the search area (the user moved the postal code) is in no
+ * cache yet. That batch is the one the refresh pass would send anyway, and the
+ * pass that follows is then served from the store cache.
+ *
+ * Best effort: a failure only means those devices keep their identity params
+ * this time (see `buildCreatedDevices`), never a failed discovery.
+ *
+ * @param {object} store station store
+ * @param {Array<{ external_id: string }>} createdDevices
+ */
+async function readCreatedStations(store, createdDevices) {
+  const countries = new Set();
+  for (const { country, stationId } of parseTargets(createdDevices)) {
+    if (store.peek(country, stationId) === null) {
+      store.track(country, stationId);
+      countries.add(country);
+    }
+  }
+  for (const country of countries) {
+    try {
+      await store.refreshTracked(country);
+    } catch (err) {
+      logger.warn(`Created stations of ${country} not read before discovery: ${err.message}`);
+    }
+  }
 }
 
 /**
@@ -134,6 +206,7 @@ export function buildCreatedDevices(gladys, config, createdDevices, store) {
  */
 export async function publishDiscovery(gladys, { config, store, createdDevices = [] }) {
   const stations = await store.search(config);
+  await readCreatedStations(store, createdDevices);
   const discovered = buildDiscoveredDevices(gladys, config, stations);
   const existing = buildCreatedDevices(gladys, config, createdDevices, store);
 

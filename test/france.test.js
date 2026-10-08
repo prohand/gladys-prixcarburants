@@ -10,6 +10,10 @@ import { france, parsePrice, parseStation } from '../src/countries/france.js';
 import { resetGeocodeCache } from '../src/countries/franceGeocode.js';
 import { resetRecentFuels } from '../src/countries/franceRecent.js';
 import { resetStationNames } from '../src/countries/franceNames.js';
+import { setRetrySleep } from '../src/http.js';
+
+// A scripted 5xx is retried once (src/http.js): the wait is skipped, not the retry.
+setRetrySleep(async () => {});
 
 test('parsePrice reads a decimal price', () => {
   assert.equal(parsePrice(1.699), 1.699);

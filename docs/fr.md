@@ -29,8 +29,12 @@ Pour **chaque station que vous ajoutez**, un appareil avec deux mesures :
   **et** par carburant : le gazole et le SP98 d'une même station ont chacun la
   leur.
 
-L'adresse, la marque, les coordonnées GPS et la distance au code postal sont
-enregistrées dans les paramètres de l'appareil.
+L'adresse, la marque et les coordonnées GPS de la station sont enregistrées
+dans les paramètres de l'appareil. La distance ne l'est pas : mesurée depuis
+votre maison, l'enregistrer à côté de la station trahirait où vous habitez. Elle
+est affichée sur les widgets du tableau de bord. (Sur un appareil créé par une
+version précédente, la distance reçue est effacée : le paramètre `distance_km`
+reste, vide.)
 
 ### L'appareil « Prix carburants - Mise à jour des données »
 
@@ -40,7 +44,10 @@ En plus des stations, l'onglet Découverte propose **un appareil unique, commun
 - **Dernière lecture des données** — la date et l'heure, au format
   `08/08/2026 à 21:00`,
   auxquelles l'intégration a lu le flux open data pour la dernière fois **avec
-  succès**.
+  succès**. L'heure est celle de la France métropolitaine (Europe/Paris), quelle
+  que soit l'horloge du conteneur ; une installation ailleurs peut indiquer son
+  fuseau dans la variable d'environnement `TZ` du conteneur
+  (`America/Martinique`).
 
 C'est une information différente de la « Dernière mise à jour » d'une station :
 celle-ci vous dit quand la station a bougé ses prix (ce qui peut remonter à une
@@ -166,6 +173,11 @@ Lyon` — car `Av.` et `Rue de`, toutes les rues de la commune les portent
   complet restent sur la page de l'appareil et sur la carte « Ma station ».
 - Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
 
+La liste des stations autour de vous est recherchée au plus toutes les cinq
+minutes, quel que soit le nombre de tableaux de bord qui affichent la carte ; les
+prix des stations que vous avez ajoutées sont ceux du dernier rafraîchissement,
+et le bouton **Rafraîchir les prix maintenant** relance une recherche.
+
 Quatre réglages : le carburant, le nombre de stations affichées (3, 5 ou 8), le
 périmètre — **autour de la maison ou du code postal** (comme l'onglet Découverte, selon le
 réglage « Mesurer les distances depuis » ; ce n'est pas la position du téléphone) ou **vos stations seulement** (celles que vous avez
@@ -193,7 +205,8 @@ elle-même, **au maximum une fois par heure**, et garde 30 jours dans `/data`.
 - Changer de code postal, de rayon ou de maison (champ « Quelle maison »)
   **repart d'une courbe vierge**, puisque ce n'est plus la même zone.
 - Si `/data` n'est pas accessible en écriture, tout continue de fonctionner :
-  seule la courbe repart de zéro au redémarrage.
+  seule la courbe repart de zéro au redémarrage. Les logs de l'intégration le
+  signalent une fois, en avertissement (« Price history cannot be written »).
 
 ### « Ma station »
 
@@ -322,6 +335,11 @@ scène quand vous ne suivez aucune station pour ce carburant — elle répond
 **Aucune station dans l'onglet Découverte.** Vérifiez le code postal (5
 chiffres en France) et augmentez le rayon de recherche. Le bouton
 **Prévisualiser les stations proches** affiche le message d'erreur exact.
+
+**Un rafraîchissement a échoué puis réussi à l'essai suivant.** Chaque requête
+vers les API open data est retentée une fois, une seconde plus tard, quand le
+serveur répond « trop de requêtes » ou une erreur serveur, ou ne répond pas du
+tout. Seul un échec qui persiste arrive dans les logs et sous les boutons.
 
 **Le prix ne se met plus à jour.** Une station peut disparaître temporairement
 du flux national (travaux, fermeture). Le dernier prix connu reste affiché ;

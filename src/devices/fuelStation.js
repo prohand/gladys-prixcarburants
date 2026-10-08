@@ -28,6 +28,7 @@ import {
   DEVICE_FEATURE_UNITS,
 } from '@gladysassistant/integration-sdk';
 import { isOutOfStock, outOfStockSince } from '../availability.js';
+import { featureState, publishStates } from '../statePublisher.js';
 import { fuelLabel } from '../fuels.js';
 import { formatDateTime } from '../text.js';
 
@@ -107,8 +108,8 @@ export function buildDevice(gladys, { station, country, fuel }) {
   return {
     name: `${station.name} - ${fuelLabel(fuel, 'en')}`,
     external_id: ids.device,
-    // Params are upserted on every re-publish, so the address and the distance
-    // stay up to date even on a device the user created weeks ago.
+    // Params are upserted on every re-publish, so the address stays up to date
+    // even on a device the user created weeks ago.
     params: buildParams(station, country, fuel),
     features: [
       {
@@ -163,9 +164,11 @@ function buildParams(station, country, fuel) {
       { name: 'longitude', value: String(station.longitude) },
     );
   }
-  if (Number.isFinite(station.distanceKm)) {
-    params.push({ name: 'distance_km', value: station.distanceKm.toFixed(1) });
-  }
+  // No `distance_km`, on purpose: when the search is centred on the Gladys
+  // house, that distance is measured FROM the house, and a param is stored and
+  // shown by the core like any device data. Three stations and their distances
+  // locate the house — personal data that only the widgets may turn into
+  // "2,3 km de la maison", for the reader of the card.
   return params;
 }
 
@@ -184,7 +187,10 @@ function outOfStockText(station, fuel) {
 }
 
 /**
- * Read the current price of a device and publish it.
+ * Read the current price of a device and build the states to publish, without
+ * sending them: a refresh pass gathers the states of every device and sends
+ * them in batches (src/statePublisher.js), one request per hundred states
+ * rather than two per device.
  *
  * The station is returned alongside the price: the refresh pass needs it to
  * decide what actually changed since the previous one (src/sceneEvents.js),
@@ -193,9 +199,9 @@ function outOfStockText(station, fuel) {
  *
  * @param {object} gladys SDK instance
  * @param {{ device: object, store: object }} context
- * @returns {Promise<{ price: number|null, station: object }>}
+ * @returns {Promise<{ price: number|null, station: object, states: Array<object> }>}
  */
-export async function pollDevice(gladys, { device, store }) {
+export async function readDeviceStates(gladys, { device, store }) {
   const target = parseDeviceExternalId(device.external_id);
   if (!target) {
     throw new Error(`Unrecognized fuel station device: ${device.external_id}`);
@@ -215,26 +221,43 @@ export async function pollDevice(gladys, { device, store }) {
     // for days looks broken, so when the feed says WHY, the text feature says
     // it too.
     if (isOutOfStock(station, target.fuel)) {
-      await gladys.publishState(ids.feature(FEATURE.UPDATED_AT), {
-        text: outOfStockText(station, target.fuel),
-      });
       logger.info(`${station.name}: ${target.fuel} out of stock, keeping the previous price`);
-      return { price: null, station };
+      const text = outOfStockText(station, target.fuel);
+      return {
+        price: null,
+        station,
+        states: [featureState(ids.feature(FEATURE.UPDATED_AT), { text })],
+      };
     }
     logger.info(`${station.name}: no ${target.fuel} price published, keeping the previous one`);
-    return { price: null, station };
+    return { price: null, station, states: [] };
   }
 
-  await gladys.publishState(ids.feature(FEATURE.PRICE), price);
+  const states = [featureState(ids.feature(FEATURE.PRICE), price)];
 
   // When the station declared that price. It is a per-(station, fuel) date —
   // two pumps of the same station are updated at different times — so it
   // belongs on the device itself, next to the price it dates.
   const updatedAt = formatDateTime(station.updatedAt?.[target.fuel]);
   if (updatedAt) {
-    await gladys.publishState(ids.feature(FEATURE.UPDATED_AT), { text: updatedAt });
+    states.push(featureState(ids.feature(FEATURE.UPDATED_AT), { text: updatedAt }));
   }
 
   logger.info(`${station.name}: ${target.fuel} at ${price.toFixed(3)} EUR/L`);
+  return { price, station, states };
+}
+
+/**
+ * Read the current price of ONE device and publish it right away — a device
+ * just created, or a poll Gladys decided to send. Same states as a refresh
+ * pass, in a single request.
+ *
+ * @param {object} gladys SDK instance
+ * @param {{ device: object, store: object }} context
+ * @returns {Promise<{ price: number|null, station: object }>}
+ */
+export async function pollDevice(gladys, { device, store }) {
+  const { price, station, states } = await readDeviceStates(gladys, { device, store });
+  await publishStates(gladys, states);
   return { price, station };
 }

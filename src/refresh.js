@@ -16,7 +16,13 @@
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
-import { parseTargets, pollDevice, publishIntegrationState } from './devices/index.js';
+import {
+  integrationStates,
+  parseTargets,
+  publishIntegrationState,
+  readDeviceStates,
+} from './devices/index.js';
+import { publishStates } from './statePublisher.js';
 import { notifyWidgetsChanged } from './widgets/index.js';
 import { isConfigReady } from './config.js';
 
@@ -52,14 +58,32 @@ async function sampleForWidgets({ config, store, history }) {
 }
 
 /**
+ * The pass in flight, per SDK instance, and the forced pass queued behind it.
+ * @type {WeakMap<object, { promise: Promise<object>, force: boolean,
+ *   followUp: Promise<object>|null }>}
+ */
+const passes = new WeakMap();
+
+/**
  * Read every station device Gladys holds and publish its current price.
+ *
+ * SINGLE-FLIGHT. Four things start a pass — the timer, the "Refresh the prices
+ * now" button, the scene action, the (re)connection — and nothing orders them:
+ * a user pressing the button during the reconnection pass used to run two
+ * passes side by side, each publishing every state and each comparing the
+ * scene baselines with a pass that was still half-way through. So a pass
+ * requested while one runs JOINS it and gets its result. The one exception is
+ * a FORCED pass (the button, the scene action) arriving while an unforced one
+ * runs: the running pass may be serving prices from the store cache, so a
+ * single forced pass is queued behind it, shared by every forced request that
+ * arrives meanwhile — at most one pass running and one waiting, ever.
  *
  * A device that fails is counted and logged, never thrown: one station missing
  * from the feed must not stop the nine others from being refreshed.
  *
  * @param {object} gladys SDK instance
  * @param {{ config: object, store: object, history?: object, force?: boolean,
- *   sceneEvents?: object }} context
+ *   sceneEvents?: object, sleep?: (ms: number) => Promise<void> }} context
  *   `force` drops the cached stations first, so the pass really hits the
  *   provider — what the "Refresh the prices now" button means. The periodic
  *   loop leaves it off: its interval (10 min minimum) is always longer than the
@@ -67,11 +91,44 @@ async function sampleForWidgets({ config, store, history }) {
  *   nothing.
  *   `sceneEvents` is optional: without it the pass behaves exactly as before,
  *   which is what keeps a Gladys that ignores scene triggers unaffected.
+ *   `sleep` is the seam the tests use to wait out a 429 in no time.
  * @returns {Promise<{ total: number, updated: number, failures: string[] }>}
  */
-export async function refreshAllDevices(
+export function refreshAllDevices(gladys, context) {
+  const force = context.force === true;
+  const current = passes.get(gladys);
+  if (current) {
+    if (!force || current.force) {
+      logger.debug('A refresh pass is already running: joining it');
+      return current.promise;
+    }
+    // Settled either way before the follow-up starts: a failed pass must not
+    // cancel the forced read the user asked for.
+    current.followUp ??= current.promise.then(
+      () => refreshAllDevices(gladys, context),
+      () => refreshAllDevices(gladys, context),
+    );
+    return current.followUp;
+  }
+
+  const entry = { force, followUp: null, promise: null };
+  entry.promise = runPass(gladys, context).finally(() => {
+    if (passes.get(gladys) === entry) {
+      passes.delete(gladys);
+    }
+  });
+  passes.set(gladys, entry);
+  return entry.promise;
+}
+
+/**
+ * One refresh pass, see `refreshAllDevices`.
+ * @param {object} gladys SDK instance
+ * @param {object} context
+ */
+async function runPass(
   gladys,
-  { config, store, history, force = false, sceneEvents = null },
+  { config, store, history, force = false, sceneEvents = null, sleep },
 ) {
   const devices = await gladys.getDevices();
   const targets = parseTargets(devices);
@@ -101,10 +158,13 @@ export async function refreshAllDevices(
   // only be answered once every station has been read. See src/sceneEvents.js.
   const pass = sceneEvents?.startPass() ?? null;
   let lastError = null;
+  const states = [];
   for (const target of targets) {
     const { device } = target;
     try {
-      const { price, station } = await pollDevice(gladys, { device, config, store });
+      const reading = await readDeviceStates(gladys, { device, store });
+      const { price, station } = reading;
+      states.push(...reading.states);
       if (price !== null) {
         updated += 1;
         pass?.record({ device, target, station, price });
@@ -119,7 +179,15 @@ export async function refreshAllDevices(
   // Last, so it reports the read this very pass just did. A pass where every
   // station failed leaves `store.lastFetchAt` where it was: the date then ages
   // on the dashboard, which is precisely the signal.
-  await publishIntegrationState(gladys, { store, devices });
+  states.push(...integrationStates(gladys, { store, devices }));
+
+  // Every state of the pass in one request per hundred, a 429 waited out once
+  // (src/statePublisher.js) — not two requests per device, which is how fifty
+  // stations ran into the host API's 300 states a minute. A refusal past the
+  // retry fails the PASS: the widgets are not nudged and the scene pass is not
+  // closed, so its baseline stays the last one Gladys actually received and the
+  // next pass fires the transitions this one could not deliver.
+  await publishStates(gladys, states, sleep ? { sleep } : undefined);
 
   await sampleForWidgets({ config, store, history });
 
