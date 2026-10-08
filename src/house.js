@@ -12,7 +12,8 @@
 // so the call is made here with the same base URL and token the SDK already
 // holds. Two things make it cheap and safe:
 //   - the answer is CACHED for an hour: a house does not move, and the widgets
-//     ask on every pull;
+//     ask on every pull — a transient failure (network, 429, 5xx) for two
+//     minutes only, so a blip does not cost an hour of wrong distances;
 //   - every failure resolves to `null` rather than throwing. No house, no
 //     coordinates, a 403 because an older core does not know the field: the
 //     integration then simply measures from the postal code, which is what it
@@ -29,6 +30,18 @@ const logger = createLogger({ name: 'house' });
 
 /** How long the coordinates are kept before asking again. */
 const CACHE_TTL_MS = 60 * 60 * 1000;
+
+/**
+ * How long a TRANSIENT failure is kept: a network error, a 429 or a 5xx while
+ * the core restarts. Cached for the hour like an answer, it measured every
+ * distance from the postal code for an hour after a blip. Not zero either: the
+ * widgets ask on every pull, and a core that is down should not be asked by
+ * each of them.
+ */
+const FAILURE_TTL_MS = 2 * 60 * 1000;
+
+/** A refusal no retry can fix: the manifest or the core version decides it. */
+const isDurableRefusal = (status) => status === 401 || status === 403 || status === 404;
 
 /** The host API is on the integration prefix, not the user one. */
 const HOUSE_PATH = '/api/integration/v1/house';
@@ -51,15 +64,16 @@ function nameKey(value) {
 
 /**
  * @param {object} gladys SDK instance (for `hostApiUrl` and `token`)
- * @param {{ fetchImpl?: Function, now?: () => number, ttlMs?: number }} [options]
+ * @param {{ fetchImpl?: Function, now?: () => number, ttlMs?: number,
+ *   failureTtlMs?: number }} [options]
  *   `fetchImpl` and `now` are the seams the tests use in place of the network
  *   and the clock.
  */
 export function createHouseLocation(
   gladys,
-  { fetchImpl, now = Date.now, ttlMs = CACHE_TTL_MS } = {},
+  { fetchImpl, now = Date.now, ttlMs = CACHE_TTL_MS, failureTtlMs = FAILURE_TTL_MS } = {},
 ) {
-  /** @type {{ at: number, houses: object[] }|null} */
+  /** @type {{ at: number, houses: object[], ttl: number }|null} */
   let cached = null;
   /** @type {Promise<object[]>|null} */
   let inFlight = null;
@@ -80,6 +94,10 @@ export function createHouseLocation(
     });
 
     if (!response.ok) {
+      if (!isDurableRefusal(response.status)) {
+        // 429, 5xx: the core is busy or restarting. Kept briefly, see list().
+        throw Object.assign(new Error(`HTTP ${response.status}`), { transient: true });
+      }
       // 403 = `"location": true` missing from the manifest (or a core older
       // than 4.85). Say it ONCE: the widgets ask every pull, and a log line per
       // pull would drown everything else.
@@ -120,17 +138,22 @@ export function createHouseLocation(
 
   /** The cached list, fetched at most once per TTL and shared between callers. */
   function list() {
-    if (cached && now() - cached.at < ttlMs) {
+    if (cached && now() - cached.at < cached.ttl) {
       return Promise.resolve(cached.houses);
     }
     // Concurrent widget pulls share one call, like the station store does.
     inFlight ??= request()
-      .catch((err) => {
-        logger.debug(`House coordinates unavailable: ${err.message}`);
-        return [];
-      })
-      .then((houses) => {
-        cached = { at: now(), houses };
+      .then(
+        (houses) => ({ houses, ttl: ttlMs }),
+        (err) => {
+          // A network error or a busy core: the postal code serves meanwhile,
+          // and the house is asked again in a couple of minutes, not an hour.
+          logger.debug(`House coordinates unavailable for now: ${err.message}`);
+          return { houses: [], ttl: failureTtlMs };
+        },
+      )
+      .then(({ houses, ttl }) => {
+        cached = { at: now(), houses, ttl };
         inFlight = null;
         return houses;
       });

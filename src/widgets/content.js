@@ -65,7 +65,7 @@ export const LIMITS = {
 /** The content budget of section 5: how much fits in one card, and how often. */
 export const BUDGET = {
   COMPONENTS: 8, // a card is read at a glance; beyond, it is a page
-  FOCAL: 1, // one card, one subject (chart | card-list | image | status)
+  FOCAL: 1, // one card, one subject (chart | card-list | image)
   TILES: 6, // value | gauge, rendered as one wrapping row
   TEXTS: 2, // of which at most one `body`
   BODY_TEXTS: 1,
@@ -360,17 +360,21 @@ export function buildContent(components, { ttlSeconds = 300 } = {}) {
         continue;
       }
       counters.buttons += 1;
-    }
-    if (FOCAL_TYPES.has(type)) {
-      if (
-        counters.focal >= BUDGET.FOCAL ||
-        (type === 'status' && counters.status >= BUDGET.STATUS)
-      ) {
+    } else if (type === 'status') {
+      // A budget of its own, NOT the focal one (see FOCAL_TYPES): the status
+      // check used to sit inside the focal branch, which a status never enters,
+      // so a second list went through and the core dropped it for us.
+      if (counters.status >= BUDGET.STATUS) {
+        logger.warn('Widget content over budget: status dropped (1 status list max)');
+        continue;
+      }
+      counters.status += 1;
+    } else if (FOCAL_TYPES.has(type)) {
+      if (counters.focal >= BUDGET.FOCAL) {
         logger.warn(`Widget content over budget: "${type}" dropped (one focal component per card)`);
         continue;
       }
       counters.focal += 1;
-      counters.status += type === 'status' ? 1 : 0;
     }
     kept.push(component);
   }

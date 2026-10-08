@@ -25,7 +25,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createLogger } from '@gladysassistant/integration-sdk';
 
-const logger = createLogger({ name: 'price-history' });
+const defaultLogger = createLogger({ name: 'price-history' });
 
 /** The only writable volume of the sandbox. */
 const DEFAULT_FILE = '/data/price-history.json';
@@ -64,19 +64,26 @@ export function seriesKey(config, fuel, scope = 'around') {
 }
 
 /**
- * @param {{ file?: string, now?: () => number, retentionDays?: number }} [options]
- *   `file` and `now` are the seams the tests use instead of a real /data and a
- *   real clock.
+ * @param {{ file?: string, now?: () => number, retentionDays?: number,
+ *   logger?: object }} [options]
+ *   `file`, `now` and `logger` are the seams the tests use instead of a real
+ *   /data, a real clock and the real logs.
  */
 export function createPriceHistory({
   file = DEFAULT_FILE,
   now = Date.now,
   retentionDays = RETENTION_DAYS,
+  logger = defaultLogger,
 } = {}) {
   /** @type {Map<string, Array<{ t: number, v: number }>>} key -> samples, oldest first */
   const series = new Map();
   let saveTimer = null;
   let loaded = false;
+  // A /data that cannot be written is said ONCE at warn level: the curve then
+  // silently restarts from scratch at every restart, and a debug line nobody
+  // reads was the only trace of why. Every later failure stays at debug — the
+  // save runs every few minutes and the cause does not change.
+  let saveWarned = false;
 
   /** Drop everything older than the retention window. */
   function prune() {
@@ -114,9 +121,14 @@ export function createPriceHistory({
       prune();
       logger.info(`Price history loaded: ${series.size} series`);
     } catch (err) {
-      // ENOENT on the first run, EACCES on a read-only volume, a truncated file
-      // after a power cut: none of them is worth an error line.
-      logger.debug(`No price history loaded (${err.code ?? err.message})`);
+      // ENOENT is the first run, nothing to say. EACCES on a read-only volume
+      // or a truncated file after a power cut is not an error either — the
+      // curve simply starts over — but it is worth one line a user can find.
+      if (err.code === 'ENOENT') {
+        logger.debug('No price history yet: the curve starts now');
+      } else {
+        logger.warn(`Price history not loaded, the curve starts over (${err.code ?? err.message})`);
+      }
     }
   }
 
@@ -129,7 +141,15 @@ export function createPriceHistory({
       await writeFile(temporary, JSON.stringify(payload), 'utf8');
       await rename(temporary, file);
     } catch (err) {
-      logger.debug(`Price history not saved (${err.code ?? err.message})`);
+      if (!saveWarned) {
+        saveWarned = true;
+        logger.warn(
+          `Price history cannot be written to ${dirname(file)} (${err.code ?? err.message}): ` +
+            'the dashboard curve works but will start over at every restart.',
+        );
+      } else {
+        logger.debug(`Price history not saved (${err.code ?? err.message})`);
+      }
     }
   }
 

@@ -204,7 +204,8 @@ elle-même, **au maximum une fois par heure**, et garde 30 jours dans `/data`.
 - Changer de code postal, de rayon ou de maison (champ « Quelle maison »)
   **repart d'une courbe vierge**, puisque ce n'est plus la même zone.
 - Si `/data` n'est pas accessible en écriture, tout continue de fonctionner :
-  seule la courbe repart de zéro au redémarrage.
+  seule la courbe repart de zéro au redémarrage. Les logs de l'intégration le
+  signalent une fois, en avertissement (« Price history cannot be written »).
 
 ### « Ma station »
 

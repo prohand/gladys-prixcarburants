@@ -174,3 +174,39 @@ test('a corrupt file is ignored rather than crashing the boot', async (t) => {
   await assert.doesNotReject(() => history.load());
   assert.equal(history.size, 0);
 });
+
+/** A logger recording its warnings. */
+function spyLogger() {
+  const warnings = [];
+  return { warnings, warn: (line) => warnings.push(line), debug: () => {}, info: () => {} };
+}
+
+test('an unwritable /data is said once at warn level, not every flush', async () => {
+  const logger = spyLogger();
+  const history = createPriceHistory({ file: '/etc/hostname/price-history.json', logger });
+
+  await history.load();
+  assert.equal(logger.warnings.length, 1, 'ENOTDIR on load is not a first run: say it');
+
+  history.record(config, stationsAt(1.7));
+  await history.flush();
+  history.record(normalizeConfig({ postal_code: '69007' }), stationsAt(1.6));
+  await history.flush();
+
+  const saveWarnings = logger.warnings.filter((line) => line.includes('cannot be written'));
+  assert.equal(saveWarnings.length, 1, 'once, then debug');
+  assert.match(saveWarnings[0], /start over at every restart/);
+});
+
+test('a first run (no file yet) warns about nothing', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'fuel-history-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const logger = spyLogger();
+  const history = createPriceHistory({ file: join(directory, 'price-history.json'), logger });
+
+  await history.load();
+  history.record(config, stationsAt(1.7));
+  await history.flush();
+
+  assert.deepEqual(logger.warnings, []);
+});

@@ -190,7 +190,8 @@ stores "the cheapest price of your area". So the integration samples it itself,
 - Changing the postal code, the radius or the house ("Which house" field)
   **starts a new curve**, since it is no longer the same area.
 - If `/data` is not writable, everything keeps working: only the curve starts
-  over after a restart.
+  over after a restart. The integration logs say so once, as a warning
+  ("Price history cannot be written").
 
 ### "My station"
 

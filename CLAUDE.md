@@ -239,7 +239,8 @@ fuel) and `station` (one followed station, a price tile per fuel).
   in `/data`, keyed by country + postal code + radius + SCOPE + fuel (+ the house name when
   one is set) so moving the area (or
   switching the card between "around me" and "my stations") starts a new
-  curve. Best effort: an unwritable `/data` costs the curve, never the integration, and the
+  curve. Best effort: an unwritable `/data` costs the curve, never the integration (said ONCE
+  at warn level — a debug line was the only trace of a curve restarting at every boot), and the
   trend tile is ABSENT rather than zero while the history is younger than its window — the one
   exception to "no state that must survive a restart", and it is additive by construction.
 - **Distances start at the Gladys house when it is located**, at the centre of the postal code
@@ -247,7 +248,9 @@ fuel) and `station` (one followed station, a price tile per fuel).
   `10 km autour de ma maison` / `autour du 35000`) — do not let a redesign drop that word.
   `src/house.js` reads `GET /api/integration/v1/house` with the SDK's own base URL and token
   (the SDK wraps no such call), which requires `"location": true` in the manifest — the two
-  ship together, a 403 is the symptom of forgetting one. Cached an hour, invalidated on
+  ship together, a 403 is the symptom of forgetting one. Cached an hour (a 401/403/404 too,
+  which no retry fixes) — but a TRANSIENT failure (network, 429, 5xx) for 2 minutes only, or a
+  blip measured every distance from the postal code for an hour. Invalidated on
   `onConfigUpdated`, and best effort everywhere: `resolveSearchCenter` falls back on the postal
   code for an unlocated house, an older core or a network failure. A Gladys install can hold
   SEVERAL houses, and the route returns them all: the module keeps every located one and

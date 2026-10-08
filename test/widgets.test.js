@@ -23,6 +23,8 @@ import {
   boundedText,
   buildContent,
   button,
+  chart,
+  statusList,
   text,
   valueTile,
 } from '../src/widgets/content.js';
@@ -110,6 +112,20 @@ test('the content budget drops the extra components in content order', () => {
   assert.equal(componentsOfType(content, 'value').length, BUDGET.TILES);
   assert.equal(content.components.length <= BUDGET.COMPONENTS, true);
   assert.equal(componentsOfType(content, 'value')[0].label, 't0', 'the first ones win');
+});
+
+test('one status list per card, on a budget of its own beside the focal one', () => {
+  const list = (label) => statusList([{ label, value: '1,699' }]);
+  const curve = chart({
+    series: [{ name: 'Gazole', points: [{ t: '2026-09-22T10:00:00Z', v: 1.7 }] }],
+  });
+  const content = buildContent([curve, list('first'), list('second')]);
+
+  assert.equal(componentsOfType(content, 'chart').length, 1, 'the chart is not a status');
+  const lists = componentsOfType(content, 'status');
+  assert.equal(lists.length, BUDGET.STATUS, 'the second list is dropped here, not by the core');
+  assert.equal(lists[0].items[0].label, 'first', 'the first one wins');
+  assert.deepEqual(validateWidgetContent(content), []);
 });
 
 test('the ttl is clamped to what the core accepts', () => {

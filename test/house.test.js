@@ -189,3 +189,41 @@ test('the search centre follows the configuration, and falls back on its own', a
     source: 'postal_code',
   });
 });
+
+test('a transient failure is retried within minutes, not after an hour', async () => {
+  for (const failure of [new Error('ECONNREFUSED'), { status: 503, body: {} }, { status: 429 }]) {
+    const { fetchImpl, calls } = fakeFetch([failure, { body: HOUSES }]);
+    let clock = 0;
+    const house = createHouseLocation(gladys, {
+      fetchImpl,
+      now: () => clock,
+      ttlMs: 60 * 60 * 1000,
+      failureTtlMs: 2 * 60 * 1000,
+    });
+
+    assert.equal(await house.get(), null, 'the postal code serves meanwhile');
+    clock += 60 * 1000;
+    assert.equal(await house.get(), null, 'not asked again on every pull');
+    assert.equal(calls.length, 1);
+
+    clock += 2 * 60 * 1000;
+    assert.equal((await house.get()).name, 'Maison', 'asked again a couple of minutes later');
+    assert.equal(calls.length, 2);
+  }
+});
+
+test('a 403 is no blip: it is kept for the hour', async () => {
+  const { fetchImpl, calls } = fakeFetch([{ status: 403, body: {} }, { body: HOUSES }]);
+  let clock = 0;
+  const house = createHouseLocation(gladys, {
+    fetchImpl,
+    now: () => clock,
+    ttlMs: 60 * 60 * 1000,
+    failureTtlMs: 2 * 60 * 1000,
+  });
+
+  await house.get();
+  clock += 10 * 60 * 1000;
+  assert.equal(await house.get(), null);
+  assert.equal(calls.length, 1, 'only re-installing fixes a missing "location": true');
+});
