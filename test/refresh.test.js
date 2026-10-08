@@ -255,3 +255,33 @@ test('an unpublishable scene event never fails the refresh that carried it', asy
 
   assert.deepEqual(result, { total: 1, updated: 1, failures: [] }, 'the prices were refreshed');
 });
+
+test('a refresh pass sends its states in batches, not two requests per device', async () => {
+  const ids = Array.from({ length: 60 }, (_, i) => String(i + 1));
+  const { store } = storeWith(ids.map((id) => createStation({ id })));
+  const gladys = gladysWithStations(ids);
+
+  const result = await refreshAllDevices(gladys, { config, store });
+
+  assert.equal(result.updated, 60);
+  // A price and a date per device: 120 states, i.e. 2 requests instead of 120.
+  assert.deepEqual(gladys.stateRequests, [100, 20]);
+});
+
+test('a pass Gladys keeps refusing fails as a whole and nudges nothing', async () => {
+  const { store } = storeWith([createStation({ id: '1' })]);
+  const gladys = gladysWithStations(['1']);
+  gladys.publishStates = async () => {
+    throw Object.assign(new Error('Too many requests'), { status: 429 });
+  };
+  let nudged = false;
+  gladys.requestWidgetRefresh = () => {
+    nudged = true;
+  };
+
+  await assert.rejects(
+    refreshAllDevices(gladys, { config, store, sleep: async () => {} }),
+    /Too many requests/,
+  );
+  assert.equal(nudged, false, 'a card must not be re-pulled for prices Gladys never got');
+});

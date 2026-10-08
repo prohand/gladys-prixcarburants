@@ -96,6 +96,13 @@ devices Gladys holds, publishes discovery, arms the refresh loop and reports
   `createRefreshLoop` in `src/refresh.js` instead. `onPoll` stays registered anyway.
 - **Every feature needs `min` and `max`**, including text ones — they are NOT NULL in Gladys,
   and omitting them fails device creation with `HTTP 422 - min cannot be null`.
+- **All state writes go through `publishStates` in `src/statePublisher.js`.** The host API
+  takes 100 states per request and 300 a minute per integration (429 beyond). A refresh pass
+  BUILDS its states (`readDeviceStates`, `integrationStates`) and sends them in one request
+  per hundred; `pollDevice` / `publishIntegrationState` are the single-device shortcuts. A
+  429 is waited out once (60 s, the window of the limit — the SDK's `GladysApiError` carries no
+  `Retry-After`), a second refusal fails the pass: no widget nudge, no scene pass closed, so
+  the next pass fires what this one could not deliver. Never call `gladys.publishState`.
 - **All station reads go through `stationStore`.** Gladys polls devices one by one; the store
   batches every tracked station of a country into one request and shares the in-flight
   promise, so ten devices cost one HTTP call. Never call a provider directly from a device or

@@ -16,7 +16,13 @@
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
-import { parseTargets, pollDevice, publishIntegrationState } from './devices/index.js';
+import {
+  integrationStates,
+  parseTargets,
+  publishIntegrationState,
+  readDeviceStates,
+} from './devices/index.js';
+import { publishStates } from './statePublisher.js';
 import { notifyWidgetsChanged } from './widgets/index.js';
 import { isConfigReady } from './config.js';
 
@@ -67,11 +73,12 @@ async function sampleForWidgets({ config, store, history }) {
  *   nothing.
  *   `sceneEvents` is optional: without it the pass behaves exactly as before,
  *   which is what keeps a Gladys that ignores scene triggers unaffected.
+ *   `sleep` is the seam the tests use to wait out a 429 in no time.
  * @returns {Promise<{ total: number, updated: number, failures: string[] }>}
  */
 export async function refreshAllDevices(
   gladys,
-  { config, store, history, force = false, sceneEvents = null },
+  { config, store, history, force = false, sceneEvents = null, sleep },
 ) {
   const devices = await gladys.getDevices();
   const targets = parseTargets(devices);
@@ -101,10 +108,13 @@ export async function refreshAllDevices(
   // only be answered once every station has been read. See src/sceneEvents.js.
   const pass = sceneEvents?.startPass() ?? null;
   let lastError = null;
+  const states = [];
   for (const target of targets) {
     const { device } = target;
     try {
-      const { price, station } = await pollDevice(gladys, { device, config, store });
+      const reading = await readDeviceStates(gladys, { device, store });
+      const { price, station } = reading;
+      states.push(...reading.states);
       if (price !== null) {
         updated += 1;
         pass?.record({ device, target, station, price });
@@ -119,7 +129,15 @@ export async function refreshAllDevices(
   // Last, so it reports the read this very pass just did. A pass where every
   // station failed leaves `store.lastFetchAt` where it was: the date then ages
   // on the dashboard, which is precisely the signal.
-  await publishIntegrationState(gladys, { store, devices });
+  states.push(...integrationStates(gladys, { store, devices }));
+
+  // Every state of the pass in one request per hundred, a 429 waited out once
+  // (src/statePublisher.js) — not two requests per device, which is how fifty
+  // stations ran into the host API's 300 states a minute. A refusal past the
+  // retry fails the PASS: the widgets are not nudged and the scene pass is not
+  // closed, so its baseline stays the last one Gladys actually received and the
+  // next pass fires the transitions this one could not deliver.
+  await publishStates(gladys, states, sleep ? { sleep } : undefined);
 
   await sampleForWidgets({ config, store, history });
 

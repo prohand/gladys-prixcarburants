@@ -35,6 +35,7 @@ export {
   parseDeviceExternalId,
   platformId,
   pollDevice,
+  readDeviceStates,
 } from './fuelStation.js';
 
 export {
@@ -42,6 +43,7 @@ export {
   FEATURE as INTEGRATION_FEATURE,
   buildIntegrationDevice,
   integrationExternalId,
+  integrationStates,
   isIntegrationDevice,
   publishIntegrationState,
 } from './integration.js';

@@ -26,6 +26,7 @@ import {
   DEVICE_FEATURE_CATEGORIES,
   DEVICE_FEATURE_TYPES,
 } from '@gladysassistant/integration-sdk';
+import { featureState, publishStates } from '../statePublisher.js';
 import { formatInstant } from '../text.js';
 
 export const DEVICE_TYPE = 'integration';
@@ -96,29 +97,45 @@ export function buildIntegrationDevice(gladys) {
 }
 
 /**
- * Publish when the feed was last read — a no-op when the user did not add the
- * device, or when no provider call has succeeded yet (a fresh container that
- * has never reached the API must not claim a read time).
+ * The state saying when the feed was last read — none when the user did not
+ * add the device, or when no provider call has succeeded yet (a fresh
+ * container that has never reached the API must not claim a read time).
+ * Built, not sent: a refresh pass sends it in the same batch as the prices.
  *
  * @param {object} gladys SDK instance
  * @param {{ store: object, devices?: Array<{ external_id: string }> }} context
  *   `devices` is the list Gladys already handed us, so publishing the status
  *   costs no extra round-trip.
- * @returns {Promise<string|null>} the published text, or null when nothing was
+ * @returns {Array<object>} zero or one state
  */
-export async function publishIntegrationState(gladys, { store, devices = [] }) {
+export function integrationStates(gladys, { store, devices = [] }) {
   const externalId = integrationExternalId(gladys);
   if (!devices.some((device) => device.external_id === externalId)) {
-    return null;
+    return [];
   }
 
   const lastRefresh = formatInstant(store.lastFetchAt);
   if (!lastRefresh) {
     logger.debug('The feed has never been read successfully yet: nothing to publish');
-    return null;
+    return [];
   }
 
   const ids = gladys.externalIds(DEVICE_TYPE, PLATFORM_ID);
-  await gladys.publishState(ids.feature(FEATURE.LAST_REFRESH), { text: lastRefresh });
-  return lastRefresh;
+  return [featureState(ids.feature(FEATURE.LAST_REFRESH), { text: lastRefresh })];
+}
+
+/**
+ * Publish when the feed was last read, right away (see `integrationStates`).
+ *
+ * @param {object} gladys SDK instance
+ * @param {{ store: object, devices?: Array<{ external_id: string }> }} context
+ * @returns {Promise<string|null>} the published text, or null when nothing was
+ */
+export async function publishIntegrationState(gladys, context) {
+  const states = integrationStates(gladys, context);
+  if (states.length === 0) {
+    return null;
+  }
+  await publishStates(gladys, states);
+  return states[0].text;
 }
