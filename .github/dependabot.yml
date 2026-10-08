@@ -14,3 +14,10 @@ updates:
     directory: /
     schedule:
       interval: monthly
+
+  # The base image is pinned by digest in the Dockerfile: this keeps the tag and
+  # the digest moving together instead of the pin going stale.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
