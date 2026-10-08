@@ -28,7 +28,7 @@ import { isConfigReady } from '../config.js';
 import { resolveSearchCenter } from '../house.js';
 import { FUELS, FUEL_KEYS, fuelLabel } from '../fuels.js';
 import { getProvider } from '../countries/index.js';
-import { formatInstant } from '../text.js';
+import { formatInstant, startOfZonedDay } from '../text.js';
 import { COLOR, buildContent, button, chart, statusList, text, valueTile } from './content.js';
 import {
   PRICE_UNIT,
@@ -439,9 +439,10 @@ function buildChart(history, { config, fuel, label, scope, cheapest }) {
   // line at the start of that day: the value is the one we measured, the anchor
   // only gives the axis a width. From the second sample on (one an hour), the
   // real points take over and this never runs again.
+  // The start of the day on the USER's clock (`displayTimeZone()`), not the
+  // container's UTC one, which would open a Paris day at 02:00.
   if (points.length === 1) {
-    const anchor = new Date(points[0].t);
-    anchor.setHours(0, 0, 0, 0);
+    const anchor = startOfZonedDay(new Date(points[0].t));
     points.unshift({ t: anchor.toISOString(), v: points[0].v });
   }
 

@@ -18,6 +18,10 @@ import {
 } from '../src/sceneEvents.js';
 import { createStation } from './helpers/fakeGladys.js';
 
+// The dates below are written on the Paris clock, the display zone when TZ is
+// unset (src/text.js). Pin it, so a developer's own TZ cannot move them.
+process.env.TZ = 'Europe/Paris';
+
 /** A scene-event publisher that records instead of calling the host API. */
 function recorder(behaviour = () => {}) {
   const sent = [];
@@ -213,7 +217,7 @@ test('the feed status is a transition, fired once — not a state repeated hourl
 
   sent.length = 0;
   await pass(events, [reading('1', 'gazole', 1.699)], {
-    lastSuccessAt: Date.parse('2026-08-06T07:12:00'),
+    lastSuccessAt: Date.parse('2026-08-06T07:12:00+02:00'), // 07:12 on the Paris clock
   });
   const up = sent.filter((e) => e.key === SCENE_TRIGGERS.FEED_STATUS_CHANGED);
   assert.equal(up.length, 1);

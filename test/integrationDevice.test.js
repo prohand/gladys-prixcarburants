@@ -21,6 +21,10 @@ import { refreshAllDevices } from '../src/refresh.js';
 import { createStationStore } from '../src/stationStore.js';
 import { createFakeGladys, createFakeProvider, createStation } from './helpers/fakeGladys.js';
 
+// The dates below are written on the Paris clock, the display zone when TZ is
+// unset (src/text.js). Pin it, so a developer's own TZ cannot move them.
+process.env.TZ = 'Europe/Paris';
+
 const config = normalizeConfig({ postal_code: '35000', fuel_type: ['gazole'] });
 
 function storeWith(stations, now) {
@@ -91,8 +95,9 @@ test('discovery keeps the name the user gave the integration device', async () =
 
 test('a refresh pass publishes the moment the feed was read', async () => {
   const gladys = createFakeGladys();
-  const { store } = storeWith([createStation({ id: '1' })], () =>
-    new Date(2026, 7, 8, 21, 0).getTime(),
+  const { store } = storeWith(
+    [createStation({ id: '1' })],
+    () => Date.UTC(2026, 7, 8, 19, 0) /* 21:00 in Paris */,
   );
   gladys.devices = [
     { external_id: deviceExternalId(gladys, { country: 'FR', stationId: '1', fuel: 'gazole' }) },
@@ -110,7 +115,7 @@ test('a refresh pass publishes the moment the feed was read', async () => {
 
 test('the status is published even when the user added no station at all', async () => {
   const gladys = createFakeGladys();
-  const { store } = storeWith([], () => new Date(2026, 7, 8, 21, 0).getTime());
+  const { store } = storeWith([], () => Date.UTC(2026, 7, 8, 19, 0) /* 21:00 in Paris */);
   gladys.devices = [{ external_id: integrationExternalId(gladys) }];
   await store.search(config); // the Discovery tab already read the feed once
 
@@ -150,12 +155,12 @@ test('nothing is published before the first successful read', async () => {
 
 test('a failed read leaves the date ageing instead of refreshing it', async () => {
   const gladys = createFakeGladys();
-  let clock = new Date(2026, 7, 8, 21, 0).getTime();
+  let clock = Date.UTC(2026, 7, 8, 19, 0); /* 21:00 in Paris */
   const provider = createFakeProvider({ stations: [createStation({ id: '1' })] });
   const store = createStationStore({ resolveProvider: () => provider, now: () => clock });
 
   await store.search(config); // one successful read, at 21:00
-  clock = new Date(2026, 7, 8, 22, 0).getTime();
+  clock = Date.UTC(2026, 7, 8, 20, 0); /* 22:00 in Paris */
   provider.fetchStationsByIds = async () => {
     throw new Error('open data API is down');
   };

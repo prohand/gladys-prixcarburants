@@ -43,7 +43,10 @@ En plus des stations, l'onglet Découverte propose **un appareil unique, commun
 - **Dernière lecture des données** — la date et l'heure, au format
   `08/08/2026 à 21:00`,
   auxquelles l'intégration a lu le flux open data pour la dernière fois **avec
-  succès**.
+  succès**. L'heure est celle de la France métropolitaine (Europe/Paris), quelle
+  que soit l'horloge du conteneur ; une installation ailleurs peut indiquer son
+  fuseau dans la variable d'environnement `TZ` du conteneur
+  (`America/Martinique`).
 
 C'est une information différente de la « Dernière mise à jour » d'une station :
 celle-ci vous dit quand la station a bougé ses prix (ce qui peut remonter à une

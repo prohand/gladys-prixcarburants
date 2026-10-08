@@ -8,7 +8,13 @@
 // the sentence in it.
 // -----------------------------------------------------------------------------
 
-import { cleanText, parseDateTimeParts, shortenAddress } from '../text.js';
+import {
+  cleanText,
+  displayTimeZone,
+  parseDateTimeParts,
+  shortenAddress,
+  zonedParts,
+} from '../text.js';
 
 /** The unit every price of this integration is expressed in (6 chars max). */
 export const PRICE_UNIT = '€/L';
@@ -60,33 +66,43 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * Parsed through `parseDateTimeParts`, textually, for the same reason
  * `formatDateTime` is: the container runs in UTC and a `new Date(...)` here
  * would turn a price declared at 00:30 in Paris into one declared the day
- * before.
+ * before. And "today" is today on the USER's clock (`displayTimeZone()`), not
+ * the container's: between midnight and 02:00 in Paris, a UTC container still
+ * lived in yesterday and dated the night's prices "tomorrow" minus one.
  *
  * @param {unknown} value raw timestamp from the feed
  * @param {string} [language] ISO 639-1 sent by the core
  * @param {Date} [now] injectable clock, so a test does not depend on the day
  *   it runs on
+ * @param {string} [timeZone] whose "today" it is
  * @returns {string} `''` when there is no date to show
  */
-export function formatShortDate(value, language = 'en', now = new Date()) {
+export function formatShortDate(
+  value,
+  language = 'en',
+  now = new Date(),
+  timeZone = displayTimeZone(),
+) {
   const parts = parseDateTimeParts(value);
   if (!parts) {
     // Unknown shape: the publisher's own string, like formatDateTime.
     return cleanText(value);
   }
   const { year, month, day } = parts;
-  // Both sides reduced to a local midnight: what we compare is calendar days,
-  // not the 24 hours between two instants.
-  const declared = new Date(Number(year), Number(month) - 1, Number(day));
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const elapsedDays = Math.round((today.getTime() - declared.getTime()) / DAY_MS);
+  // Both sides reduced to a calendar day (as UTC midnights, only to subtract
+  // them): what we compare is dates, not the 24 hours between two instants.
+  const declared = Date.UTC(Number(year), Number(month) - 1, Number(day));
+  const local = zonedParts(now, timeZone);
+  const elapsedDays = Math.round(
+    (Date.UTC(local.year, local.month - 1, local.day) - declared) / DAY_MS,
+  );
   if (elapsedDays === 0) {
     return language === 'fr' ? 'auj.' : 'today';
   }
   if (elapsedDays === 1) {
     return language === 'fr' ? 'hier' : 'yest.';
   }
-  if (Number(year) === today.getFullYear()) {
+  if (Number(year) === local.year) {
     return `${day}/${month}`;
   }
   return `${day}/${month}/${year.slice(2)}`;

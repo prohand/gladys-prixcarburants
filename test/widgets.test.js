@@ -42,6 +42,7 @@ import {
   formatShortDate,
   shortenStationName,
 } from '../src/widgets/format.js';
+import { zonedParts } from '../src/text.js';
 import { createFakeGladys, createFakeProvider, createStation } from './helpers/fakeGladys.js';
 
 const config = normalizeConfig({ postal_code: '35000', fuel_type: ['gazole', 'sp98'] });
@@ -792,12 +793,10 @@ test('a single sample is anchored to the start of its day, never to the future',
     points.every((point) => point.v === 1.88),
     'the anchor carries the measured price',
   );
-  const anchor = new Date(points[0].t);
-  assert.equal(
-    anchor.getHours() + anchor.getMinutes() + anchor.getSeconds(),
-    0,
-    'start of the day',
-  );
+  // Midnight on the USER's clock, not the container's UTC one (02:00 in Paris).
+  const anchor = zonedParts(new Date(points[0].t));
+  assert.equal(anchor.hours + anchor.minutes, 0, 'start of the day');
+  assert.equal(new Date(points[0].t).getUTCSeconds(), 0);
   assert.ok(new Date(points[1].t).getTime() <= Date.now());
 });
 
@@ -820,6 +819,24 @@ test('the short date keeps the declared wall-clock day, not the container one', 
   // read as an instant, a price declared today would be dated yesterday.
   const now = new Date(2026, 8, 22, 9, 30);
   assert.equal(formatShortDate('2026-09-22T00:30:00+02:00', 'fr', now), 'auj.');
+});
+
+test('"today" is today on the Paris clock, not on the UTC clock of the container', () => {
+  // 00:30 in Paris on 22/09 is still 21/09 in UTC: a price declared at 00:10
+  // was dated in the future of the container's "today".
+  const justAfterMidnight = new Date(Date.UTC(2026, 8, 21, 22, 30));
+  const paris = 'Europe/Paris';
+  assert.equal(
+    formatShortDate('2026-09-22T00:10:00+02:00', 'fr', justAfterMidnight, paris),
+    'auj.',
+  );
+  assert.equal(
+    formatShortDate('2026-09-21T18:00:00+02:00', 'fr', justAfterMidnight, paris),
+    'hier',
+  );
+  // New Year's Eve in UTC, New Year's Day in Paris: the year is the reader's.
+  const newYear = new Date(Date.UTC(2026, 11, 31, 23, 30));
+  assert.equal(formatShortDate('2026-12-30T08:00:00+01:00', 'fr', newYear, paris), '30/12/26');
 });
 
 test('the short date shows nothing when the feed says nothing', () => {

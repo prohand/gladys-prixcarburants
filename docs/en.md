@@ -41,7 +41,9 @@ the whole integration**, with one feature:
 - **Dernière lecture des données** — the date and time, as
   `08/08/2026 à 21:00`, of the last **successful** read of the open data feed
   by the integration. The device and its feature are named in French, like the
-  data source they report on.
+  data source they report on. The time is on the French clock (Europe/Paris),
+  whatever clock the container runs on; an install elsewhere can set the `TZ`
+  environment variable of the container to its own zone (`America/Martinique`).
 
 This is not the same information as a station's "Last price update": that one
 tells you when the station moved its prices (a week ago is perfectly normal),

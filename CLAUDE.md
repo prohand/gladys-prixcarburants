@@ -97,7 +97,11 @@ follow-up, one, shared by every forced request meanwhile — never two passes si
   a stale one here means the API stopped answering, so a failed pass must leave it ageing.
 - **Dates are displayed as `08/08/2026 à 21:00`**, via `formatDateTime` (feed strings, parsed
   TEXTUALLY so the container timezone cannot shift a declared wall-clock time) and
-  `formatInstant` (instants we observed, in container-local time) in `src/text.js`.
+  `formatInstant` (instants we observed) in `src/text.js`. An observed instant — the read time,
+  the "auj."/"hier" of a ranking row, the midnight anchor of the curve — is expressed in
+  `displayTimeZone()` through `Intl` (`zonedParts`, `startOfZonedDay`), NEVER the container's
+  local time: the sandbox sets no `TZ`, so that is UTC and 11:00 in Paris showed as 09:00.
+  `Europe/Paris` by default, `TZ` wins when it names a zone the runtime knows.
 - **Devices carry no `poll_frequency`.** Gladys' `poll_frequency` is an enum capped at 60s;
   any other value makes it reject the _entire_ discovery payload (the Discovery tab silently
   stays empty). The 10 min–24 h interval the user configures is honoured by
