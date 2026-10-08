@@ -29,6 +29,7 @@ import {
   publishIntegrationState,
 } from './src/devices/index.js';
 import { createRefreshLoop } from './src/refresh.js';
+import { createConnectedHandler } from './src/lifecycle.js';
 import { createSceneEvents } from './src/sceneEvents.js';
 import { registerSceneActions } from './src/sceneActions.js';
 import { ACTIONS } from './src/actions.js';
@@ -173,54 +174,23 @@ gladys.onConfigUpdated(async (newConfig) => {
 
 // --- Connection lifecycle ----------------------------------------------------
 // The SDK logs the WebSocket lifecycle itself (under the `gladys-sdk` name);
-// this handler only runs the integration's own (re)initialization.
-gladys.on('connected', async () => {
-  try {
-    // 1) Fetch the config filled in by the user.
-    config = normalizeConfig(await gladys.getConfig());
-
-    // 1 bis) Reload the price history of the previous run, so a restart does
-    //        not reset the curve of the dashboard to a single point.
-    await priceHistory.load();
-
-    // 2) Remember which stations already have a device, so the very first
-    //    refresh batches them all in one request.
-    await syncTrackedStations();
-
-    // 3) Arm our own refresh timer BEFORE anything reaches the open data API:
-    //    a search failing right after a container start (network not up yet,
-    //    API down) used to throw out of this handler before the loop was
-    //    armed, and no price was refreshed until a reconnection or a config
-    //    change.
-    refreshLoop.start(config);
-
-    // 4) Publish the discovery list (and re-publish the created devices). A
-    //    failure here only costs the Discovery tab until the next scan: the
-    //    devices already created keep being refreshed by the loop.
-    try {
-      await runDiscovery();
-    } catch (err) {
-      logger.error('Discovery failed, the created devices keep refreshing', err);
-    }
-
-    // 5) Publish a first round of prices right away, so a restarted container
-    //    does not leave the dashboard waiting a full interval.
-    await refreshLoop.runNow(config);
-
-    // 6) Report the application-level status, shown in the Configuration
-    //    screen. Distinct from the container state: the integration can be
-    //    RUNNING and still unable to reach the open data API.
-    await gladys.setConnectionStatus(true);
-  } catch (err) {
-    logger.error('Post-connection initialization failed', err);
-    await gladys
-      .setConnectionStatus(false, {
-        en: 'Initialization failed, check the integration logs.',
-        fr: "L'initialisation a échoué, consultez les logs de l'intégration.",
-      })
-      .catch(() => {});
-  }
-});
+// this handler only runs the integration's own (re)initialization. Its order
+// — the refresh timer armed before anything can fail — is in src/lifecycle.js.
+gladys.on(
+  'connected',
+  createConnectedHandler({
+    gladys,
+    readConfig: async () => {
+      config = normalizeConfig(await gladys.getConfig());
+      return config;
+    },
+    currentConfig: () => config,
+    refreshLoop,
+    priceHistory,
+    syncTrackedStations,
+    runDiscovery,
+  }),
+);
 
 // Stop refreshing while Gladys is unreachable: the SDK reconnects on its own
 // and the `connected` handler re-arms the loop.

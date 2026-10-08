@@ -285,3 +285,81 @@ test('a pass Gladys keeps refusing fails as a whole and nudges nothing', async (
   );
   assert.equal(nudged, false, 'a card must not be re-pulled for prices Gladys never got');
 });
+
+/** A store whose reads wait until the test releases them, counting passes. */
+function blockingStore() {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  const calls = { invalidate: 0, reads: 0 };
+  const store = {
+    lastFetchAt: null,
+    setTracked() {},
+    invalidate() {
+      calls.invalidate += 1;
+    },
+    async getStation(country, stationId) {
+      calls.reads += 1;
+      await gate;
+      return createStation({ id: stationId });
+    },
+  };
+  return { store, calls, release };
+}
+
+test('a pass requested while one runs joins it instead of running beside it', async () => {
+  const { store, calls, release } = blockingStore();
+  const gladys = gladysWithStations(['1']);
+  const loop = createRefreshLoop(gladys, { store, ...fakeTimers() });
+
+  const tick = loop.runNow(config); // the timer, or the reconnection
+  const action = refreshAllDevices(gladys, { config, store }); // a scene, meanwhile
+  release();
+  const [, result] = await Promise.all([tick, action]);
+
+  assert.equal(calls.reads, 1, 'one pass, one read');
+  assert.deepEqual(result, { total: 1, updated: 1, failures: [] }, 'the joiner gets its result');
+  assert.equal(gladys.stateRequests.length, 1, 'the states were published once');
+});
+
+test('forced passes arriving during an unforced one coalesce into ONE follow-up', async () => {
+  const { store, calls, release } = blockingStore();
+  const gladys = gladysWithStations(['1']);
+
+  const periodic = refreshAllDevices(gladys, { config, store });
+  // The button and the scene action, both pressed while the tick still reads.
+  const button = refreshAllDevices(gladys, { config, store, force: true });
+  const scene = refreshAllDevices(gladys, { config, store, force: true });
+  assert.equal(button, scene, 'one queued pass, shared');
+  release();
+  await Promise.all([periodic, button, scene]);
+
+  assert.equal(calls.reads, 2, 'the running pass, then exactly one forced pass');
+  assert.equal(calls.invalidate, 1, 'the follow-up really bypassed the cache');
+
+  // Once both are done, a new request starts a pass of its own again.
+  await refreshAllDevices(gladys, { config, store });
+  assert.equal(calls.reads, 3);
+});
+
+test('a failed pass does not cancel the forced pass queued behind it', async () => {
+  const gladys = gladysWithStations(['1']);
+  let fail = true;
+  const getDevices = gladys.getDevices;
+  gladys.getDevices = async () => {
+    if (fail) {
+      fail = false;
+      await Promise.resolve();
+      throw new Error('Gladys is restarting');
+    }
+    return getDevices();
+  };
+  const { store } = storeWith([createStation({ id: '1' })]);
+
+  const first = refreshAllDevices(gladys, { config, store });
+  const forced = refreshAllDevices(gladys, { config, store, force: true });
+
+  await assert.rejects(first, /restarting/);
+  assert.deepEqual(await forced, { total: 1, updated: 1, failures: [] });
+});

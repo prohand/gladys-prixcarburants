@@ -54,9 +54,17 @@ config (country, postal code, radius, fuels)
 ```
 
 `index.js` is pure wiring: it registers every SDK handler _before_ `connect()` and holds no
-business logic. On `connected` it re-reads the config, syncs the tracked station set from the
-devices Gladys holds, publishes discovery, arms the refresh loop and reports
-`setConnectionStatus`.
+business logic. On `connected` (`src/lifecycle.js`, testable because index.js connects on
+import) it re-reads the config, ARMS THE REFRESH LOOP, then syncs the tracked station set from
+the devices Gladys holds, publishes discovery, runs a first pass and reports
+`setConnectionStatus`. Arming comes first and again in a `finally` with the config in force:
+a reconnection is when the host API answers 429/5xx, and a failure that skipped the arming
+used to leave no timer at all until the next reconnection.
+
+A refresh pass is **single-flight** (`refreshAllDevices` in `src/refresh.js`): the timer, the
+reconnection, the "refresh now" button and the scene action all start one, and a request made
+while one runs JOINS it. Only a forced request arriving during an unforced pass queues a
+follow-up, one, shared by every forced request meanwhile — never two passes side by side.
 
 ### Invariants that shape the code
 

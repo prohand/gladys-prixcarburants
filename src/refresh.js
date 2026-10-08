@@ -58,7 +58,25 @@ async function sampleForWidgets({ config, store, history }) {
 }
 
 /**
+ * The pass in flight, per SDK instance, and the forced pass queued behind it.
+ * @type {WeakMap<object, { promise: Promise<object>, force: boolean,
+ *   followUp: Promise<object>|null }>}
+ */
+const passes = new WeakMap();
+
+/**
  * Read every station device Gladys holds and publish its current price.
+ *
+ * SINGLE-FLIGHT. Four things start a pass — the timer, the "Refresh the prices
+ * now" button, the scene action, the (re)connection — and nothing orders them:
+ * a user pressing the button during the reconnection pass used to run two
+ * passes side by side, each publishing every state and each comparing the
+ * scene baselines with a pass that was still half-way through. So a pass
+ * requested while one runs JOINS it and gets its result. The one exception is
+ * a FORCED pass (the button, the scene action) arriving while an unforced one
+ * runs: the running pass may be serving prices from the store cache, so a
+ * single forced pass is queued behind it, shared by every forced request that
+ * arrives meanwhile — at most one pass running and one waiting, ever.
  *
  * A device that fails is counted and logged, never thrown: one station missing
  * from the feed must not stop the nine others from being refreshed.
@@ -76,7 +94,39 @@ async function sampleForWidgets({ config, store, history }) {
  *   `sleep` is the seam the tests use to wait out a 429 in no time.
  * @returns {Promise<{ total: number, updated: number, failures: string[] }>}
  */
-export async function refreshAllDevices(
+export function refreshAllDevices(gladys, context) {
+  const force = context.force === true;
+  const current = passes.get(gladys);
+  if (current) {
+    if (!force || current.force) {
+      logger.debug('A refresh pass is already running: joining it');
+      return current.promise;
+    }
+    // Settled either way before the follow-up starts: a failed pass must not
+    // cancel the forced read the user asked for.
+    current.followUp ??= current.promise.then(
+      () => refreshAllDevices(gladys, context),
+      () => refreshAllDevices(gladys, context),
+    );
+    return current.followUp;
+  }
+
+  const entry = { force, followUp: null, promise: null };
+  entry.promise = runPass(gladys, context).finally(() => {
+    if (passes.get(gladys) === entry) {
+      passes.delete(gladys);
+    }
+  });
+  passes.set(gladys, entry);
+  return entry.promise;
+}
+
+/**
+ * One refresh pass, see `refreshAllDevices`.
+ * @param {object} gladys SDK instance
+ * @param {object} context
+ */
+async function runPass(
   gladys,
   { config, store, history, force = false, sceneEvents = null, sleep },
 ) {
