@@ -25,6 +25,7 @@
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
+import { fetchJson } from '../http.js';
 import { AVAILABILITY } from '../availability.js';
 import { centroid, distanceKm, isValidPoint } from '../geo.js';
 import { FUEL_KEYS } from '../fuels.js';
@@ -321,15 +322,14 @@ async function queryStations(where, max) {
     url.searchParams.set('limit', String(Math.min(PAGE_SIZE, max - offset)));
     url.searchParams.set('offset', String(offset));
 
-    logger.debug(`Request -> ${url.toString()}`);
-    const response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-    if (!response.ok) {
-      // Propagate: the caller decides between keeping the previous prices and
-      // reporting the failure to the user.
-      throw new Error(`prix-carburants API HTTP ${response.status} (${response.statusText})`);
-    }
-
-    const body = await response.json();
+    // Propagates once the one retry is spent: the caller decides between
+    // keeping the previous prices and reporting the failure to the user. The
+    // logged URL has its `POINT(...)` blanked — it may be the user's house.
+    const body = await fetchJson(url, {
+      timeoutMs: REQUEST_TIMEOUT_MS,
+      label: 'prix-carburants API',
+      logger,
+    });
     const records = Array.isArray(body.results) ? body.results : [];
     stations.push(...records.map(parseStation).filter(Boolean));
 

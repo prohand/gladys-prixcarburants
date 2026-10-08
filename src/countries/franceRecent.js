@@ -21,6 +21,7 @@
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
+import { fetchJson } from '../http.js';
 import { AVAILABILITY } from '../availability.js';
 import { cleanText } from '../text.js';
 
@@ -134,12 +135,11 @@ async function fetchRecentFuels(ids, now) {
     );
     url.searchParams.set('limit', String(IDS_PER_QUERY));
 
-    logger.debug(`Request -> ${url.toString()}`);
-    const response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-    if (!response.ok) {
-      throw new Error(`price history HTTP ${response.status} (${response.statusText})`);
-    }
-    const body = await response.json();
+    const body = await fetchJson(url, {
+      timeoutMs: REQUEST_TIMEOUT_MS,
+      label: 'price history',
+      logger,
+    });
     const records = Array.isArray(body.results) ? body.results : [];
 
     // A station the history does not know is cached too, as "nothing recent".

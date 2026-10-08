@@ -297,6 +297,11 @@ you to test that result.
 France) and raise the search radius. The **Preview the nearby stations**
 button shows the exact error message.
 
+**A refresh failed once and worked on the next try.** Every request to the
+open data APIs is retried once, a second later, when the server answers "too
+many requests" or a server error, or does not answer at all. Only a failure
+that persists reaches the logs and the buttons.
+
 **The price stopped updating.** A station can temporarily disappear from the
 national feed (roadworks, closure). The last known price stays displayed;
 the integration logs list the missing stations.

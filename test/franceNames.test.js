@@ -11,6 +11,10 @@ import {
   resetStationNames,
   resolveStationNames,
 } from '../src/countries/franceNames.js';
+import { setRetrySleep } from '../src/http.js';
+
+// A scripted 5xx is retried once (src/http.js): the wait is skipped, not the retry.
+setRetrySleep(async () => {});
 
 /** A station as the price feed publishes it: an address, and no name. */
 function nameless(id = '69100004') {

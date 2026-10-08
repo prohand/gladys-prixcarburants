@@ -323,6 +323,11 @@ scène quand vous ne suivez aucune station pour ce carburant — elle répond
 chiffres en France) et augmentez le rayon de recherche. Le bouton
 **Prévisualiser les stations proches** affiche le message d'erreur exact.
 
+**Un rafraîchissement a échoué puis réussi à l'essai suivant.** Chaque requête
+vers les API open data est retentée une fois, une seconde plus tard, quand le
+serveur répond « trop de requêtes » ou une erreur serveur, ou ne répond pas du
+tout. Seul un échec qui persiste arrive dans les logs et sous les boutons.
+
 **Le prix ne se met plus à jour.** Une station peut disparaître temporairement
 du flux national (travaux, fermeture). Le dernier prix connu reste affiché ;
 consultez les logs de l'intégration, qui indiquent les stations manquantes.

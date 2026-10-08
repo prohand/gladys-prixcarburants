@@ -306,6 +306,14 @@ any, and otherwise `franceGeocode.js`, which asks the Base Adresse Nationale whe
 code is — without it, a postal code with no station of its own returned nothing at any radius.
 Best effort like the names: no centre means the stations of the postal code only, never an error.
 
+Every external read goes through `fetchJson` in `src/http.js` — never a bare `fetch` in a
+provider. It keeps each caller's timeout and retries ONCE on a 429, a 5xx or a request that
+never reached the server, honouring `Retry-After` capped at 5 s (a widget pull waits on these
+behind the 9 s `PULL_DEADLINE_MS`); a 4xx and a timeout are not retried. It is also what logs
+the request, with every `POINT(...)` blanked: the circle may be centred on the house, and
+coordinates never reach a log line. Tests skip the wait with `setRetrySleep(async () => {})`,
+and a scripted 5xx is consumed twice.
+
 ### The manifest is part of the contract
 
 `gladys-assistant-integration.json` declares the config schema and the action buttons.

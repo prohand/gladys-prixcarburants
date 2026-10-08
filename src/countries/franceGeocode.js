@@ -18,6 +18,7 @@
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
+import { fetchJson } from '../http.js';
 import { centroid, isValidPoint } from '../geo.js';
 import { cleanText } from '../text.js';
 
@@ -84,13 +85,7 @@ async function fetchCentre(cp) {
   url.searchParams.set('type', 'municipality');
   url.searchParams.set('limit', String(RESULT_LIMIT));
 
-  logger.debug(`Request -> ${url.toString()}`);
-  const response = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} (${response.statusText})`);
-  }
-
-  const body = await response.json();
+  const body = await fetchJson(url, { timeoutMs: REQUEST_TIMEOUT_MS, logger });
   const features = Array.isArray(body?.features) ? body.features : [];
   // The geocoder ranks by relevance, not by postal code: keep the communes that
   // really use this one, and fall back to the best match only when none does.

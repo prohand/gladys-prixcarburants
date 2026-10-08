@@ -7,6 +7,10 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { geocodePostalCode, resetGeocodeCache } from '../src/countries/franceGeocode.js';
+import { setRetrySleep } from '../src/http.js';
+
+// A scripted 5xx is retried once (src/http.js): the wait is skipped, not the retry.
+setRetrySleep(async () => {});
 
 beforeEach(() => resetGeocodeCache());
 
@@ -86,7 +90,9 @@ test('geocodePostalCode returns null when the geocoder fails, and retries later'
   let calls = 0;
   t.mock.method(globalThis, 'fetch', async () => {
     calls += 1;
-    if (calls === 1) {
+    // Two failures: the first one is retried by src/http.js, the second one
+    // is the failure the caller sees.
+    if (calls <= 2) {
       return { ok: false, status: 503, statusText: 'Service Unavailable' };
     }
     return { ok: true, status: 200, json: async () => ({ features: [scherwiller] }) };
