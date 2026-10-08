@@ -254,6 +254,9 @@ permet pas encore à une intégration de proposer la liste des maisons dans un
 menu déroulant : pour savoir quoi écrire, cliquez sur **« Aperçu des
 stations »**, le message affiche la maison utilisée et le nom de toutes celles
 que Gladys connaît.
+La carte **« Ma station »** fait exception : elle mesure depuis la maison **la
+plus proche de la station** et affiche son nom, donc une station près de votre
+résidence secondaire donne sa distance depuis celle-ci.
 
 Le code postal reste obligatoire dans tous les cas : c'est lui qui sert à
 interroger le jeu de données national.

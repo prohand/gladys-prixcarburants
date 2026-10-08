@@ -159,7 +159,7 @@ export async function getContent(
     );
   }
 
-  const { center, source, houseName } = await resolveSearchCenter(config, house);
+  const { center, source, houseName } = await measureOrigin(station, config, house);
   const fuels = orderFuels({ station, config, target, shown: settings.fuels });
   const url = directionsUrl(station);
   const priced = Number.isFinite(station.prices?.[target.fuel]);
@@ -248,6 +248,34 @@ async function lastKnownPrice(gladys, deviceExternalId) {
     logger.debug(`Last known price unavailable: ${err.message}`);
     return null;
   }
+}
+
+/**
+ * Where this card measures from. The house of the configuration centres the
+ * SEARCH, but a followed station sits near one house of its own: a user with a
+ * house in Noisy and one in Brittany read "410,6 km de Noisy" under the pump
+ * 8 km from the Brittany house. With several located houses, the card measures
+ * from the nearest one and names it — still the name only, never coordinates.
+ */
+async function measureOrigin(station, config, house) {
+  const origin = await resolveSearchCenter(config, house);
+  if (origin.source !== 'house' || typeof house?.all !== 'function') {
+    return origin;
+  }
+  const houses = (await house.all()).filter((candidate) =>
+    Number.isFinite(distanceKm(candidate, station)),
+  );
+  if (houses.length < 2) {
+    return origin;
+  }
+  const nearest = houses.reduce((best, candidate) =>
+    distanceKm(candidate, station) < distanceKm(best, station) ? candidate : best,
+  );
+  return {
+    center: { latitude: nearest.latitude, longitude: nearest.longitude },
+    source: 'house',
+    houseName: nearest.name,
+  };
 }
 
 /**
