@@ -156,9 +156,9 @@ test('two cards searching at the same moment cost one search', async () => {
   assert.equal(provider.calls.search, 1, 'one call for two cards');
   assert.deepEqual(first, second, 'both cards get the same stations');
 
-  // Sharing is only for the calls in flight: a later search really searches.
+  // A later search is served from the result cache (see below): still one.
   await store.search(config);
-  assert.equal(provider.calls.search, 2);
+  assert.equal(provider.calls.search, 1);
 });
 
 test('a search for other criteria is not served by the one in flight', async () => {
@@ -169,4 +169,74 @@ test('a search for other criteria is not served by the one in flight', async () 
   await Promise.all([store.search(near), store.search(far)]);
 
   assert.equal(provider.calls.search, 2, 'a different radius is a different search');
+});
+
+test('a search result is reused for a few minutes, then searched again', async () => {
+  let clock = 0;
+  const { provider, store } = createStore({ now: () => clock, searchTtlMs: 5 * 60 * 1000 });
+  const config = { country: 'FR', postal_code: '35000', search_radius_km: 10, max_stations: 20 };
+
+  await store.search(config);
+  clock += 4 * 60 * 1000;
+  const again = await store.search(config);
+  assert.equal(provider.calls.search, 1, 'every card pull used to pay 2 to 6 requests here');
+  assert.deepEqual(
+    again.map((s) => s.id),
+    ['1', '2', '3'],
+  );
+
+  clock += 2 * 60 * 1000;
+  await store.search(config);
+  assert.equal(provider.calls.search, 2, 'past the TTL, a real search');
+});
+
+test('a cached search shows the price the refresh pass read since', async () => {
+  const { provider, store } = createStore();
+  const config = { country: 'FR', postal_code: '35000', search_radius_km: 10, max_stations: 20 };
+  await store.search(config);
+
+  // The refresh pass re-reads station 1 by id (no distance in that answer),
+  // and its price moved since the search.
+  provider.fetchStationsByIds = async () => [
+    createStation({ id: '1', prices: { gazole: 1.5 }, distanceKm: undefined }),
+  ];
+  store.track('FR', '1');
+  await store.refreshTracked('FR');
+
+  const listed = await store.search(config);
+  assert.equal(provider.calls.search, 1, 'served from the cached list');
+  const station = listed.find((s) => s.id === '1');
+  assert.equal(station.prices.gazole, 1.5, 'the list must not hide the new price');
+  assert.equal(station.distanceKm, 1.2, 'and keeps the distance the search measured');
+});
+
+test('changing the criteria or asking for a real read drops the cached list', async () => {
+  const { provider, store } = createStore();
+  const config = { country: 'FR', postal_code: '35000', search_radius_km: 10, max_stations: 20 };
+
+  await store.search(config);
+  await store.search({ ...config, search_center: 'house', house_name: 'Bureau' });
+  assert.equal(provider.calls.search, 2, 'another centre is another search');
+
+  store.clear(); // onConfigUpdated
+  await store.search(config);
+  assert.equal(provider.calls.search, 3);
+
+  store.invalidate(); // the "refresh now" button
+  await store.search(config);
+  assert.equal(provider.calls.search, 4);
+});
+
+test('a failed search is not cached', async () => {
+  const { provider, store } = createStore();
+  const config = { country: 'FR', postal_code: '35000', search_radius_km: 10, max_stations: 20 };
+  const search = provider.searchStations;
+  provider.searchStations = async () => {
+    provider.searchStations = search;
+    throw new Error('open data API is down');
+  };
+
+  await assert.rejects(store.search(config));
+  await store.search(config);
+  assert.equal(provider.calls.search, 1, 'the second call really searched');
 });

@@ -158,6 +158,11 @@ and how much will it cost.
   timestamp are still on the device page and on the "My station" card.
 - A button to the **official map** (prix-carburants.gouv.fr).
 
+The list of stations around you is searched again at most every five minutes,
+whatever the number of dashboards showing the card; the prices of the stations
+you added are the ones of the last refresh, and the **Refresh the prices now**
+button starts a new search.
+
 Four settings: the fuel, how many stations are shown (3, 5 or 8), the
 scope — **around the house or postal code** (like the Discovery tab, as the "Measure
 distances from" setting says; not the phone's position) or **my stations only** (the ones you added) — and the

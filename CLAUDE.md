@@ -286,7 +286,13 @@ fuel) and `station` (one followed station, a price tile per fuel).
   A thrown error is NOT swallowed by that: the core turns it into a message the user can act
   on, and only a missed ack is the failure with no explanation. `stationStore.search` shares
   its in-flight promise per search criteria for the same reason the country refresh does:
-  two cards pulling side by side must cost one search, not two.
+  two cards pulling side by side must cost one search, not two. And it keeps the RESULT for
+  `searchTtlMs` (5 min, the station TTL — under the 10 min card TTL and the 10 min shortest
+  refresh interval), keyed by country, postal code, radius, limit, centre and house name: a
+  cold search is 2 to 6 requests, and every pull, dashboard and nudge re-pull used to pay
+  them. The cached list is served THROUGH the station cache, so a station the refresh pass
+  re-read shows its new price; `clear()` (config change) and `invalidate()` (the button)
+  drop it, a failed search is never cached.
 - **Declarations live in the code**: `buildWidgetManifest()` is the source and
   `test/manifest.test.js` asserts the manifest `widgets` array deep-equals it. Change both
   together, like the rest of the manifest.

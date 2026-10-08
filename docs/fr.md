@@ -169,6 +169,11 @@ Lyon` — car `Av.` et `Rue de`, toutes les rues de la commune les portent
   complet restent sur la page de l'appareil et sur la carte « Ma station ».
 - Un bouton vers la **carte officielle** (prix-carburants.gouv.fr).
 
+La liste des stations autour de vous est recherchée au plus toutes les cinq
+minutes, quel que soit le nombre de tableaux de bord qui affichent la carte ; les
+prix des stations que vous avez ajoutées sont ceux du dernier rafraîchissement,
+et le bouton **Rafraîchir les prix maintenant** relance une recherche.
+
 Quatre réglages : le carburant, le nombre de stations affichées (3, 5 ou 8), le
 périmètre — **autour de la maison ou du code postal** (comme l'onglet Découverte, selon le
 réglage « Mesurer les distances depuis » ; ce n'est pas la position du téléphone) ou **vos stations seulement** (celles que vous avez

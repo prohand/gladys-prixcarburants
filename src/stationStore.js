@@ -21,12 +21,17 @@ const DEFAULT_TTL_MS = 5 * 60 * 1000; // the French feed is refreshed every ~10 
 const cacheKey = (country, stationId) => `${country}:${stationId}`;
 
 /**
- * @param {{ ttlMs?: number, now?: () => number, resolveProvider?: (country: string) => object }} [options]
+ * @param {{ ttlMs?: number, searchTtlMs?: number, now?: () => number,
+ *   resolveProvider?: (country: string) => object }} [options]
  *   `resolveProvider` is the seam the unit tests use to plug a fake country
- *   provider in place of a real HTTP call.
+ *   provider in place of a real HTTP call. `searchTtlMs` is how long a search
+ *   RESULT (the list) is reused — the same five minutes as a station by
+ *   default, half the TTL of the "cheapest around me" card (10 min) and well
+ *   under the shortest refresh interval (10 min).
  */
 export function createStationStore({
   ttlMs = DEFAULT_TTL_MS,
+  searchTtlMs = ttlMs,
   now = Date.now,
   resolveProvider = getProvider,
   // Where the search circle is centred (the Gladys house, when the user asked
@@ -42,6 +47,8 @@ export function createStationStore({
   const refreshes = new Map();
   /** @type {Map<string, Promise<object[]>>} in-flight search per search criteria */
   const searches = new Map();
+  /** @type {Map<string, { country: string, stations: object[], at: number }>} last result per criteria */
+  const searchResults = new Map();
 
   // When a provider call last SUCCEEDED, whatever it brought back. This is the
   // integration-wide "the data you see is this old" answer, and the only one
@@ -77,6 +84,16 @@ export function createStationStore({
    * Search the stations around the configured postal code. Results are cached
    * too: adding a station right after a scan then costs no extra request.
    *
+   * And the LIST is cached, for `searchTtlMs`: a cold search is a postal code
+   * to geocode, one request per concentric circle and two lookups for the
+   * names and the history — two to six requests that every pull of the
+   * "cheapest around me" card used to pay again, on every dashboard, on every
+   * re-pull a price nudge asks for. The cached list is served through the
+   * station cache, so a station the refresh pass re-read since shows its NEW
+   * price; only the stations nobody tracks keep the price of the search.
+   * Dropped by `clear()` (the configuration changed) and `invalidate()` (the
+   * user asked for a real read).
+   *
    * Concurrent searches for the SAME criteria share one call, exactly like the
    * per-country refresh below. That is not a micro-optimization: the two
    * dashboard cards pull at the same moment, and a cold search walks concentric
@@ -92,7 +109,19 @@ export function createStationStore({
       config.postal_code,
       config.search_radius_km,
       config.max_stations,
+      // The centre of the circle: same postal code, another house, other
+      // stations and other distances.
+      config.search_center,
+      config.house_name,
     ].join('|');
+    const done = searchResults.get(key);
+    if (done && now() - done.at < searchTtlMs) {
+      return Promise.resolve(
+        done.stations.map(
+          (station) => cache.get(cacheKey(done.country, station.id))?.station ?? station,
+        ),
+      );
+    }
     const pending = searches.get(key);
     if (pending) {
       return pending;
@@ -108,6 +137,8 @@ export function createStationStore({
         center,
       });
       remember(provider.code, stations);
+      // A copy: a caller sorting its answer must not reorder the cached one.
+      searchResults.set(key, { country: provider.code, stations: [...stations], at: now() });
       return stations;
     })().finally(() => searches.delete(key));
 
@@ -209,11 +240,13 @@ export function createStationStore({
     for (const entry of cache.values()) {
       entry.fetchedAt = Number.NEGATIVE_INFINITY;
     }
+    searchResults.clear();
   }
 
   /** Forget every station: the search criteria changed, so did the distances. */
   function clear() {
     cache.clear();
+    searchResults.clear();
   }
 
   return {
