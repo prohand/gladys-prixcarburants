@@ -29,8 +29,11 @@ Pour **chaque station que vous ajoutez**, un appareil avec deux mesures :
   **et** par carburant : le gazole et le SP98 d'une même station ont chacun la
   leur.
 
-L'adresse, la marque, les coordonnées GPS et la distance au code postal sont
-enregistrées dans les paramètres de l'appareil.
+L'adresse, la marque et les coordonnées GPS de la station sont enregistrées
+dans les paramètres de l'appareil. La distance ne l'est pas : mesurée depuis
+votre maison, l'enregistrer à côté de la station trahirait où vous habitez. Elle
+est affichée sur les widgets du tableau de bord. (Un appareil créé par une
+version précédente peut encore afficher la dernière distance reçue.)
 
 ### L'appareil « Prix carburants - Mise à jour des données »
 

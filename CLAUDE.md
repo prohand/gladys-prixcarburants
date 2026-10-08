@@ -241,7 +241,15 @@ fuel) and `station` (one followed station, a price tile per fuel).
   knows, because a name nobody shows is a name the user gets wrong. The NAMES may be printed
   there; the coordinates never are, anywhere. The coordinates are personal
   data: they centre the search and nothing else — never a device param, a state, a log or a
-  widget content.
+  widget content. A DISTANCE measured from the house is the same data once three stations
+  are known, so `distance_km` is not a device param either (the core stores and shows params
+  like any device data); it lives on the widgets, the preview action and the scene action
+  outputs, all read by the user for themselves. Logs blank `POINT(...)` (`src/http.js`).
+- **A created device we have not read is re-published with its IDENTITY params only**
+  (`country`, `station_id`, `fuel`): the core upserts the params it receives, so the empty
+  brand/address/coordinates of a station not yet in the cache used to overwrite the real ones
+  on every restart. `publishDiscovery` first reads the created stations the search did not
+  bring back (one batch per country, the one the first refresh pass would send anyway).
 - **A price tile carries TEXT, never a number and never a `device_feature`**: the front
   rounds both. An inline number goes through `formatNumber` (`maximumFractionDigits: 2`) and
   a bound feature through `DeviceFeatureValueText` (`Math.round(v * 10) / 10`), so a pump

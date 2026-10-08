@@ -27,8 +27,11 @@ For **every station you add**, a device with two read-only features:
   It is read per station **and** per fuel, so the diesel and the SP98 of the
   same station each carry their own date.
 
-The address, the brand, the GPS coordinates and the distance to the postal
-code are stored in the device parameters.
+The address, the brand and the GPS coordinates of the station are stored in
+the device parameters. The distance is not: when it is measured from your
+house, storing it next to the station would give your house away. It is shown
+on the dashboard cards instead. (A device created by an earlier version may
+still show the last distance it was given.)
 
 ### The "Prix carburants - Mise à jour des données" device
 

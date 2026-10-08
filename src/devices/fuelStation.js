@@ -107,8 +107,8 @@ export function buildDevice(gladys, { station, country, fuel }) {
   return {
     name: `${station.name} - ${fuelLabel(fuel, 'en')}`,
     external_id: ids.device,
-    // Params are upserted on every re-publish, so the address and the distance
-    // stay up to date even on a device the user created weeks ago.
+    // Params are upserted on every re-publish, so the address stays up to date
+    // even on a device the user created weeks ago.
     params: buildParams(station, country, fuel),
     features: [
       {
@@ -163,9 +163,11 @@ function buildParams(station, country, fuel) {
       { name: 'longitude', value: String(station.longitude) },
     );
   }
-  if (Number.isFinite(station.distanceKm)) {
-    params.push({ name: 'distance_km', value: station.distanceKm.toFixed(1) });
-  }
+  // No `distance_km`, on purpose: when the search is centred on the Gladys
+  // house, that distance is measured FROM the house, and a param is stored and
+  // shown by the core like any device data. Three stations and their distances
+  // locate the house — personal data that only the widgets may turn into
+  // "2,3 km de la maison", for the reader of the card.
   return params;
 }
 

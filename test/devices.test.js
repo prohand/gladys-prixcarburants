@@ -71,7 +71,10 @@ test('a discovered device carries a price feature and an update feature', () => 
   assert.equal(params.station_id, '35000001');
   assert.equal(params.fuel, 'gazole');
   assert.equal(params.address, '1 rue de Nantes 35000 Rennes');
-  assert.equal(params.distance_km, '1.2');
+  // Measured from the Gladys house when the search is centred on it: a stored
+  // param would let anyone reading the devices triangulate the house.
+  assert.equal(params.distance_km, undefined);
+  assert.equal(params.latitude, '48.1113', 'the STATION coordinates are public data');
 });
 
 test('every feature declares a min and a max', () => {
@@ -254,4 +257,52 @@ test('a created device we know nothing about still gets a valid payload', () => 
   assert.equal(device.external_id, external_id);
   assert.equal(device.name, 'Chez moi');
   assert.equal(device.features.length, 2);
+});
+
+test('a restart re-reads a created station outside the search instead of blanking its params', async () => {
+  const gladys = createFakeGladys();
+  // The search area moved: the station is not in the search, only in the feed.
+  const provider = createFakeProvider({
+    stations: [createStation({ id: '99', brand: 'Leclerc' })],
+  });
+  provider.searchStations = async () => [];
+  const store = createStationStore({ resolveProvider: () => provider });
+  const external_id = deviceExternalId(gladys, { country: 'FR', stationId: '99', fuel: 'gazole' });
+
+  await publishDiscovery(gladys, {
+    config,
+    store,
+    createdDevices: [{ external_id, name: 'Bureau' }],
+  });
+
+  assert.deepEqual(provider.calls.fetchByIds, [['99']], 'one batched read, before publishing');
+  const params = Object.fromEntries(gladys.discovered[0][0].params.map((p) => [p.name, p.value]));
+  assert.equal(params.brand, 'Leclerc');
+  assert.equal(params.address, '1 rue de Nantes 35000 Rennes');
+  assert.equal(params.latitude, '48.1113');
+});
+
+test('a created station nobody could read is re-published with its identity params only', async () => {
+  const gladys = createFakeGladys();
+  const provider = createFakeProvider({ stations: [] });
+  provider.fetchStationsByIds = async () => {
+    throw new Error('open data API is down');
+  };
+  const store = createStationStore({ resolveProvider: () => provider });
+  const external_id = deviceExternalId(gladys, { country: 'FR', stationId: '99', fuel: 'gazole' });
+
+  await publishDiscovery(gladys, {
+    config,
+    store,
+    createdDevices: [{ external_id, name: 'Bureau' }],
+  });
+
+  // The core upserts the params it is sent: an empty brand or address here
+  // would overwrite the real ones Gladys already stores.
+  const [device] = gladys.discovered[0];
+  assert.deepEqual(
+    device.params.map((p) => p.name),
+    ['country', 'station_id', 'fuel'],
+  );
+  assert.equal(device.name, 'Bureau');
 });
