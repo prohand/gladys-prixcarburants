@@ -231,6 +231,9 @@ located house is used — not necessarily the one you are at: both cards show
 its name so you can check. Gladys does not let an integration offer the list of
 houses in a dropdown yet: to know what to type, press **"Preview the
 stations"** — the message names the house in use and every house Gladys knows.
+The **"My station"** card is the exception: it measures from the house
+**nearest to the station** and names it, so a station near your second home
+shows its distance from that home.
 
 The postal code stays required either way: it is what queries the national
 dataset.

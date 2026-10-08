@@ -774,6 +774,29 @@ test('the station card keeps its distance from the house on a refreshed station'
   assert.equal(rows.find((row) => row.label.fr === 'Distance').value.fr, '0,4 km de la maison');
 });
 
+test('with several houses, the station card measures from the nearest one', async () => {
+  // Reported by a user with a house in Noisy (the configured one) and one in
+  // Brittany: the Brittany pump read "410,6 km de Noisy" instead of 8 km.
+  const { context } = contextWith([createStation()]);
+  const noisy = { name: 'Noisy', latitude: 48.84, longitude: 2.55 };
+  const bretagne = { name: 'Bretagne', latitude: 48.11, longitude: -1.68 };
+  context.house = {
+    get: async () => noisy,
+    names: async () => ['Noisy', 'Bretagne'],
+    all: async () => [noisy, bretagne],
+  };
+  const gladys = createFakeGladys();
+
+  const content = await getWidgetContent(gladys, context, 'station', {
+    settings: {
+      device: deviceExternalId(gladys, { country: 'FR', stationId: '35000001', fuel: 'gazole' }),
+    },
+  });
+
+  const rows = componentsOfType(content, 'status')[0].items;
+  assert.equal(rows.find((row) => row.label.fr === 'Distance').value.fr, '0,4 km de Bretagne');
+});
+
 test('the search is centred on the house, so the provider measures from it', async () => {
   const provider = createFakeProvider({ stations: [createStation()] });
   const store = createStationStore({

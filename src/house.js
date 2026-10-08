@@ -216,6 +216,16 @@ export function createHouseLocation(
       return (await list()).map((house) => house.name);
     },
 
+    /**
+     * Every located house, for the `station` card: one station sits near ONE
+     * of them, and the house of the configuration may be the other one.
+     * The coordinates stay in the process like the ones `get` returns.
+     * @returns {Promise<Array<{ name: string, latitude: number, longitude: number }>>}
+     */
+    async all() {
+      return list();
+    },
+
     /** Forget the cached answer (the user may have just located their house). */
     invalidate() {
       cached = null;
