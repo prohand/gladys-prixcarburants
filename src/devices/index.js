@@ -97,6 +97,26 @@ export function parseTargets(devices = []) {
 const IDENTITY_PARAMS = new Set(['country', 'station_id', 'fuel']);
 
 /**
+ * Up to 2.2.0 a station carried a `distance_km` param, measured from the Gladys
+ * house when the search is centred on it — enough to locate the house once three
+ * stations are known. The core upserts the params it receives and NEVER deletes
+ * one (`upsertDeviceParams`; its `removeDeviceParams` is reserved to the
+ * `GLADYS_TRANSPORT*` params), so leaving the param out kept the old value
+ * forever. Overwriting it with an empty string is the only way to wipe it, and
+ * only a device that still holds a value gets one: a device created since never
+ * sees the param at all.
+ */
+const BLANK_DISTANCE = Object.freeze({ name: 'distance_km', value: '' });
+
+/**
+ * @param {{ params?: Array<{ name: string, value: string }> }} device
+ * @returns {boolean} true when Gladys still stores a non-empty distance for it
+ */
+function hasStoredDistance(device) {
+  return (device.params ?? []).some((p) => p?.name === 'distance_km' && p.value !== '');
+}
+
+/**
  * Rebuild the discovery payload of the devices the user already added, from the
  * freshest station data we have. Nothing is fetched here: `store.peek` returns
  * the cached station or null, and a device we know nothing about is rebuilt
@@ -134,11 +154,14 @@ export function buildCreatedDevices(gladys, config, createdDevices, store) {
     };
     const payload = buildDevice(gladys, { station, country, fuel });
     const known = store.peek(country, stationId) !== null;
+    const params = known
+      ? payload.params
+      : payload.params.filter((p) => IDENTITY_PARAMS.has(p.name));
     return {
       ...payload,
       // A created device keeps the name the user gave it; do not fight over it.
       name: device.name ?? payload.name,
-      params: known ? payload.params : payload.params.filter((p) => IDENTITY_PARAMS.has(p.name)),
+      params: hasStoredDistance(device) ? [...params, BLANK_DISTANCE] : params,
     };
   });
 }

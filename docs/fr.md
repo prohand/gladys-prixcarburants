@@ -32,8 +32,9 @@ Pour **chaque station que vous ajoutez**, un appareil avec deux mesures :
 L'adresse, la marque et les coordonnées GPS de la station sont enregistrées
 dans les paramètres de l'appareil. La distance ne l'est pas : mesurée depuis
 votre maison, l'enregistrer à côté de la station trahirait où vous habitez. Elle
-est affichée sur les widgets du tableau de bord. (Un appareil créé par une
-version précédente peut encore afficher la dernière distance reçue.)
+est affichée sur les widgets du tableau de bord. (Sur un appareil créé par une
+version précédente, la distance reçue est effacée : le paramètre `distance_km`
+reste, vide.)
 
 ### L'appareil « Prix carburants - Mise à jour des données »
 

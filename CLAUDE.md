@@ -266,7 +266,10 @@ fuel) and `station` (one followed station, a price tile per fuel).
   widget content. A DISTANCE measured from the house is the same data once three stations
   are known, so `distance_km` is not a device param either (the core stores and shows params
   like any device data); it lives on the widgets, the preview action and the scene action
-  outputs, all read by the user for themselves. Logs blank `POINT(...)` (`src/http.js`).
+  outputs, all read by the user for themselves. Logs blank `POINT(...)` (`src/http.js`). The
+  core never DELETES a param (`upsertDeviceParams` adds and updates only), so a device that
+  still stores a distance from an older version is re-published with `distance_km: ''` —
+  the one way to wipe it — and a device that holds none never sees the param.
 - **A created device we have not read is re-published with its IDENTITY params only**
   (`country`, `station_id`, `fuel`): the core upserts the params it receives, so the empty
   brand/address/coordinates of a station not yet in the cache used to overwrite the real ones

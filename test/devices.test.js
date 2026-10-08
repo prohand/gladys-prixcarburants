@@ -306,3 +306,40 @@ test('a created station nobody could read is re-published with its identity para
   );
   assert.equal(device.name, 'Bureau');
 });
+
+test('a distance stored by an older version is blanked, never resent with a value', () => {
+  // The core never deletes a param it stores: leaving `distance_km` out kept the
+  // distance from the house on every device created before 2.3, so it is
+  // overwritten with an empty string — and only where a value is still stored.
+  const gladys = createFakeGladys();
+  const { store } = storeWith([createStation({ id: '99' })]);
+  const external_id = deviceExternalId(gladys, { country: 'FR', stationId: '99', fuel: 'gazole' });
+  const distanceOf = (device) => device.params.filter((p) => p.name === 'distance_km');
+
+  const [legacy] = buildCreatedDevices(
+    gladys,
+    config,
+    [{ external_id, params: [{ name: 'distance_km', value: '2.3' }] }],
+    store,
+  );
+  assert.deepEqual(distanceOf(legacy), [{ name: 'distance_km', value: '' }]);
+
+  const [unread] = buildCreatedDevices(
+    gladys,
+    config,
+    [{ external_id, params: [{ name: 'distance_km', value: '2.3' }] }],
+    storeWith([]).store,
+  );
+  assert.deepEqual(distanceOf(unread), [{ name: 'distance_km', value: '' }], 'even unread');
+
+  const [cleared] = buildCreatedDevices(
+    gladys,
+    config,
+    [{ external_id, params: [{ name: 'distance_km', value: '' }] }],
+    store,
+  );
+  assert.deepEqual(distanceOf(cleared), [], 'already blank: nothing to send');
+
+  const [fresh] = buildCreatedDevices(gladys, config, [{ external_id }], store);
+  assert.deepEqual(distanceOf(fresh), [], 'a recent device never sees the param');
+});
