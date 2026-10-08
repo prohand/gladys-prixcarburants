@@ -83,7 +83,7 @@ const passes = new WeakMap();
  *
  * @param {object} gladys SDK instance
  * @param {{ config: object, store: object, history?: object, force?: boolean,
- *   sceneEvents?: object }} context
+ *   sceneEvents?: object, sleep?: (ms: number) => Promise<void> }} context
  *   `force` drops the cached stations first, so the pass really hits the
  *   provider — what the "Refresh the prices now" button means. The periodic
  *   loop leaves it off: its interval (10 min minimum) is always longer than the
