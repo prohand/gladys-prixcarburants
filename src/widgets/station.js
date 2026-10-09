@@ -6,7 +6,8 @@
 // (a `source: "devices"` setting, so the core offers them by name), and the
 // card shows the prices of the fuels the user configured (or every fuel the
 // station sells, or only the device's, as the `fuels` setting says), its
-// address, and when it declared those prices.
+// address, and when it declared those prices — or only the prices and their
+// date, when the `details` setting asks for a compact card.
 //
 // Every price tile carries TEXT we formatted ourselves, and that is a decision
 // rather than an oversight. The tiles used to be declared as `device_feature`
@@ -29,8 +30,8 @@
 import { createLogger } from '@gladysassistant/integration-sdk';
 import { FUELS, FUEL_KEYS, fuelLabel } from '../fuels.js';
 import { formatDateTime } from '../text.js';
-import { isOutOfStock, outOfStockSince } from '../availability.js';
-import { FEATURE, parseDeviceExternalId } from '../devices/fuelStation.js';
+import { isOutOfStock, outOfStockSince, sellsFuel } from '../availability.js';
+import { FEATURE, deviceExternalId, parseDeviceExternalId } from '../devices/fuelStation.js';
 import { distanceKm } from '../geo.js';
 import { resolveSearchCenter } from '../house.js';
 import { COLOR, buildContent, button, statusList, text, valueTile } from './content.js';
@@ -56,6 +57,9 @@ const MAX_TILES = 4;
 
 /** Which fuels get a tile, as the `fuels` setting names them. */
 const FUELS_SHOWN = { CONFIGURED: 'configured', DEVICE: 'device', ALL: 'all' };
+
+/** How much the card says around the prices, as the `details` setting names it. */
+const DETAILS = { FULL: 'full', COMPACT: 'compact' };
 
 /**
  * Manifest declaration. Mirrored in `gladys-assistant-integration.json` and
@@ -110,6 +114,31 @@ export const DECLARATION = {
         },
       ],
     },
+    {
+      // A user who has lived next to their pumps for years asked for a card
+      // with the prices only: no brand, no address, no distance, no directions.
+      key: 'details',
+      type: 'select',
+      label: { en: 'Details', fr: 'Détails' },
+      description: {
+        en: 'Compact keeps the prices and their date only.',
+        fr: 'Compact ne garde que les prix et leur date.',
+      },
+      default: DETAILS.FULL,
+      options: [
+        {
+          value: DETAILS.FULL,
+          label: {
+            en: 'Full (address, distance, directions)',
+            fr: 'Complet (adresse, distance, itinéraire)',
+          },
+        },
+        {
+          value: DETAILS.COMPACT,
+          label: { en: 'Compact (prices only)', fr: 'Compact (prix seulement)' },
+        },
+      ],
+    },
   ],
   action_timeout_seconds: 60,
 };
@@ -159,32 +188,35 @@ export async function getContent(
     );
   }
 
-  const { center, source, houseName } = await measureOrigin(station, config, house);
-  const fuels = orderFuels({ station, config, target, shown: settings.fuels });
-  const url = directionsUrl(station);
-  const priced = Number.isFinite(station.prices?.[target.fuel]);
-  // The fuel of the picked device always gets its tile, priced or not: without
-  // it the card silently showed ANOTHER fuel of the station (a user picked SP98
-  // and got GPLc) the day the feed stopped publishing the SP98 price.
-  const lastPrice = priced ? null : await lastKnownPrice(gladys, settings.device);
+  const compact = settings.details === DETAILS.COMPACT;
+  const { center, source, houseName } = compact ? {} : await measureOrigin(station, config, house);
+  const fuels = orderFuels({ station, config, target, shown: settings.fuels }).slice(0, MAX_TILES);
+  const url = compact ? null : directionsUrl(station);
+  // A fuel with no price today still gets its tile: the fuel of the picked
+  // device always (a user picked SP98 and got the GPLc of the station the day
+  // the feed stopped publishing the SP98 price), and a configured fuel the
+  // station sells but is out of stock of (a user saw E10 vanish from the card
+  // of the station where it had run dry, as if it was never sold there).
+  const missing = fuels.filter((fuel) => !Number.isFinite(station.prices?.[fuel]));
+  const lastPrices = await lastKnownPrices(gladys, target, missing);
 
   return buildContent(
     [
       text({ variant: 'heading', text: station.name }),
-      ...fuels
-        .slice(0, MAX_TILES)
-        .map((fuel) =>
-          fuel === target.fuel && !priced
-            ? buildMissingTile({ fuel, lastPrice, language })
-            : buildTile({ station, fuel, language }),
-        ),
+      ...fuels.map((fuel) =>
+        missing.includes(fuel)
+          ? buildMissingTile({ fuel, lastPrice: lastPrices.get(fuel) ?? null, language })
+          : buildTile({ station, fuel, language }),
+      ),
       statusList(
         buildRows(station, {
           target,
+          missing,
+          compact,
           postalCode: config.postal_code,
           source,
           houseName,
-          distance: distanceFrom(station, center),
+          distance: compact ? null : distanceFrom(station, center),
         }),
       ),
       url
@@ -209,45 +241,61 @@ export async function getContent(
  * the fuel of the device the user picked — ALWAYS, even with no price today,
  * since it is the one the card was set up for — then the fuels they
  * configured, then (only when the `fuels` setting asks for it) whatever else
- * the station sells. A box saved before the setting existed reaches us without
- * it and gets the default: the configured fuels.
+ * the station sells, the priced ones first. A box saved before the setting
+ * existed reaches us without it and gets the default: the configured fuels.
+ *
+ * "Sells" includes a fuel out of stock: it is a pump waiting for a tanker, and
+ * leaving it out read as "this station has no E10". Only a fuel the station
+ * does not sell at all (src/availability.js) gets no tile.
  */
 function orderFuels({ station, config, target, shown }) {
   if (shown === FUELS_SHOWN.DEVICE) {
     return [target.fuel];
   }
-  const available = FUEL_KEYS.filter((fuel) => Number.isFinite(station.prices?.[fuel]));
+  const sold = FUEL_KEYS.filter((fuel) => sellsFuel(station, fuel));
+  const priced = sold.filter((fuel) => Number.isFinite(station.prices?.[fuel]));
   return [
     target.fuel,
-    ...config.fuel_type.filter((fuel) => available.includes(fuel)),
-    ...(shown === FUELS_SHOWN.ALL ? available : []),
+    ...config.fuel_type.filter((fuel) => sold.includes(fuel)),
+    ...(shown === FUELS_SHOWN.ALL ? [...priced, ...sold] : []),
   ].filter((fuel, index, list) => list.indexOf(fuel) === index);
 }
 
 /**
- * The last price Gladys holds for the picked device, when the feed publishes
- * none today. `pollDevice` keeps that value on purpose (a missing price is not
- * a hole in the chart), so it is the price the device page shows too.
+ * The last price Gladys holds for each fuel of the station the feed publishes
+ * no price for today, read from the device of that (station, fuel) pair when
+ * the user added one. `pollDevice` keeps that value on purpose (a missing
+ * price is not a hole in the chart), so it is the price the device page shows.
  *
  * Best effort: the card is still right without it, a dash in place of a price.
  *
  * @param {object} gladys SDK instance
- * @param {string} deviceExternalId the `device` setting of the widget
- * @returns {Promise<number|null>}
+ * @param {{ country: string, stationId: string }} target the picked device
+ * @param {string[]} fuels the fuels with no price today
+ * @returns {Promise<Map<string, number>>}
  */
-async function lastKnownPrice(gladys, deviceExternalId) {
+async function lastKnownPrices(gladys, target, fuels) {
+  const prices = new Map();
+  if (fuels.length === 0) {
+    return prices;
+  }
   try {
     const devices = await gladys.getDevices();
-    const device = devices?.find((candidate) => candidate.external_id === deviceExternalId);
-    const feature = device?.features?.find(
-      (candidate) => candidate.external_id === `${deviceExternalId}:${FEATURE.PRICE}`,
-    );
-    const value = Number(feature?.last_value);
-    return feature?.last_value !== null && Number.isFinite(value) && value > 0 ? value : null;
+    for (const fuel of fuels) {
+      const externalId = deviceExternalId(gladys, { ...target, fuel });
+      const device = devices?.find((candidate) => candidate.external_id === externalId);
+      const feature = device?.features?.find(
+        (candidate) => candidate.external_id === `${externalId}:${FEATURE.PRICE}`,
+      );
+      const value = Number(feature?.last_value);
+      if (feature?.last_value !== null && Number.isFinite(value) && value > 0) {
+        prices.set(fuel, value);
+      }
+    }
   } catch (err) {
     logger.debug(`Last known price unavailable: ${err.message}`);
-    return null;
   }
+  return prices;
 }
 
 /**
@@ -304,7 +352,7 @@ function buildTile({ station, fuel, language }) {
 }
 
 /**
- * The tile of the picked fuel when the feed publishes no price for it today.
+ * The tile of a fuel the feed publishes no price for today.
  * It carries the last price Gladys holds (the one the device page shows), in
  * the warning color, and the row under the tiles says why it is frozen.
  */
@@ -318,7 +366,7 @@ function buildMissingTile({ fuel, lastPrice, language }) {
   });
 }
 
-/** Why the picked fuel has no price today, as a status row. */
+/** Why a fuel of the card has no price today, as a status row. */
 function missingPriceRow(station, fuel) {
   const label = FUELS[fuel]?.label ?? fuelLabel(fuel);
   if (isOutOfStock(station, fuel)) {
@@ -338,16 +386,31 @@ function missingPriceRow(station, fuel) {
   };
 }
 
-/** The rows under the tiles: where the station is, and how old its prices are. */
-function buildRows(station, { target, postalCode, source, houseName, distance }) {
-  const rows = [];
-  if (!Number.isFinite(station.prices?.[target.fuel])) {
-    rows.push(missingPriceRow(station, target.fuel));
-  }
-  if (station.brand) {
+/**
+ * Does the name of the station already say its brand? Nearly always
+ * (`TotalEnergies - Rennes`, src/countries/franceNames.js), and a Brand row
+ * repeating the heading is the noise a user asked to see go.
+ */
+function nameCarriesBrand(name, brand) {
+  const plain = (value) =>
+    String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/gi, '')
+      .toLowerCase();
+  return plain(brand) !== '' && plain(name).includes(plain(brand));
+}
+
+/**
+ * The rows under the tiles: why a price is missing, where the station is, and
+ * how old its prices are. A compact card keeps the first and the last only.
+ */
+function buildRows(station, { target, missing, compact, postalCode, source, houseName, distance }) {
+  const rows = missing.map((fuel) => missingPriceRow(station, fuel));
+  if (!compact && station.brand && !nameCarriesBrand(station.name, station.brand)) {
     rows.push({ label: { en: 'Brand', fr: 'Marque' }, value: station.brand });
   }
-  const address = stationAddress(station);
+  const address = compact ? null : stationAddress(station);
   if (address) {
     rows.push({ label: { en: 'Address', fr: 'Adresse' }, value: address });
   }
