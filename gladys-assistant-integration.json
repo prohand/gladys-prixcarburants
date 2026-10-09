@@ -498,6 +498,35 @@
               }
             }
           ]
+        },
+        {
+          "key": "details",
+          "type": "select",
+          "label": {
+            "en": "Details",
+            "fr": "Détails"
+          },
+          "description": {
+            "en": "Compact keeps the prices and their date only.",
+            "fr": "Compact ne garde que les prix et leur date."
+          },
+          "default": "full",
+          "options": [
+            {
+              "value": "full",
+              "label": {
+                "en": "Full (address, distance, directions)",
+                "fr": "Complet (adresse, distance, itinéraire)"
+              }
+            },
+            {
+              "value": "compact",
+              "label": {
+                "en": "Compact (prices only)",
+                "fr": "Compact (prix seulement)"
+              }
+            }
+          ]
         }
       ],
       "action_timeout_seconds": 60

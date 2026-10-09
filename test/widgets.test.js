@@ -413,6 +413,87 @@ test('the station card keeps to the configured fuels unless asked for more', asy
   assert.deepEqual(all.slice(0, 3), ['SP98', 'Diesel', 'SP95'], 'every fuel of the station');
 });
 
+test('a configured fuel out of stock keeps its tile, a fuel not sold gets none', async () => {
+  // Reported by a user: at the station where SP98 AND E10 had both run dry,
+  // the card showed SP98 only, as if E10 was never sold there.
+  const station = createStation({
+    prices: { gazole: null, sp95: null, sp98: null, e10: null, e85: null, gplc: null },
+    availability: { sp98: 'out_of_stock', e10: 'out_of_stock' },
+    outOfStockSince: { sp98: null, e10: '2026-10-08T17:32:00+02:00' },
+  });
+  const { context } = contextWith([station]);
+  context.config = { ...context.config, fuel_type: ['sp98', 'e10', 'gazole'] };
+  const gladys = createFakeGladys();
+  const device = deviceExternalId(gladys, { country: 'FR', stationId: station.id, fuel: 'sp98' });
+  const e10 = deviceExternalId(gladys, { country: 'FR', stationId: station.id, fuel: 'e10' });
+  gladys.devices = [
+    { external_id: e10, features: [{ external_id: `${e10}:price`, last_value: 1.729 }] },
+  ];
+
+  const content = await getWidgetContent(gladys, context, 'station', {
+    settings: { device },
+    language: 'fr',
+  });
+
+  const tiles = componentsOfType(content, 'value');
+  assert.deepEqual(
+    tiles.map((tile) => tile.label.fr),
+    ['SP98', 'E10 (SP95-E10)'],
+    'the diesel the station does not sell is left out',
+  );
+  assert.equal(tiles[1].value, '1,729', 'the last price of the E10 device');
+  assert.equal(tiles[1].color, 'warning');
+  const rows = componentsOfType(content, 'status')[0].items;
+  assert.equal(
+    rows.find((row) => row.label.fr === 'E10 (SP95-E10)').value.fr,
+    'En rupture depuis le 08/10/2026 à 17:32',
+  );
+});
+
+test('the brand row is left out when the name of the station already says it', async () => {
+  const brandRow = async (station) => {
+    const { context } = contextWith([station]);
+    const gladys = createFakeGladys();
+    const content = await getWidgetContent(gladys, context, 'station', {
+      settings: {
+        device: deviceExternalId(gladys, { country: 'FR', stationId: station.id, fuel: 'gazole' }),
+      },
+    });
+    return componentsOfType(content, 'status')[0].items.find((row) => row.label.en === 'Brand');
+  };
+
+  assert.equal(await brandRow(createStation()), undefined, 'TotalEnergies - Rennes');
+  assert.equal(
+    (await brandRow(createStation({ name: 'Station du Centre - Rennes', brand: 'Avia' }))).value,
+    'Avia',
+  );
+});
+
+test('a compact station card keeps the prices and their date only', async () => {
+  const station = createStation();
+  const { context } = contextWith([station]);
+  const gladys = createFakeGladys();
+
+  const content = await getWidgetContent(gladys, context, 'station', {
+    settings: {
+      device: deviceExternalId(gladys, { country: 'FR', stationId: station.id, fuel: 'gazole' }),
+      details: 'compact',
+    },
+  });
+
+  const rows = componentsOfType(content, 'status')[0].items;
+  assert.deepEqual(
+    rows.map((row) => row.label.en),
+    ['Last price update'],
+  );
+  assert.deepEqual(
+    componentsOfType(content, 'button').map((b) => b.label.en),
+    ['Refresh'],
+    'no directions',
+  );
+  assert.ok(componentsOfType(content, 'value').length > 0);
+});
+
 test('the picked fuel shows a dash when Gladys holds no price for it either', async () => {
   const station = createStation({
     prices: { gazole: 1.699, sp98: null },

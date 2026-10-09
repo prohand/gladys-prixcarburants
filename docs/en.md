@@ -203,8 +203,15 @@ The detail of **one** station you follow, picked in the card settings:
 - the fuel of the picked station **always** comes first, even on a day the feed
   publishes no price for it: the tile then keeps the last price Gladys holds, in
   orange, and a row says why ("Out of stock", "No price published today");
-- the brand, the address, the distance and the date of the last price update;
+- a fuel of yours the station sells but has **run out of** keeps its tile too,
+  in orange with the last price Gladys holds when you added its device, and a
+  row says since when. Only a fuel the station does not sell gets no tile;
+- the brand (only when the station name does not already say it), the
+  address, the distance and the date of the last price update;
 - a **Directions** button and a **Refresh** button.
+
+The **"Details"** setting set to **Compact** keeps the prices and the date of
+the last update only: no brand, no address, no distance, no Directions button.
 
 Prices are shown with the **three decimals** of the pump
 price (`1.699 €/L`). The tiles used to be bound to the Gladys device for the

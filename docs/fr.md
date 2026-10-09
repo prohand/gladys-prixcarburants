@@ -221,8 +221,16 @@ carte :
   le flux ne publie pas son prix : la tuile garde alors le dernier prix connu de
   Gladys, en orange, et une ligne dit pourquoi (« En rupture », « Aucun prix
   publié aujourd'hui ») ;
-- l'enseigne, l'adresse, la distance et la date du dernier relevé ;
+- un de vos carburants que la station vend mais qui est **en rupture** garde
+  aussi sa tuile, en orange, avec le dernier prix connu de Gladys si vous avez
+  ajouté son appareil, et une ligne dit depuis quand. Seul un carburant que la
+  station ne vend pas n'a pas de tuile ;
+- l'enseigne (seulement si le nom de la station ne la donne pas déjà),
+  l'adresse, la distance et la date du dernier relevé ;
 - un bouton **Itinéraire** et un bouton **Rafraîchir**.
+
+Le réglage **« Détails »** sur **Compact** ne garde que les prix et la date du
+dernier relevé : ni enseigne, ni adresse, ni distance, ni bouton Itinéraire.
 
 Les prix sont affichés avec les **trois décimales** du
 prix à la pompe (`1,699 €/L`). Les tuiles étaient auparavant reliées à l'appareil
