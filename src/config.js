@@ -21,7 +21,8 @@ export const DEFAULT_CONFIG = {
   postal_code: '', // required, no sensible default
   fuel_type: ['gazole'], // one device per station AND per selected fuel
   search_center: 'house', // 'house' (falls back to the postal code) | 'postal_code'
-  house_name: '', // which Gladys house, when there are several; empty = the first
+  house: '', // the selector of the Gladys house picked in the list; empty = the first
+  house_name: '', // the name typed up to 2.3, off the schema now; read when `house` is empty
   search_radius_km: 10, // 0 = the postal code only
   max_stations: 20, // safety net: how many stations discovery may publish
   poll_frequency: 3600, // seconds between two price refreshes
@@ -65,15 +66,27 @@ export function normalizeConfig(raw = {}) {
     // never an error, just a distance measured from the postal code.
     search_center:
       raw.search_center === 'postal_code' ? 'postal_code' : DEFAULT_CONFIG.search_center,
-    // The name of a Gladys house, typed by the user: a select cannot offer them
-    // (the core resolves dynamic options against DEVICES only), so the field is
-    // free text and `src/house.js` matches it loosely — trimmed, case- and
-    // accent-insensitive — falling back on the first located house.
+    // The house picked in a `source: "houses"` select (Gladys 5.2): the core
+    // stores its SELECTOR, never its name nor its coordinates.
+    house: String(raw.house ?? '').trim(),
+    // The free-text name of up to 2.3 — off the schema since the select exists,
+    // but the core still hands back the value a user typed, and an install
+    // that never opens the form again must keep measuring from the same house.
     house_name: String(raw.house_name ?? '').trim(),
     search_radius_km: toNumber(raw.search_radius_km, DEFAULT_CONFIG.search_radius_km, 0, 50),
     max_stations: toNumber(raw.max_stations, DEFAULT_CONFIG.max_stations, 1, 50),
     poll_frequency: toNumber(raw.poll_frequency, DEFAULT_CONFIG.poll_frequency, 600, 86400),
   };
+}
+
+/**
+ * The house the configuration asks for: the one picked in the list, or else the
+ * name typed before the list existed. `src/house.js` matches the answer against
+ * the selector first, then loosely against the name. Empty = the first house.
+ * @param {{ house?: string, house_name?: string }} config
+ */
+export function preferredHouse(config) {
+  return config.house || config.house_name || '';
 }
 
 /**

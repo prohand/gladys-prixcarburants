@@ -8,7 +8,7 @@
   },
   "version": "2.3.0",
   "docker_image": "ghcr.io/prohand/gladys-prixcarburants:2.3.0",
-  "gladys_version": ">=5.1.0",
+  "gladys_version": ">=5.2.0",
   "location": true,
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-prixcarburants/main/cover.png",
   "categories": ["energy"],
@@ -113,21 +113,18 @@
       ]
     },
     {
-      "key": "house_name",
-      "type": "string",
+      "key": "house",
+      "type": "select",
+      "source": "houses",
       "label": {
         "en": "Which house",
         "fr": "Quelle maison"
       },
       "description": {
-        "en": "Only useful if Gladys holds several houses: the name of the one distances start from. Leave it empty for the first located house. The \"Preview the stations\" button below lists the houses Gladys knows.",
-        "fr": "Utile seulement si Gladys contient plusieurs maisons : le nom de celle depuis laquelle les distances sont mesurées. Laissez vide pour la première maison localisée. Le bouton « Aperçu des stations » ci-dessous liste les maisons connues de Gladys."
+        "en": "Only useful if Gladys holds several houses: the one distances start from. Left empty, the first house that has coordinates is used.",
+        "fr": "Utile seulement si Gladys contient plusieurs maisons : celle depuis laquelle les distances sont mesurées. Laissée vide, c'est la première maison qui a des coordonnées."
       },
-      "required": false,
-      "placeholder": {
-        "en": "Home",
-        "fr": "Maison"
-      }
+      "required": false
     },
     {
       "key": "search_radius_km",
@@ -434,6 +431,19 @@
               }
             }
           ]
+        },
+        {
+          "key": "house",
+          "type": "select",
+          "source": "houses",
+          "label": {
+            "en": "House",
+            "fr": "Maison"
+          },
+          "description": {
+            "en": "Rank the stations around this house instead of the one of the configuration (it needs coordinates in Gladys).",
+            "fr": "Classer les stations autour de cette maison plutôt que celle de la configuration (elle doit avoir des coordonnées dans Gladys)."
+          }
         }
       ],
       "action_timeout_seconds": 60

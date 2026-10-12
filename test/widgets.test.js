@@ -810,6 +810,39 @@ test('with several houses, the heading names the one it measures from', async ()
   assert.equal(heading.text.en, 'Diesel · within 10 km of Mer');
 });
 
+test('a card naming its own house ranks around that house, not the configured one', async () => {
+  // Two houses, one card each (Gladys 5.2 `source: "houses"`): the card's house
+  // drives the search and the heading, the configuration is left untouched.
+  const { context, store } = contextWith([createStation()]);
+  const asked = [];
+  const houses = {
+    maison: { name: 'Maison', selector: 'maison', latitude: 48.85, longitude: 2.55 },
+    mer: { name: 'Mer', selector: 'mer', latitude: 47.8, longitude: -3.1 },
+  };
+  context.house = {
+    get: async (preferred) => {
+      asked.push(preferred);
+      return houses[preferred] ?? houses.maison;
+    },
+    names: async () => ['Maison', 'Mer'],
+  };
+  const searched = [];
+  const search = store.search.bind(store);
+  store.search = (cfg) => {
+    searched.push(cfg);
+    return search(cfg);
+  };
+
+  const content = await getWidgetContent(createFakeGladys(), context, 'best_prices', {
+    settings: { fuel: 'gazole', house: 'mer' },
+  });
+
+  assert.equal(componentsOfType(content, 'text')[0].text.fr, 'Gazole · 10 km autour de Mer');
+  assert.equal(searched[0].house, 'mer', 'the search is keyed on the card’s house');
+  assert.ok(asked.includes('mer'));
+  assert.equal(context.config.house, '', 'the configuration itself is not changed');
+});
+
 test('an unlocated house falls back on the postal code, in the wording too', async () => {
   const { context } = contextWith([createStation()]);
   context.house = houseThat(null);

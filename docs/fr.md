@@ -253,15 +253,18 @@ affichées nulle part.
   postal »** → `2,3 km du 35000`, mesuré depuis le centre de la zone du code
   postal.
 
-**Si Gladys contient plusieurs maisons**, remplissez le champ **« Quelle
-maison »** avec le nom de celle qui vous intéresse (la casse et les accents sont
-ignorés). Laissé vide, c'est la première maison localisée qui sert — pas
-forcément celle où vous êtes : les deux cartes affichent son nom pour le
-vérifier. Gladys ne
-permet pas encore à une intégration de proposer la liste des maisons dans un
-menu déroulant : pour savoir quoi écrire, cliquez sur **« Aperçu des
-stations »**, le message affiche la maison utilisée et le nom de toutes celles
-que Gladys connaît.
+**Si Gladys contient plusieurs maisons**, choisissez celle qui vous intéresse
+dans la liste **« Quelle maison »** de la configuration. Laissée vide, c'est la
+première maison localisée qui sert — pas forcément celle où vous êtes : les deux
+cartes affichent son nom pour le vérifier, et **« Aperçu des stations »** donne
+la maison utilisée. Un nom de maison écrit dans ce champ avant la version 2.4
+continue de servir tant que vous n'en choisissez pas une dans la liste.
+
+Chaque carte **« Les moins chers »** peut aussi avoir **sa propre maison**
+(réglage **« Maison »** de la carte) : une carte par maison, chacune classe les
+stations autour de sa maison, sans toucher à la configuration. La maison doit
+avoir des coordonnées dans Gladys (Paramètres → Maisons).
+
 La carte **« Ma station »** fait exception : elle mesure depuis la maison **la
 plus proche de la station** et affiche son nom, donc une station près de votre
 résidence secondaire donne sa distance depuis celle-ci.
@@ -269,9 +272,12 @@ résidence secondaire donne sa distance depuis celle-ci.
 Le code postal reste obligatoire dans tous les cas : c'est lui qui sert à
 interroger le jeu de données national.
 
-> Les widgets demandent **Gladys 5.1 ou plus récent**, comme les scènes plus
-> bas. C'est la version minimale déclarée par l'intégration : sur un Gladys
-> plus ancien, elle n'apparaît simplement pas dans le magasin.
+> L'intégration demande **Gladys 5.2 ou plus récent** : les widgets et les
+> scènes sont arrivés avec la 5.1, les listes de maisons avec la 5.2. Sur un
+> Gladys plus ancien, elle n'apparaît simplement pas dans le magasin. Gladys 5.2
+> range aussi les cases de prix en grille équilibrée : trois prix restent côte à
+> côte même sur une carte étroite, au lieu de deux cases à mi-largeur et d'une
+> case pleine largeur en dessous.
 
 ## Idées de scènes
 

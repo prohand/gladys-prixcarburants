@@ -241,7 +241,11 @@ test('widget settings use the restricted config_schema grammar', () => {
         );
       }
       if (setting.source !== undefined) {
-        assert.equal(setting.source, 'devices', 'the only dynamic source a widget may use');
+        // `houses` came with Gladys 5.2, pinned by the gladys_version test above.
+        assert.ok(
+          ['devices', 'houses'].includes(setting.source),
+          'the only dynamic sources a widget may use',
+        );
       }
       assert.ok(
         !JSON.stringify(setting).includes('{{port:'),
@@ -281,18 +285,51 @@ test('the search centre select offers exactly what normalizeConfig accepts', () 
   );
 });
 
-test('the house is named by a free-text field, since a select cannot list them', () => {
-  // The core resolves `source` select options against an integration's DEVICES
-  // only (`SELECT_SOURCES = ['devices']`), so the houses Gladys holds cannot be
-  // offered as options: the field is a plain string the user types, and it must
-  // stay optional — a single-house install never fills it in.
-  const houseField = field('house_name');
-  assert.equal(houseField.type, 'string');
+test('the house is picked in the list of the Gladys houses', () => {
+  // Gladys 5.2 resolves a `source: "houses"` select against the houses it holds
+  // and stores the house SELECTOR. It stays optional — a single-house install
+  // never fills it in — and a dynamic select carries no default nor options.
+  const houseField = field('house');
+  assert.equal(houseField.type, 'select');
+  assert.equal(houseField.source, 'houses');
   assert.equal(houseField.required, false);
-  assert.equal(houseField.options, undefined, 'no static list of somebody else’s houses');
-  assert.equal(houseField.source, undefined, 'the core has no "houses" source');
-  assert.equal(houseField.default, undefined);
-  assert.equal(DEFAULT_CONFIG.house_name, '', 'empty means the first located house');
+  assert.equal(houseField.options, undefined, 'the core lists the houses, not the manifest');
+  assert.equal(houseField.default, undefined, 'no default on a dynamic select');
+  assert.equal(DEFAULT_CONFIG.house, '', 'empty means the first located house');
+  // The free-text field of up to 2.3 is gone from the form, but its stored
+  // value is still read (normalizeConfig keeps it), so it must not come back
+  // as a second field asking the same question.
+  assert.equal(
+    manifest.config_schema.find((f) => f.key === 'house_name'),
+    undefined,
+    'one field per question',
+  );
+});
+
+/** Every field of every form the manifest declares, wherever it lives. */
+function everyFormField() {
+  return [
+    ...manifest.config_schema,
+    ...(manifest.actions ?? []).flatMap((a) => a.fields ?? []),
+    ...(manifest.widgets ?? []).flatMap((w) => w.settings ?? []),
+    ...(manifest.scene_triggers ?? []).flatMap((t) => t.fields ?? []),
+    ...(manifest.scene_actions ?? []).flatMap((a) => a.fields ?? []),
+  ];
+}
+
+test('a `source: "houses"` field requires Gladys 5.2 in gladys_version', () => {
+  // A core older than 5.2 rejects a dynamic source it does not know, and the
+  // store indexer refuses the pair outright: same rule as the 5.1 fields above.
+  if (!everyFormField().some((f) => f.source === 'houses')) {
+    return;
+  }
+  const minimum = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\./);
+  assert.ok(minimum, 'gladys_version must declare a minimum version');
+  const [, major, minor] = minimum.map(Number);
+  assert.ok(
+    major > 5 || (major === 5 && minor >= 2),
+    `source "houses" requires gladys_version >= 5.2.0, got "${manifest.gladys_version}"`,
+  );
 });
 
 // --- Scene triggers (GladysAssistant/Gladys#3110, preview) --------------------

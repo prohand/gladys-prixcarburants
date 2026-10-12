@@ -232,12 +232,18 @@ compute the distances, and they are displayed nowhere.
   code"** → `2.3 km from 35000`, measured from the centre of the postal code
   area.
 
-**If Gladys holds several houses**, fill in the **"Which house"** field with the
-name of the one you want (case and accents are ignored). Left empty, the first
-located house is used — not necessarily the one you are at: both cards show
-its name so you can check. Gladys does not let an integration offer the list of
-houses in a dropdown yet: to know what to type, press **"Preview the
-stations"** — the message names the house in use and every house Gladys knows.
+**If Gladys holds several houses**, pick the one you want in the **"Which
+house"** list of the configuration. Left empty, the first located house is used
+— not necessarily the one you are at: both cards show its name so you can
+check, and **"Preview the stations"** names the house in use. A house name
+typed in this field before version 2.4 keeps working until you pick one in the
+list.
+
+Each **"Cheapest around me"** card can also name **its own house** (setting
+**"House"** of the card): one card per house, each ranking the stations around
+its house, while the configuration keeps its own. The house needs coordinates
+in Gladys (Settings → Houses).
+
 The **"My station"** card is the exception: it measures from the house
 **nearest to the station** and names it, so a station near your second home
 shows its distance from that home.
@@ -245,9 +251,11 @@ shows its distance from that home.
 The postal code stays required either way: it is what queries the national
 dataset.
 
-> Widgets need **Gladys 5.1 or newer**, like the scenes below. That is the
-> minimum version the integration declares: on an older Gladys it simply does
-> not show up in the store.
+> The integration needs **Gladys 5.2 or newer**: the widgets and the scenes
+> came with 5.1, the house lists with 5.2. On an older Gladys it simply does not
+> show up in the store. Gladys 5.2 also lays the price tiles out in a balanced
+> grid: three prices stay side by side even on a narrow card, instead of two
+> half-width tiles and a full-width one below.
 
 ## Scene ideas
 

@@ -135,6 +135,20 @@ export const DECLARATION = {
             : { en: `${value} characters`, fr: `${value} caractères` },
       })),
     },
+    {
+      // A user with a house in Noisy and one in Brittany wanted one card per
+      // house; the configuration centres every card on ONE of them. Gladys 5.2
+      // lists the houses itself (`source: "houses"`, the selector is stored),
+      // so a card can name its own. Empty = the centre of the configuration.
+      key: 'house',
+      type: 'select',
+      source: 'houses',
+      label: { en: 'House', fr: 'Maison' },
+      description: {
+        en: 'Rank the stations around this house instead of the one of the configuration (it needs coordinates in Gladys).',
+        fr: 'Classer les stations autour de cette maison plutôt que celle de la configuration (elle doit avoir des coordonnées dans Gladys).',
+      },
+    },
   ],
   action_timeout_seconds: 60,
 };
@@ -158,6 +172,19 @@ function readSettings(settings = {}, config) {
     ? Number(settings.name_length)
     : ROW_LABEL_MAX;
   return { fuel, scope, count, nameLength };
+}
+
+/**
+ * The configuration as THIS card sees it: a card naming its own house searches
+ * around that house, whatever the configuration says. Everything downstream
+ * keys on the result — the station search, the curve, the heading — so two
+ * cards on two houses never share a ranking nor a curve.
+ * @param {object} config normalized integration configuration
+ * @param {Record<string, unknown>} settings
+ */
+function cardConfig(config, settings = {}) {
+  const house = typeof settings.house === 'string' ? settings.house.trim() : '';
+  return house ? { ...config, search_center: 'house', house } : config;
 }
 
 /**
@@ -226,7 +253,8 @@ function buildHeading({ config, scope, label, source, houseName }) {
  * @param {{ settings?: object, language?: string }} request
  */
 export async function getContent(_gladys, context, { settings, language = 'en' } = {}) {
-  const { config, store, history, house } = context;
+  const { store, history, house } = context;
+  const config = cardConfig(context.config, settings);
   const { fuel, scope, count, nameLength } = readSettings(settings, config);
 
   if (!isConfigReady(config)) {
@@ -243,7 +271,7 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
     );
   }
 
-  const stations = (await collectStations(context, scope))
+  const stations = (await collectStations({ store, history, config }, scope))
     .filter((station) => Number.isFinite(station.prices?.[fuel]))
     .sort((a, b) => a.prices[fuel] - b.prices[fuel]);
 

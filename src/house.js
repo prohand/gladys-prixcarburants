@@ -8,9 +8,8 @@
 // longitude }]`. An integration that did NOT declare it gets a 403, so the
 // manifest field and this module go together (Gladys ≥ 4.85).
 //
-// The SDK does not wrap that route (0.13.0 is the latest and has no `getHouses`),
-// so the call is made here with the same base URL and token the SDK already
-// holds. Two things make it cheap and safe:
+// The route is read through the SDK's `gladys.getHouses()`. Two things make it
+// cheap and safe:
 //   - the answer is CACHED for an hour: a house does not move, and the widgets
 //     ask on every pull — a transient failure (network, 429, 5xx) for two
 //     minutes only, so a blip does not cost an hour of wrong distances;
@@ -19,12 +18,19 @@
 //     integration then simply measures from the postal code, which is what it
 //     did before this existed.
 //
+// WHICH house is picked in a list since Gladys 5.2: the `house` field of the
+// configuration (and the `house` setting of the "cheapest" card) is a
+// `source: "houses"` select, so the core offers the houses by name and stores
+// the house SELECTOR. The name typed in the free-text field of up to 2.3 is
+// still honoured when nothing was picked.
+//
 // This is personal data. It is used for one thing — the centre of the search
 // and the origin of the distances — and never published in a device, a state,
 // a log line or a widget content.
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
+import { preferredHouse } from './config.js';
 
 const logger = createLogger({ name: 'house' });
 
@@ -43,10 +49,7 @@ const FAILURE_TTL_MS = 2 * 60 * 1000;
 /** A refusal no retry can fix: the manifest or the core version decides it. */
 const isDurableRefusal = (status) => status === 401 || status === 403 || status === 404;
 
-/** The host API is on the integration prefix, not the user one. */
-const HOUSE_PATH = '/api/integration/v1/house';
-
-/** Timeout of the call: a widget pull must not hang on it. */
+/** Timeout of the call: a widget pull must not hang on it (the SDK waits 15 s). */
 const REQUEST_TIMEOUT_MS = 5_000;
 
 /**
@@ -63,15 +66,19 @@ function nameKey(value) {
 }
 
 /**
- * @param {object} gladys SDK instance (for `hostApiUrl` and `token`)
- * @param {{ fetchImpl?: Function, now?: () => number, ttlMs?: number,
- *   failureTtlMs?: number }} [options]
- *   `fetchImpl` and `now` are the seams the tests use in place of the network
- *   and the clock.
+ * @param {{ getHouses: () => Promise<object[]> }} gladys SDK instance
+ * @param {{ now?: () => number, ttlMs?: number, failureTtlMs?: number,
+ *   timeoutMs?: number }} [options]
+ *   `now` is the seam the tests use in place of the clock.
  */
 export function createHouseLocation(
   gladys,
-  { fetchImpl, now = Date.now, ttlMs = CACHE_TTL_MS, failureTtlMs = FAILURE_TTL_MS } = {},
+  {
+    now = Date.now,
+    ttlMs = CACHE_TTL_MS,
+    failureTtlMs = FAILURE_TTL_MS,
+    timeoutMs = REQUEST_TIMEOUT_MS,
+  } = {},
 ) {
   /** @type {{ at: number, houses: object[], ttl: number }|null} */
   let cached = null;
@@ -80,23 +87,34 @@ export function createHouseLocation(
   let warned = false;
   let missWarned = null;
 
+  /** `gladys.getHouses()`, given up after `timeoutMs` like a transient failure. */
+  function readHouses() {
+    let timer;
+    const timeout = new Promise((resolve, reject) => {
+      timer = setTimeout(
+        () => reject(Object.assign(new Error('timed out'), { transient: true })),
+        timeoutMs,
+      );
+    });
+    return Promise.race([gladys.getHouses(), timeout]).finally(() => clearTimeout(timer));
+  }
+
   async function request() {
-    const baseUrl = gladys?.hostApiUrl ?? process.env.GLADYS_HOST_API_URL;
-    const token = gladys?.token ?? process.env.GLADYS_INTEGRATION_TOKEN;
-    const doFetch = fetchImpl ?? fetch;
-    if (!baseUrl || !token) {
+    if (typeof gladys?.getHouses !== 'function') {
       return [];
     }
 
-    const response = await doFetch(`${baseUrl}${HOUSE_PATH}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-
-    if (!response.ok) {
-      if (!isDurableRefusal(response.status)) {
-        // 429, 5xx: the core is busy or restarting. Kept briefly, see list().
-        throw Object.assign(new Error(`HTTP ${response.status}`), { transient: true });
+    let houses;
+    try {
+      houses = await readHouses();
+    } catch (err) {
+      // The SDK throws a GladysApiError carrying the HTTP `status`; a network
+      // error carries none.
+      if (!isDurableRefusal(err?.status)) {
+        // 429, 5xx, network: the core is busy or restarting. Kept briefly, see list().
+        throw Object.assign(err instanceof Error ? err : new Error(String(err)), {
+          transient: true,
+        });
       }
       // 403 = `"location": true` missing from the manifest (or a core older
       // than 4.85). Say it ONCE: the widgets ask every pull, and a log line per
@@ -104,14 +122,13 @@ export function createHouseLocation(
       if (!warned) {
         warned = true;
         logger.info(
-          `The house coordinates are not available (HTTP ${response.status}): ` +
+          `The house coordinates are not available (HTTP ${err.status}): ` +
             'distances will be measured from the postal code.',
         );
       }
       return [];
     }
 
-    const houses = await response.json();
     if (!Array.isArray(houses)) {
       return [];
     }
@@ -122,6 +139,7 @@ export function createHouseLocation(
       .filter((house) => Number.isFinite(house?.latitude) && Number.isFinite(house?.longitude))
       .map((house) => ({
         name: house.name,
+        selector: house.selector,
         latitude: house.latitude,
         longitude: house.longitude,
       }));
@@ -161,33 +179,37 @@ export function createHouseLocation(
   }
 
   /**
-   * The house the configuration names, among the located ones.
+   * The house the configuration asks for, among the located ones: the SELECTOR
+   * a `source: "houses"` select stores, or the name typed before that select
+   * existed — matched loosely, trimmed, case- and accent-insensitive.
    *
-   * No name configured, or a name that matches nothing: the first located house
-   * wins, as it always did — a single-house install is the normal case and must
-   * never have to fill a field in. A name that matches nothing is said ONCE,
-   * with the names Gladys actually holds, because "it measures from the wrong
-   * house" is otherwise invisible.
+   * Nothing asked, or a house that matches nothing (deleted since, or never
+   * located): the first located house wins, as it always did — a single-house
+   * install is the normal case and must never have to fill a field in. A miss
+   * is said ONCE, with the names Gladys actually holds, because "it measures
+   * from the wrong house" is otherwise invisible.
    *
    * @param {object[]} houses
-   * @param {string} [preferredName]
+   * @param {string} [preferred] a house selector or a house name
    */
-  function pick(houses, preferredName) {
+  function pick(houses, preferred) {
     if (houses.length === 0) {
       return null;
     }
-    const wanted = nameKey(preferredName);
+    const wanted = nameKey(preferred);
     if (wanted.length === 0) {
       return houses[0];
     }
-    const match = houses.find((house) => nameKey(house.name) === wanted);
+    const match =
+      houses.find((house) => house.selector === String(preferred).trim()) ??
+      houses.find((house) => nameKey(house.name) === wanted);
     if (match) {
       return match;
     }
     if (missWarned !== wanted) {
       missWarned = wanted;
       logger.warn(
-        `No Gladys house named "${preferredName}": distances are measured from "${houses[0].name}". ` +
+        `No located Gladys house "${preferred}": distances are measured from "${houses[0].name}". ` +
           `Houses Gladys knows: ${houses.map((house) => house.name).join(', ')}.`,
       );
     }
@@ -198,18 +220,16 @@ export function createHouseLocation(
     /**
      * The located house to measure from, or `null` when there is none to be had.
      * Never throws: a failure is a fallback, not an error.
-     * @param {string} [preferredName] the house named in the configuration
-     * @returns {Promise<{ name: string, latitude: number, longitude: number }|null>}
+     * @param {string} [preferred] the house selector (or name) the configuration asks for
+     * @returns {Promise<{ name: string, selector: string, latitude: number, longitude: number }|null>}
      */
-    async get(preferredName) {
-      return pick(await list(), preferredName);
+    async get(preferred) {
+      return pick(await list(), preferred);
     },
 
     /**
-     * The names of the located houses, for the Configuration screen: a field
-     * where the user TYPES a house name is only usable if something tells them
-     * what to type (the core resolves dynamic select options against devices
-     * only, so the list cannot be offered in the form itself).
+     * The names of the located houses, for the preview message: it says which
+     * house is in use among them (the select lists every house, located or not).
      * @returns {Promise<string[]>}
      */
     async names() {
@@ -252,7 +272,7 @@ export async function resolveSearchCenter(config, house) {
     return { center: null, source: 'postal_code' };
   }
   const [located, names] = await Promise.all([
-    house.get(config.house_name),
+    house.get(preferredHouse(config)),
     typeof house.names === 'function' ? house.names() : [],
   ]);
   if (!located) {
