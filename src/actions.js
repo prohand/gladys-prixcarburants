@@ -10,7 +10,7 @@
 import { AVAILABILITY, fuelAvailability } from './availability.js';
 import { getProvider } from './countries/index.js';
 import { fuelLabel } from './fuels.js';
-import { isConfigReady } from './config.js';
+import { isConfigReady, preferredHouse } from './config.js';
 import { refreshAllDevices } from './refresh.js';
 
 // How many stations the search result message lists before summarizing.
@@ -116,11 +116,10 @@ function missingFuelNotes(stations, fuels, lang) {
  * Where the distances of this preview start from — and, when Gladys holds more
  * than one house, the NAMES of the houses it holds.
  *
- * This line exists because the "Which house" field cannot be a select: the core
- * resolves dynamic select options against an integration's devices only, so a
- * user with several houses has to TYPE a name, and a name nobody shows them is
- * a name they will get wrong. The button they press to check their postal code
- * is the natural place to read it back.
+ * The "Which house" field is a list since Gladys 5.2, but it lists EVERY house,
+ * located or not, and an empty choice means "the first located one": the button
+ * a user presses to check their postal code is where they read back which house
+ * that turned out to be.
  *
  * Best effort like everything house-related: no house module, no coordinates,
  * an older core — the line simply says the postal code.
@@ -141,7 +140,7 @@ async function centerNotes(config, house) {
       fr: `Distances mesurées depuis le centre du ${config.postal_code}.`,
     };
   }
-  const [used, names] = await Promise.all([house.get(config.house_name), house.names()]);
+  const [used, names] = await Promise.all([house.get(preferredHouse(config)), house.names()]);
   if (!used) {
     return {
       area: postalArea,

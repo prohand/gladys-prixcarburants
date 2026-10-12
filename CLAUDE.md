@@ -246,21 +246,24 @@ fuel) and `station` (one followed station, a price tile per fuel).
 - **Distances start at the Gladys house when it is located**, at the centre of the postal code
   otherwise, and both cards SAY which (`2,3 km de la maison` / `2,3 km du 35000`,
   `10 km autour de ma maison` / `autour du 35000`) — do not let a redesign drop that word.
-  `src/house.js` reads `GET /api/integration/v1/house` with the SDK's own base URL and token
-  (the SDK wraps no such call), which requires `"location": true` in the manifest — the two
+  `src/house.js` reads `GET /api/integration/v1/house` through the SDK's `gladys.getHouses()`
+  (given up after 5 s, the SDK alone waits 15), which requires `"location": true` in the manifest — the two
   ship together, a 403 is the symptom of forgetting one. Cached an hour (a 401/403/404 too,
   which no retry fixes) — but a TRANSIENT failure (network, 429, 5xx) for 2 minutes only, or a
   blip measured every distance from the postal code for an hour. Invalidated on
   `onConfigUpdated`, and best effort everywhere: `resolveSearchCenter` falls back on the postal
   code for an unlocated house, an older core or a network failure. A Gladys install can hold
   SEVERAL houses, and the route returns them all: the module keeps every located one and
-  `config.house_name` names which to measure from, matched loosely (trimmed, case- and
-  accent-insensitive), the first one winning when the field is empty or matches nothing (said
-  once in the logs, never as an error). That field is free TEXT and not a select on purpose —
-  the core resolves dynamic select options against an integration's DEVICES only
-  (`SELECT_SOURCES = ['devices']`), so no manifest can offer the houses. What makes it usable
-  is `searchStations`: the preview action names the house in use and lists the ones Gladys
-  knows, because a name nobody shows is a name the user gets wrong. The NAMES may be printed
+  `config.house` names which to measure from: a `source: "houses"` select (Gladys 5.2, hence
+  `gladys_version >=5.2.0`), so the core lists the houses and stores the house SELECTOR.
+  `preferredHouse()` falls back on `config.house_name`, the free-text name of up to 2.3 —
+  off the schema now, but the core still hands back a stored value, and an install that never
+  re-opens the form must keep its house — matched loosely (trimmed, case- and
+  accent-insensitive). The first located house wins when nothing is asked or nothing matches
+  (said once in the logs, never as an error). The `best_prices` card has a `house` setting of
+  its own (same source): `cardConfig()` turns it into the card's search centre, so the station
+  search, the curve key and the heading all follow the card's house. `searchStations` still
+  names the house in use and lists the ones Gladys knows. The NAMES may be printed
   there; the coordinates never are, anywhere. The coordinates are personal
   data: they centre the search and nothing else — never a device param, a state, a log or a
   widget content. A DISTANCE measured from the house is the same data once three stations
@@ -311,8 +314,16 @@ fuel) and `station` (one followed station, a price tile per fuel).
 - **The widgets need Gladys 5.1 and SDK 0.14.0**: `registerWidgets` registers on
   `gladys.onWidgetGet(key, cb)` and `gladys.onWidgetAction(key, cb)`, and the core acks for
   us under its own 15 s deadline. An older core rejects the `widgets` field like any unknown
-  one, so `gladys_version` carries `">=5.1.0"` — `test/manifest.test.js` fails if the two ever
-  drift apart, which is the same guard `categories` gets.
+  one, so `gladys_version` carries at least `">=5.1.0"` — `test/manifest.test.js` fails if the
+  two ever drift apart, which is the same guard `categories` gets. It is `">=5.2.0"` since the
+  house lists (`source: "houses"`), pinned the same way.
+- **The core lays the tiles out, not us** (Gladys 5.2, GladysAssistant/Gladys#3183): a
+  balanced grid whose column count it picks from the tile count and the card width — three
+  tiles stay on one row, tightened on a narrow card; a wrapped tile keeps the width of the
+  one above. The content carries no layout field and must not try to emulate one (padding a
+  row with an empty tile, splitting a card): a user asking for "three full-width boxes" was
+  answered by the core. Keep the price VALUE short (`1,699` + unit `€/L`) — that is what
+  still fits a tightened tile.
 
 ### Country providers
 

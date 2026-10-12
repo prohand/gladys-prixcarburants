@@ -13,6 +13,7 @@
 
 import { createLogger } from '@gladysassistant/integration-sdk';
 import { getProvider } from './countries/index.js';
+import { preferredHouse } from './config.js';
 
 const logger = createLogger({ name: 'station-store' });
 
@@ -112,7 +113,7 @@ export function createStationStore({
       // The centre of the circle: same postal code, another house, other
       // stations and other distances.
       config.search_center,
-      config.house_name,
+      preferredHouse(config),
     ].join('|');
     const done = searchResults.get(key);
     if (done && now() - done.at < searchTtlMs) {

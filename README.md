@@ -198,9 +198,12 @@ Three things shape the code:
   reach a device, a state, a log or a widget content.
 
 Both cards need **Gladys 5.1**, the release that shipped
-[GladysAssistant/Gladys#3109](https://github.com/GladysAssistant/Gladys/pull/3109) — hence
-`"gladys_version": ">=5.1.0"` in the manifest, which `test/manifest.test.js` pins the same way
-it pins `categories` against 4.86. The handlers come from the SDK itself
+[GladysAssistant/Gladys#3109](https://github.com/GladysAssistant/Gladys/pull/3109), and the
+manifest asks for **5.2**: the house lists (`source: "houses"`, the "Which house" field and
+the `house` setting of the cheapest card) came with it, and so did the balanced tile grid
+([GladysAssistant/Gladys#3183](https://github.com/GladysAssistant/Gladys/pull/3183)) that
+keeps three prices side by side on a narrow card. `test/manifest.test.js` pins
+`">=5.2.0"` the same way it pins `categories` against 4.86. The handlers come from the SDK itself
 (`onWidgetGet`, `onWidgetAction`, `requestWidgetRefresh`, 0.14.0 and up): the
 bridge that answered those commands on the raw socket while the SDK was behind
 is gone.

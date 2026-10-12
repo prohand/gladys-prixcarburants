@@ -24,6 +24,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createLogger } from '@gladysassistant/integration-sdk';
+import { preferredHouse } from './config.js';
 
 const defaultLogger = createLogger({ name: 'price-history' });
 
@@ -47,7 +48,7 @@ const SAVE_DELAY_MS = 5_000;
  * cheapest of my stations" are two different questions: mixing their samples
  * would draw a curve that answers neither.
  *
- * @param {{ country: string, postal_code: string, search_radius_km: number, search_center?: string, house_name?: string }} config
+ * @param {{ country: string, postal_code: string, search_radius_km: number, search_center?: string, house?: string, house_name?: string }} config
  * @param {string} fuel
  * @param {string} [scope]
  */
@@ -55,10 +56,13 @@ export function seriesKey(config, fuel, scope = 'around') {
   const key = `${config.country}:${config.postal_code}:${config.search_radius_km}:${scope}:${fuel}`;
   // A named house is another centre, hence another area: picking the right one
   // among several must not keep the curve drawn around the wrong one. Appended
-  // only when a name is set, so the curves of every other install keep their key.
+  // only when a house is asked for, so the curves of every other install keep
+  // their key. Lower-cased: a house typed "Maison" and then picked in the list
+  // (selector `maison`) keeps its curve.
+  const preferred = preferredHouse(config);
   const house =
-    scope === 'around' && config.search_center === 'house' && config.house_name
-      ? `:${String(config.house_name).trim().toLowerCase()}`
+    scope === 'around' && config.search_center === 'house' && preferred
+      ? `:${String(preferred).trim().toLowerCase()}`
       : '';
   return `${key}${house}`;
 }

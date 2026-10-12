@@ -6,6 +6,17 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `@gladysassistant/integration-sdk` updated to 0.15.0.
+- Requires Gladys 5.2.0. Gladys 5.2 also lays the price tiles out in a balanced grid: three prices stay side by side on a narrow card, instead of two half-width tiles and a full-width one below.
+- The house coordinates are read through the SDK (`gladys.getHouses()`) instead of a hand-made request.
+
+### Added
+
+- The "Which house" field of the configuration is now a list of the Gladys houses, instead of a name to type. A name typed before keeps working until a house is picked.
+- The "Cheapest around me" card has a "House" setting: each card can rank the stations around its own house (one card per house), without changing the configuration.
+
 ## [2.3.0] - 2026-10-09
 
 - Maintenance release, no functional change.

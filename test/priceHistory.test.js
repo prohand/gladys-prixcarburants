@@ -55,6 +55,9 @@ test('naming a house starts a new curve, and no name keeps the old key', () => {
     seriesKey(unnamed, 'gazole', 'tracked'),
     'my stations do not depend on the house',
   );
+  // "Mer" typed by name, then picked in the list (selector `mer`): same curve.
+  const picked = normalizeConfig({ ...area, house: 'mer' });
+  assert.equal(seriesKey(picked, 'gazole'), seriesKey(named, 'gazole'));
 });
 
 test('only the cheapest price of the area is recorded, per fuel', () => {

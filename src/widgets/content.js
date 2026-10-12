@@ -66,7 +66,7 @@ export const LIMITS = {
 export const BUDGET = {
   COMPONENTS: 8, // a card is read at a glance; beyond, it is a page
   FOCAL: 1, // one card, one subject (chart | card-list | image)
-  TILES: 6, // value | gauge, rendered as one wrapping row
+  TILES: 6, // value | gauge, laid out by the core in a balanced grid (Gladys 5.2)
   TEXTS: 2, // of which at most one `body`
   BODY_TEXTS: 1,
   STATUS: 1,
