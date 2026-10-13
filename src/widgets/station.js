@@ -71,7 +71,7 @@ export const DECLARATION = {
   description: {
     en: 'The prices of one station you follow, with its address.',
     fr: 'Les prix d’une station que vous suivez, avec son adresse.',
-    de: 'Die Preise einer Tankstelle, die Sie verfolgen, mit ihrer Adresse.',
+    de: 'Die Preise einer Tankstelle, die du verfolgst, mit ihrer Adresse.',
     es: 'Los precios de una gasolinera que sigue, con su dirección.',
   },
   icon: 'map-pin',
@@ -86,9 +86,9 @@ export const DECLARATION = {
       source: 'devices',
       label: { en: 'Station', fr: 'Station', de: 'Tankstelle', es: 'Gasolinera' },
       description: {
-        en: 'One of the stations you added from the Discovery tab.',
+        en: 'One of the stations you added from the Discover tab.',
         fr: 'Une des stations que vous avez ajoutées depuis l’onglet Découverte.',
-        de: 'Eine der Tankstellen, die Sie über den Tab „Entdecken“ hinzugefügt haben.',
+        de: 'Eine der Tankstellen, die du über den Tab „Entdecken“ hinzugefügt hast.',
         es: 'Una de las gasolineras que ha añadido desde la pestaña «Descubrir».',
       },
     },
@@ -201,7 +201,7 @@ export async function getContent(
           text: {
             en: 'Pick one of your stations in the settings of this widget.',
             fr: 'Choisissez une de vos stations dans les réglages de ce widget.',
-            de: 'Wählen Sie in den Einstellungen dieses Widgets eine Ihrer Tankstellen.',
+            de: 'Wähle in den Einstellungen dieses Widgets eine deiner Tankstellen.',
             es: 'Elija una de sus gasolineras en la configuración de este widget.',
           },
         }),

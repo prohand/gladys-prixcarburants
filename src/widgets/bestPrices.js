@@ -101,7 +101,7 @@ export const DECLARATION = {
       description: {
         en: 'Search around you (the house or the postal code, as set in the configuration), or rank only the stations you added.',
         fr: 'Chercher autour de vous (la maison ou le code postal, selon la configuration), ou classer seulement les stations que vous avez ajoutées.',
-        de: 'In Ihrer Umgebung suchen (Zuhause oder Postleitzahl, je nach Konfiguration) oder nur die von Ihnen hinzugefügten Tankstellen sortieren.',
+        de: 'In deiner Umgebung suchen (Zuhause oder Postleitzahl, je nach Konfiguration) oder nur die von dir hinzugefügten Tankstellen sortieren.',
         es: 'Buscar a su alrededor (la vivienda o el código postal, según la configuración) o clasificar solo las gasolineras que ha añadido.',
       },
       default: SCOPE.AROUND,
@@ -324,7 +324,7 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
           text: {
             en: 'Set a postal code in the integration configuration to see the stations around you.',
             fr: 'Renseignez un code postal dans la configuration de l’intégration pour voir les stations proches.',
-            de: 'Geben Sie in der Konfiguration der Integration eine Postleitzahl ein, um die Tankstellen in Ihrer Nähe zu sehen.',
+            de: 'Gib in der Konfiguration der Integration eine Postleitzahl ein, um die Tankstellen in deiner Nähe zu sehen.',
             es: 'Introduzca un código postal en la configuración de la integración para ver las gasolineras cercanas.',
           },
         }),
@@ -350,13 +350,13 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
               ? {
                   en: `None of your stations publishes a ${label.en} price.`,
                   fr: `Aucune de vos stations ne publie de prix ${label.fr}.`,
-                  de: `Keine Ihrer Tankstellen veröffentlicht einen Preis für ${label.de}.`,
+                  de: `Keine deiner Tankstellen veröffentlicht einen Preis für ${label.de}.`,
                   es: `Ninguna de sus gasolineras publica un precio de ${label.es}.`,
                 }
               : {
                   en: `No ${label.en} price found around ${config.postal_code}. Try a wider search radius.`,
                   fr: `Aucun prix ${label.fr} trouvé autour de ${config.postal_code}. Essayez un rayon de recherche plus large.`,
-                  de: `Kein Preis für ${label.de} um ${config.postal_code} gefunden. Versuchen Sie einen größeren Suchradius.`,
+                  de: `Kein Preis für ${label.de} um ${config.postal_code} gefunden. Versuche einen größeren Suchradius.`,
                   es: `No se ha encontrado ningún precio de ${label.es} alrededor de ${config.postal_code}. Pruebe con un radio de búsqueda mayor.`,
                 },
         }),

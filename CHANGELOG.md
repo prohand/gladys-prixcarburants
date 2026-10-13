@@ -10,6 +10,10 @@ All notable changes to this integration are documented here. The format follows
 
 - German and Spanish translations (configuration screen, messages, widgets, documentation).
 
+### Fixed
+
+- The English documentation names the Gladys screens as the Gladys interface does.
+
 ## [2.4.0] - 2026-10-12
 
 ### Changed

@@ -113,8 +113,8 @@ una lectura sin esperar.
 
 ## Eliminar gasolineras
 
-Abra el dispositivo en **«Configuración → Dispositivos»** y pulse
-**«Eliminar»**. La integración deja de consultarlo inmediatamente. La
+En la pestaña **«Dispositivos»** de la integración, pulse **«Eliminar»**
+en el dispositivo. La integración deja de consultarlo inmediatamente. La
 gasolinera sigue visible en la pestaña **«Descubrir»** mientras coincida con su
 búsqueda, así que puede volver a añadirla más tarde.
 
@@ -132,7 +132,7 @@ cambios. Elimine los que ya no necesite.
 ## Los widgets del panel
 
 Además de los dispositivos, la integración ofrece **dos tarjetas** que puede
-colocar en un panel (**«Editar panel»** y después elija la tarjeta en la lista,
+colocar en un panel (**«Editar»**, luego **«Nuevo widget»**, y elija la tarjeta en la lista,
 bajo «Prix carburants»).
 
 ### «Lo más barato cerca»

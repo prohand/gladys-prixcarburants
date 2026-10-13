@@ -5,7 +5,7 @@
   "description": {
     "en": "Follow the price of your fuel at the petrol stations near you, from official open data.",
     "fr": "Suivez le prix de votre carburant dans les stations-service proches de chez vous.",
-    "de": "Verfolgen Sie den Kraftstoffpreis an den Tankstellen in Ihrer Nähe, aus offiziellen Open Data.",
+    "de": "Verfolge den Kraftstoffpreis an den Tankstellen in deiner Nähe, aus offiziellen Open Data.",
     "es": "Siga el precio de su carburante en las gasolineras cercanas, con datos abiertos oficiales."
   },
   "version": "2.4.0",
@@ -26,9 +26,9 @@
         "es": "Cómo funciona"
       },
       "description": {
-        "en": "Choose your country, your postal code and the fuel you use, then open the Discovery tab: the petrol stations around you appear there with their current price. Add the ones you want to follow, delete them when you no longer need them. Data comes from the official open data, no account and no API key needed.",
+        "en": "Choose your country, your postal code and the fuel you use, then open the Discover tab: the petrol stations around you appear there with their current price. Add the ones you want to follow, delete them when you no longer need them. Data comes from the official open data, no account and no API key needed.",
         "fr": "Choisissez votre pays, votre code postal et votre carburant, puis ouvrez l'onglet Découverte : les stations-service proches y apparaissent avec leur prix actuel. Ajoutez celles que vous voulez suivre, supprimez-les quand vous n'en avez plus besoin. Les données viennent de l'open data officiel, sans compte ni clé d'API.",
-        "de": "Wählen Sie Ihr Land, Ihre Postleitzahl und Ihren Kraftstoff, und öffnen Sie dann den Tab „Entdecken“: Die Tankstellen in Ihrer Nähe erscheinen dort mit ihrem aktuellen Preis. Fügen Sie diejenigen hinzu, die Sie verfolgen möchten, und löschen Sie sie, wenn Sie sie nicht mehr brauchen. Die Daten stammen aus den offiziellen Open Data, ohne Konto und ohne API-Schlüssel.",
+        "de": "Wähle dein Land, deine Postleitzahl und deinen Kraftstoff und öffne dann den Tab „Entdecken“: Die Tankstellen in deiner Nähe erscheinen dort mit ihrem aktuellen Preis. Füge diejenigen hinzu, die du verfolgen möchtest, und lösche sie, wenn du sie nicht mehr brauchst. Die Daten stammen aus den offiziellen Open Data, ohne Konto und ohne API-Schlüssel.",
         "es": "Elija su país, su código postal y su carburante, y abra después la pestaña «Descubrir»: allí aparecen las gasolineras cercanas con su precio actual. Añada las que quiera seguir y elimínelas cuando ya no las necesite. Los datos proceden de los datos abiertos oficiales, sin cuenta ni clave de API."
       },
       "links": [
@@ -116,7 +116,7 @@
       "description": {
         "en": "Your Gladys house is used when it has coordinates (the integration asks Gladys for them, and shows them nowhere). Otherwise the centre of the postal code area is used.",
         "fr": "Votre maison Gladys est utilisée si elle a des coordonnées (l'intégration les demande à Gladys et ne les affiche nulle part). Sinon, c'est le centre de la zone du code postal.",
-        "de": "Ihr Gladys-Zuhause wird verwendet, wenn es Koordinaten hat (die Integration fragt Gladys danach und zeigt sie nirgends an). Andernfalls wird die Mitte des Postleitzahlgebiets verwendet.",
+        "de": "Dein Gladys-Zuhause wird verwendet, wenn es Koordinaten hat (die Integration fragt Gladys danach und zeigt sie nirgends an). Andernfalls wird die Mitte des Postleitzahlgebiets verwendet.",
         "es": "Se usa su vivienda de Gladys cuando tiene coordenadas (la integración se las pide a Gladys y no las muestra en ningún sitio). Si no, se usa el centro de la zona del código postal."
       },
       "required": false,
@@ -192,7 +192,7 @@
       "description": {
         "en": "One device is offered per station AND per selected fuel, so you can follow several fuels at the same station. A station only appears for the fuels it actually sells: many stations (TotalEnergies in particular) replaced SP95 with E10 (SP95-E10), so tick E10 if the SP95 of your station is nowhere to be found.",
         "fr": "Un appareil est proposé par station ET par carburant sélectionné, ce qui permet de suivre plusieurs carburants dans la même station. Une station n'apparaît que pour les carburants qu'elle vend vraiment : beaucoup de stations (TotalEnergies notamment) ont remplacé le SP95 par le E10 (SP95-E10), cochez donc E10 si le SP95 de votre station reste introuvable.",
-        "de": "Pro Tankstelle UND pro gewähltem Kraftstoff wird ein Gerät angeboten, sodass Sie mehrere Kraftstoffe an derselben Tankstelle verfolgen können. Eine Tankstelle erscheint nur für die Kraftstoffe, die sie tatsächlich verkauft: Viele Tankstellen (insbesondere TotalEnergies) haben SP95 durch E10 (SP95-E10) ersetzt. Wählen Sie also E10, wenn das SP95 Ihrer Tankstelle nicht zu finden ist.",
+        "de": "Pro Tankstelle UND pro gewähltem Kraftstoff wird ein Gerät angeboten, sodass du mehrere Kraftstoffe an derselben Tankstelle verfolgen kannst. Eine Tankstelle erscheint nur für die Kraftstoffe, die sie tatsächlich verkauft: Viele Tankstellen (insbesondere TotalEnergies) haben SP95 durch E10 (SP95-E10) ersetzt. Wähle also E10, wenn das SP95 deiner Tankstelle nicht zu finden ist.",
         "es": "Se ofrece un dispositivo por gasolinera Y por carburante seleccionado, así que puede seguir varios carburantes en la misma gasolinera. Una gasolinera solo aparece para los carburantes que realmente vende: muchas gasolineras (TotalEnergies en particular) han sustituido el SP95 por el E10 (SP95-E10), así que marque E10 si no encuentra el SP95 de su gasolinera."
       },
       "required": true,
@@ -264,9 +264,9 @@
         "es": "Número máximo de gasolineras"
       },
       "description": {
-        "en": "How many stations the Discovery tab may list. Lower it in a dense city, raise it in the countryside.",
+        "en": "How many stations the Discover tab may list. Lower it in a dense city, raise it in the countryside.",
         "fr": "Nombre de stations que l'onglet Découverte peut lister. Baissez-le en ville dense, augmentez-le à la campagne.",
-        "de": "Wie viele Tankstellen der Tab „Entdecken“ auflisten darf. Senken Sie den Wert in einer dichten Stadt, erhöhen Sie ihn auf dem Land.",
+        "de": "Wie viele Tankstellen der Tab „Entdecken“ auflisten darf. Senke den Wert in einer dichten Stadt, erhöhe ihn auf dem Land.",
         "es": "Cuántas gasolineras puede listar la pestaña «Descubrir». Redúzcalo en una ciudad densa y auméntelo en el campo."
       },
       "required": false,
@@ -419,7 +419,7 @@
           "description": {
             "en": "Search around you (the house or the postal code, as set in the configuration), or rank only the stations you added.",
             "fr": "Chercher autour de vous (la maison ou le code postal, selon la configuration), ou classer seulement les stations que vous avez ajoutées.",
-            "de": "In Ihrer Umgebung suchen (Zuhause oder Postleitzahl, je nach Konfiguration) oder nur die von Ihnen hinzugefügten Tankstellen sortieren.",
+            "de": "In deiner Umgebung suchen (Zuhause oder Postleitzahl, je nach Konfiguration) oder nur die von dir hinzugefügten Tankstellen sortieren.",
             "es": "Buscar a su alrededor (la vivienda o el código postal, según la configuración) o clasificar solo las gasolineras que ha añadido."
           },
           "default": "around",
@@ -579,7 +579,7 @@
       "description": {
         "en": "The prices of one station you follow, with its address.",
         "fr": "Les prix d’une station que vous suivez, avec son adresse.",
-        "de": "Die Preise einer Tankstelle, die Sie verfolgen, mit ihrer Adresse.",
+        "de": "Die Preise einer Tankstelle, die du verfolgst, mit ihrer Adresse.",
         "es": "Los precios de una gasolinera que sigue, con su dirección."
       },
       "icon": "map-pin",
@@ -595,9 +595,9 @@
             "es": "Gasolinera"
           },
           "description": {
-            "en": "One of the stations you added from the Discovery tab.",
+            "en": "One of the stations you added from the Discover tab.",
             "fr": "Une des stations que vous avez ajoutées depuis l’onglet Découverte.",
-            "de": "Eine der Tankstellen, die Sie über den Tab „Entdecken“ hinzugefügt haben.",
+            "de": "Eine der Tankstellen, die du über den Tab „Entdecken“ hinzugefügt hast.",
             "es": "Una de las gasolineras que ha añadido desde la pestaña «Descubrir»."
           }
         },
@@ -700,7 +700,7 @@
       "description": {
         "en": "A station you follow declared a new price. The event carries the previous price and the difference, which a device feature alone cannot give.",
         "fr": "Une station que vous suivez a déclaré un nouveau prix. L'événement porte l'ancien prix et l'écart, ce qu'une donnée d'appareil seule ne peut pas donner.",
-        "de": "Eine Tankstelle, die Sie verfolgen, hat einen neuen Preis gemeldet. Das Ereignis enthält den vorherigen Preis und die Differenz, was eine Gerätefunktion allein nicht liefern kann.",
+        "de": "Eine Tankstelle, die du verfolgst, hat einen neuen Preis gemeldet. Das Ereignis enthält den vorherigen Preis und die Differenz, was eine Gerätefunktion allein nicht liefern kann.",
         "es": "Una gasolinera que sigue ha declarado un precio nuevo. El evento incluye el precio anterior y la diferencia, algo que una característica de dispositivo sola no puede dar."
       },
       "fields": [
@@ -717,7 +717,7 @@
           "description": {
             "en": "Leave empty to react to every station you follow.",
             "fr": "Laissez vide pour réagir à toutes les stations que vous suivez.",
-            "de": "Leer lassen, um auf alle Tankstellen zu reagieren, die Sie verfolgen.",
+            "de": "Leer lassen, um auf alle Tankstellen zu reagieren, die du verfolgst.",
             "es": "Déjelo vacío para reaccionar a todas las gasolineras que sigue."
           }
         },
@@ -934,7 +934,7 @@
       "description": {
         "en": "Among the stations you follow, another one is now the cheapest for a fuel. Needs at least two stations followed for that fuel.",
         "fr": "Parmi les stations que vous suivez, une autre est désormais la moins chère pour un carburant. Il faut suivre au moins deux stations pour ce carburant.",
-        "de": "Unter den Tankstellen, die Sie verfolgen, ist jetzt eine andere die günstigste für einen Kraftstoff. Dafür müssen Sie mindestens zwei Tankstellen für diesen Kraftstoff verfolgen.",
+        "de": "Unter den Tankstellen, die du verfolgst, ist jetzt eine andere die günstigste für einen Kraftstoff. Dafür musst du mindestens zwei Tankstellen für diesen Kraftstoff verfolgen.",
         "es": "Entre las gasolineras que sigue, otra es ahora la más barata para un carburante. Hay que seguir al menos dos gasolineras para ese carburante."
       },
       "fields": [
@@ -1250,7 +1250,7 @@
       "description": {
         "en": "Compares the stations you follow for one fuel and returns the cheapest one. Answers found = false when you follow none for that fuel.",
         "fr": "Compare les stations que vous suivez pour un carburant et renvoie la moins chère. Renvoie found = false si vous n'en suivez aucune pour ce carburant.",
-        "de": "Vergleicht die Tankstellen, die Sie für einen Kraftstoff verfolgen, und gibt die günstigste zurück. Antwortet found = false, wenn Sie für diesen Kraftstoff keine verfolgen.",
+        "de": "Vergleicht die Tankstellen, die du für einen Kraftstoff verfolgst, und gibt die günstigste zurück. Antwortet found = false, wenn du für diesen Kraftstoff keine verfolgst.",
         "es": "Compara las gasolineras que sigue para un carburante y devuelve la más barata. Responde found = false si no sigue ninguna para ese carburante."
       },
       "timeout_seconds": 60,
@@ -1435,7 +1435,7 @@
       "description": {
         "en": "One line of text listing the stations you follow, cheapest first, ready to send in a notification.",
         "fr": "Une ligne de texte listant les stations que vous suivez, la moins chère d'abord, prête à envoyer dans une notification.",
-        "de": "Eine Textzeile mit den Tankstellen, die Sie verfolgen, die günstigste zuerst, bereit zum Versand in einer Benachrichtigung.",
+        "de": "Eine Textzeile mit den Tankstellen, die du verfolgst, die günstigste zuerst, bereit zum Versand in einer Benachrichtigung.",
         "es": "Una línea de texto con las gasolineras que sigue, la más barata primero, lista para enviar en una notificación."
       },
       "timeout_seconds": 30,

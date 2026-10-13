@@ -90,7 +90,7 @@ export function createConnectedHandler({
         .setConnectionStatus(false, {
           en: 'Initialization failed, check the integration logs.',
           fr: "L'initialisation a échoué, consultez les logs de l'intégration.",
-          de: 'Die Initialisierung ist fehlgeschlagen, sehen Sie in den Protokollen der Integration nach.',
+          de: 'Die Initialisierung ist fehlgeschlagen, sieh in den Protokollen der Integration nach.',
           es: 'La inicialización ha fallado, consulte los registros de la integración.',
         })
         .catch(() => {});

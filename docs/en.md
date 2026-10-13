@@ -35,7 +35,7 @@ distance it was given is erased: the `distance_km` parameter stays, empty.)
 
 ### The "Prix carburants - Mise à jour des données" device
 
-Besides the stations, the Discovery tab offers **one single device, shared by
+Besides the stations, the Discover tab offers **one single device, shared by
 the whole integration**, with one feature:
 
 - **Dernière lecture des données** — the date and time, as
@@ -66,7 +66,7 @@ name so you can tell them apart: `TotalEnergies - 33 Av. Médéric -
 Noisy-le-Grand - Diesel`. In the rare case where even the street is the same
 (both sides of a motorway rest area), the national id of the station is appended.
 Devices already created keep the name they were given: rename them in
-**Devices**, or delete and re-add them from the **Discovery** tab to get the
+**Devices**, or delete and re-add them from the **Discover** tab to get the
 detailed name (their price history is lost in the process).
 
 ## Configuration
@@ -89,9 +89,9 @@ before adding anything.
 
 ## Adding stations
 
-Open the **Discovery** tab: the stations found appear there, one entry per
+Open the **Discover** tab: the stations found appear there, one entry per
 station **and** per selected fuel ("TotalEnergies - Rennes - Diesel",
-"TotalEnergies - Rennes - SP98"…). Click **Add** on the ones you want to
+"TotalEnergies - Rennes - SP98"…). Click **Add to Gladys** on the ones you want to
 follow. Add one, several, or all of them.
 
 Only the combinations that really exist are offered: a station that does not
@@ -105,8 +105,8 @@ a read without waiting.
 
 ## Removing stations
 
-Open the device in **Settings → Devices**, then **Delete**. The integration
-stops polling it immediately. The station stays visible in the **Discovery**
+In the **Devices** tab of the integration, click **Delete** on the device. The integration
+stops polling it immediately. The station stays visible in the **Discover**
 tab as long as it matches your search, so you can add it back later.
 
 Removing one fuel of a station does not affect the others: "Rennes - Diesel"
@@ -116,14 +116,14 @@ and "Rennes - SP98" are two independent devices.
 
 A Gladys device keeps the features it was created with. The fuel is therefore
 part of the device identity: ticking an extra fuel in the configuration makes
-**new** entries appear in the Discovery tab, and your existing devices keep
+**new** entries appear in the Discover tab, and your existing devices keep
 working untouched. Delete the ones you no longer need.
 
 ## The dashboard widgets
 
 Beyond the devices, the integration provides **two cards** you can drop on a
-dashboard (**Edit dashboard**, then pick the card in the list, under "Prix
-carburants").
+dashboard (**Edit**, then **New widget**, and pick the card in the list,
+under "Prix carburants").
 
 ### "Cheapest around me"
 
@@ -166,7 +166,7 @@ you added are the ones of the last refresh, and the **Refresh the prices now**
 button starts a new search.
 
 Four settings: the fuel, how many stations are shown (3, 5 or 8), the
-scope — **around the house or postal code** (like the Discovery tab, as the "Measure
+scope — **around the house or postal code** (like the Discover tab, as the "Measure
 distances from" setting says; not the phone's position) or **my stations only** (the ones you added) — and the
 **station name length**, from 24 characters (the default, what a phone holds
 next to the price and its date) up to 40. Gladys does not tell the integration
@@ -222,7 +222,7 @@ the refresh loop, so it updates within seconds anyway.
 #### Where the distances start
 
 From your **Gladys house** by default. The integration asks Gladys for its
-coordinates (`Settings → House`, address field): the matching box is shown at
+coordinates (`Settings → Houses`, address field): the matching box is shown at
 install time as an authorization, the coordinates only centre the search and
 compute the distances, and they are displayed nowhere.
 
@@ -290,7 +290,7 @@ Two things worth knowing:
 - after a container restart, the first refresh is a baseline and fires nothing.
 
 For a plain threshold ("warn me below 1.70"), do not use these triggers: the
-Gladys **A device changes state** trigger on the station's price feature
+Gladys **Device state change** trigger on the station's price feature
 already does exactly that.
 
 ## Scene actions
@@ -311,8 +311,8 @@ An example scene, every morning at 7am:
 
 1. **Find the cheapest station** (fuel: Diesel, read the prices before
    comparing: yes);
-2. **Only continue if** the `found` result is true;
-3. **Send a message**: "Cheapest fill-up: {{ station name }} at {{ price }}".
+2. **Condition on variables**: continue only if the `found` result is true;
+3. **Send Message**: "Cheapest fill-up: {{ station name }} at {{ price }}".
 
 Or, in one step: **Prepare a price summary**, then send the text it returns.
 
@@ -322,7 +322,7 @@ you to test that result.
 
 ## Troubleshooting
 
-**No station in the Discovery tab.** Check the postal code (5 digits in
+**No station in the Discover tab.** Check the postal code (5 digits in
 France) and raise the search radius. The **Preview the nearby stations**
 button shows the exact error message.
 
@@ -340,7 +340,7 @@ integration keeps the last known value instead of leaving a hole in the chart.
 
 **A station out of stock.** When the station declares a temporary rupture it
 does sell that fuel, it simply has none left. The device stays offered in the
-Discovery tab, the last known price stays displayed, and the "Last price
+Discover tab, the last known price stays displayed, and the "Last price
 update" feature reads "En rupture depuis le 18/09/2026 à 08:09" until the fuel
 is back. The **Preview the nearby stations** button then writes "SP98: out of
 stock", and keeps "SP98: not sold" for a fuel the station really does not sell
@@ -355,7 +355,7 @@ not as "not sold".
 **The SP95 of a station is missing while its SP98 is there.** That station
 does not sell SP95, and it is not a bug: many brands (TotalEnergies in
 particular) replaced it with **E10 (SP95-E10)**. Tick E10 in the configuration
-and the station comes back in the Discovery tab. The **Preview the nearby
+and the station comes back in the Discover tab. The **Preview the nearby
 stations** button spells it out station by station: "SP95: not sold".
 
 **Limited number of stations.** The **Maximum number of stations** setting

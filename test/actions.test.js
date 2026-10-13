@@ -195,6 +195,6 @@ test('every message of the buttons is written in every language of Gladys', asyn
   assert.match(invalid.es, /no es un código postal válido de Francia/);
   assert.match(found.de, /Diesel: 1\.699 EUR\/L/);
   assert.match(found.es, /SP95: no se vende/);
-  assert.match(found.de, /Wählen Sie E10/);
+  assert.match(found.de, /Wähle E10/);
   assert.match(found.es, /pestaña «Descubrir»/);
 });

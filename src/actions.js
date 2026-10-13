@@ -50,7 +50,7 @@ const FUEL_HINTS = {
   sp95: {
     en: 'SP95 is being replaced by E10 (SP95-E10) in many stations: tick E10 to follow it.',
     fr: 'Le SP95 est remplacé par le E10 (SP95-E10) dans beaucoup de stations : cochez E10 pour le suivre.',
-    de: 'SP95 wird an vielen Tankstellen durch E10 (SP95-E10) ersetzt: Wählen Sie E10, um es zu verfolgen.',
+    de: 'SP95 wird an vielen Tankstellen durch E10 (SP95-E10) ersetzt: Wähle E10, um es zu verfolgen.',
     es: 'En muchas gasolineras el SP95 se está sustituyendo por el E10 (SP95-E10): marque E10 para seguirlo.',
   },
 };
@@ -75,8 +75,8 @@ const PREVIEW_TEXT = {
       `"${code}" is not a valid ${country} postal code (example: ${example}).`,
     noStation: (area) => `No station found around ${area}. Try a wider search radius.`,
     found: (count, area) => `${count} station(s) around ${area}:`,
-    addFromDiscovery: 'Add the ones you want from the Discovery tab.',
-    noTrackedStation: 'No station added yet: add one from the Discovery tab first.',
+    addFromDiscovery: 'Add the ones you want from the Discover tab.',
+    noTrackedStation: 'No station added yet: add one from the Discover tab first.',
     failed: (count) => ` (${count} failed)`,
     refreshed: (updated, total, suffix) => `${updated}/${total} price(s) refreshed${suffix}.`,
   },
@@ -113,15 +113,15 @@ const PREVIEW_TEXT = {
     knownHouses: (names) => ` Zuhause, die Gladys kennt: ${names}.`,
     houseArea: (name) => `das Zuhause „${name}“`,
     fromHouse: (name) => `Entfernungen gemessen ab dem Zuhause „${name}“.`,
-    noPostalCode: 'Geben Sie zuerst eine Postleitzahl ein.',
+    noPostalCode: 'Gib zuerst eine Postleitzahl ein.',
     invalidPostalCode: (code, country, example) =>
       `„${code}“ ist keine gültige Postleitzahl für ${country} (Beispiel: ${example}).`,
     noStation: (area) =>
-      `Keine Tankstelle um ${area} gefunden. Versuchen Sie einen größeren Suchradius.`,
+      `Keine Tankstelle um ${area} gefunden. Versuche einen größeren Suchradius.`,
     found: (count, area) => `${count} Tankstelle(n) um ${area}:`,
-    addFromDiscovery: 'Fügen Sie die gewünschten über den Tab „Entdecken“ hinzu.',
+    addFromDiscovery: 'Füge die gewünschten über den Tab „Entdecken“ hinzu.',
     noTrackedStation:
-      'Noch keine Tankstelle hinzugefügt: Fügen Sie zuerst eine über den Tab „Entdecken“ hinzu.',
+      'Noch keine Tankstelle hinzugefügt: Füge zuerst eine über den Tab „Entdecken“ hinzu.',
     failed: (count) => ` (${count} fehlgeschlagen)`,
     refreshed: (updated, total, suffix) => `${updated}/${total} Preis(e) aktualisiert${suffix}.`,
   },
