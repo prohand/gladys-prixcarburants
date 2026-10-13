@@ -15,6 +15,7 @@ import {
   shortenAddress,
   zonedParts,
 } from '../text.js';
+import { supportedLanguage, usesDecimalComma } from '../i18n.js';
 
 /** The unit every price of this integration is expressed in (6 chars max). */
 export const PRICE_UNIT = '€/L';
@@ -32,7 +33,7 @@ export function formatPrice(price, language = 'en') {
     return '';
   }
   const text = price.toFixed(PRICE_DECIMALS);
-  return language === 'fr' ? text.replace('.', ',') : text;
+  return usesDecimalComma(language) ? text.replace('.', ',') : text;
 }
 
 /**
@@ -45,10 +46,21 @@ export function formatDistance(km, language = 'en') {
     return '';
   }
   const text = km.toFixed(1);
-  return `${language === 'fr' ? text.replace('.', ',') : text} km`;
+  return `${usesDecimalComma(language) ? text.replace('.', ',') : text} km`;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * "today" and "yesterday" as a ranking row writes them: five characters at
+ * most, since the row is one line on a phone. Keyed by `LANGUAGES`.
+ */
+const RECENT_DAYS = {
+  en: { today: 'today', yesterday: 'yest.' },
+  fr: { today: 'auj.', yesterday: 'hier' },
+  de: { today: 'heute', yesterday: 'gest.' },
+  es: { today: 'hoy', yesterday: 'ayer' },
+};
 
 /**
  * The date a station declared its price, SHORT — because the ranking rows of
@@ -97,10 +109,10 @@ export function formatShortDate(
     (Date.UTC(local.year, local.month - 1, local.day) - declared) / DAY_MS,
   );
   if (elapsedDays === 0) {
-    return language === 'fr' ? 'auj.' : 'today';
+    return RECENT_DAYS[supportedLanguage(language)].today;
   }
   if (elapsedDays === 1) {
-    return language === 'fr' ? 'hier' : 'yest.';
+    return RECENT_DAYS[supportedLanguage(language)].yesterday;
   }
   if (Number(year) === local.year) {
     return `${day}/${month}`;

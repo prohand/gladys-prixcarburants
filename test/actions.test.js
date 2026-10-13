@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { normalizeConfig } from '../src/config.js';
 import { refreshPrices, searchStations } from '../src/actions.js';
 import { deviceExternalId } from '../src/devices/index.js';
+import { LANGUAGES } from '../src/i18n.js';
 import { createStationStore } from '../src/stationStore.js';
 import { createFakeGladys, createFakeProvider, createStation } from './helpers/fakeGladys.js';
 
@@ -124,6 +125,8 @@ test('refresh_prices reports the stations it could not read', async () => {
   const message = await refreshPrices(gladys, { config, store });
 
   assert.match(message.en, /^1\/2 price\(s\) refreshed \(1 failed\)\.$/);
+  assert.match(message.de, /^1\/2 Preis\(e\) aktualisiert \(1 fehlgeschlagen\)\.$/);
+  assert.match(message.es, /^1\/2 precio\(s\) actualizado\(s\) \(1 con error\)\.$/);
 });
 
 test('search_stations says which house the distances start from, and lists the others', async () => {
@@ -165,4 +168,33 @@ test('search_stations survives an install with no house module at all', async ()
   const { store } = storeWith([createStation()]);
   const message = await searchStations(createFakeGladys(), { config, store });
   assert.match(message.fr, /station\(s\) autour de 35000/);
+});
+
+test('every message of the buttons is written in every language of Gladys', async () => {
+  // A message missing a language reaches that reader in English (the core's
+  // fallback), under a button of a translated screen.
+  const { store } = storeWith([createStation()]);
+  const gladys = createFakeGladys();
+  const messages = [
+    await searchStations(gladys, { config: normalizeConfig(), store }),
+    await searchStations(gladys, { config: normalizeConfig({ postal_code: '350' }), store }),
+    await searchStations(gladys, {
+      config: normalizeConfig({ postal_code: '35000', fuel_type: ['sp95', 'gazole'] }),
+      store,
+    }),
+    await refreshPrices(gladys, { config, store }),
+  ];
+  for (const message of messages) {
+    assert.deepEqual(Object.keys(message), LANGUAGES);
+    for (const lang of LANGUAGES) {
+      assert.ok(message[lang].length > 0, lang);
+    }
+  }
+  const [, invalid, found] = messages;
+  assert.match(invalid.de, /keine gültige Postleitzahl für Frankreich/);
+  assert.match(invalid.es, /no es un código postal válido de Francia/);
+  assert.match(found.de, /Diesel: 1\.699 EUR\/L/);
+  assert.match(found.es, /SP95: no se vende/);
+  assert.match(found.de, /Wählen Sie E10/);
+  assert.match(found.es, /pestaña «Descubrir»/);
 });

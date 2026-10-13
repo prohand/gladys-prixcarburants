@@ -28,6 +28,7 @@ import { isConfigReady } from '../config.js';
 import { resolveSearchCenter } from '../house.js';
 import { FUELS, FUEL_KEYS, fuelLabel } from '../fuels.js';
 import { getProvider } from '../countries/index.js';
+import { inEveryLanguage } from '../i18n.js';
 import { formatInstant, startOfZonedDay } from '../text.js';
 import { COLOR, buildContent, button, chart, statusList, text, valueTile } from './content.js';
 import {
@@ -66,20 +67,29 @@ const LIVE_POINT_MIN_GAP_MS = 1000;
  */
 export const DECLARATION = {
   key: KEY,
-  label: { en: 'Cheapest around me', fr: 'Les moins chers' },
+  label: {
+    en: 'Cheapest around me',
+    fr: 'Les moins chers',
+    de: 'Am günstigsten in der Nähe',
+    es: 'Lo más barato cerca',
+  },
   description: {
     en: 'The cheapest stations for one fuel, with the trend of the last 30 days.',
     fr: 'Les stations les moins chères pour un carburant, avec la tendance sur 30 jours.',
+    de: 'Die günstigsten Tankstellen für einen Kraftstoff, mit dem Trend der letzten 30 Tage.',
+    es: 'Las gasolineras más baratas para un carburante, con la tendencia de los últimos 30 días.',
   },
   icon: 'trending-down',
   settings: [
     {
       key: 'fuel',
       type: 'select',
-      label: { en: 'Fuel', fr: 'Carburant' },
+      label: { en: 'Fuel', fr: 'Carburant', de: 'Kraftstoff', es: 'Carburante' },
       description: {
         en: 'The fuel this card ranks the stations for.',
         fr: 'Le carburant pour lequel cette carte classe les stations.',
+        de: 'Der Kraftstoff, für den diese Karte die Tankstellen sortiert.',
+        es: 'El carburante para el que esta tarjeta clasifica las gasolineras.',
       },
       default: 'gazole',
       options: FUEL_KEYS.map((key) => ({ value: key, label: FUELS[key].label })),
@@ -87,10 +97,12 @@ export const DECLARATION = {
     {
       key: 'scope',
       type: 'select',
-      label: { en: 'Stations', fr: 'Stations' },
+      label: { en: 'Stations', fr: 'Stations', de: 'Tankstellen', es: 'Gasolineras' },
       description: {
         en: 'Search around you (the house or the postal code, as set in the configuration), or rank only the stations you added.',
         fr: 'Chercher autour de vous (la maison ou le code postal, selon la configuration), ou classer seulement les stations que vous avez ajoutées.',
+        de: 'In Ihrer Umgebung suchen (Zuhause oder Postleitzahl, je nach Konfiguration) oder nur die von Ihnen hinzugefügten Tankstellen sortieren.',
+        es: 'Buscar a su alrededor (la vivienda o el código postal, según la configuración) o clasificar solo las gasolineras que ha añadido.',
       },
       default: SCOPE.AROUND,
       options: [
@@ -103,17 +115,32 @@ export const DECLARATION = {
           label: {
             en: 'Around the house or postal code',
             fr: 'Autour de la maison ou du code postal',
+            de: 'Um das Zuhause oder die Postleitzahl',
+            es: 'Cerca de la vivienda o del código postal',
           },
         },
-        { value: SCOPE.TRACKED, label: { en: 'My stations only', fr: 'Mes stations seulement' } },
+        {
+          value: SCOPE.TRACKED,
+          label: {
+            en: 'My stations only',
+            fr: 'Mes stations seulement',
+            de: 'Nur meine Tankstellen',
+            es: 'Solo mis gasolineras',
+          },
+        },
       ],
     },
     {
       key: 'count',
       type: 'select',
-      label: { en: 'Stations shown', fr: 'Stations affichées' },
+      label: {
+        en: 'Stations shown',
+        fr: 'Stations affichées',
+        de: 'Angezeigte Tankstellen',
+        es: 'Gasolineras mostradas',
+      },
       default: DEFAULT_COUNT,
-      options: COUNTS.map((value) => ({ value, label: { en: value, fr: value } })),
+      options: COUNTS.map((value) => ({ value, label: inEveryLanguage(() => value) })),
     },
     {
       // The core sends no screen width with a pull, so the integration cannot
@@ -121,18 +148,35 @@ export const DECLARATION = {
       // screens hold. 24 is what a phone shows next to the price and its date.
       key: 'name_length',
       type: 'select',
-      label: { en: 'Station name length', fr: 'Longueur des noms' },
+      label: {
+        en: 'Station name length',
+        fr: 'Longueur des noms',
+        de: 'Länge der Namen',
+        es: 'Longitud de los nombres',
+      },
       description: {
         en: 'Characters a station name may use. Longer is easier to read on a wide screen; on a narrow one, the date of the price may get cut.',
         fr: 'Nombre de caractères pour le nom d’une station. Plus long se lit mieux sur un grand écran ; sur un petit écran, la date du prix risque d’être coupée.',
+        de: 'Anzahl der Zeichen für den Namen einer Tankstelle. Länger liest sich auf einem breiten Bildschirm besser; auf einem schmalen kann das Datum des Preises abgeschnitten werden.',
+        es: 'Número de caracteres para el nombre de una gasolinera. Más largo se lee mejor en una pantalla ancha; en una estrecha, la fecha del precio puede quedar cortada.',
       },
       default: String(ROW_LABEL_MAX),
       options: ROW_LABEL_LENGTHS.map((value) => ({
         value,
         label:
           value === String(ROW_LABEL_MAX)
-            ? { en: `${value} characters (phone)`, fr: `${value} caractères (téléphone)` }
-            : { en: `${value} characters`, fr: `${value} caractères` },
+            ? {
+                en: `${value} characters (phone)`,
+                fr: `${value} caractères (téléphone)`,
+                de: `${value} Zeichen (Smartphone)`,
+                es: `${value} caracteres (móvil)`,
+              }
+            : {
+                en: `${value} characters`,
+                fr: `${value} caractères`,
+                de: `${value} Zeichen`,
+                es: `${value} caracteres`,
+              },
       })),
     },
     {
@@ -143,10 +187,12 @@ export const DECLARATION = {
       key: 'house',
       type: 'select',
       source: 'houses',
-      label: { en: 'House', fr: 'Maison' },
+      label: { en: 'House', fr: 'Maison', de: 'Zuhause', es: 'Vivienda' },
       description: {
         en: 'Rank the stations around this house instead of the one of the configuration (it needs coordinates in Gladys).',
         fr: 'Classer les stations autour de cette maison plutôt que celle de la configuration (elle doit avoir des coordonnées dans Gladys).',
+        de: 'Die Tankstellen um dieses Zuhause statt um das der Konfiguration sortieren (es braucht Koordinaten in Gladys).',
+        es: 'Clasificar las gasolineras alrededor de esta vivienda en lugar de la de la configuración (necesita coordenadas en Gladys).',
       },
     },
   ],
@@ -222,7 +268,12 @@ async function collectStations({ config, store, history }, scope) {
  */
 function buildHeading({ config, scope, label, source, houseName }) {
   if (scope === SCOPE.TRACKED) {
-    return { en: `${label.en} · my stations`, fr: `${label.fr} · mes stations` };
+    return {
+      en: `${label.en} · my stations`,
+      fr: `${label.fr} · mes stations`,
+      de: `${label.de} · meine Tankstellen`,
+      es: `${label.es} · mis gasolineras`,
+    };
   }
   // "autour de ma maison" but "autour DU 35000": the French article belongs to
   // the reference point, not to the sentence around it.
@@ -230,19 +281,28 @@ function buildHeading({ config, scope, label, source, houseName }) {
   // measures from, so a holiday house picked by default shows on the card.
   const from =
     source !== 'house'
-      ? { en: config.postal_code, fr: `du ${config.postal_code}` }
+      ? {
+          en: config.postal_code,
+          fr: `du ${config.postal_code}`,
+          de: config.postal_code,
+          es: config.postal_code,
+        }
       : houseName
-        ? { en: houseName, fr: `de ${houseName}` }
-        : { en: 'my home', fr: 'de ma maison' };
+        ? { en: houseName, fr: `de ${houseName}`, de: houseName, es: houseName }
+        : { en: 'my home', fr: 'de ma maison', de: 'mein Zuhause', es: 'mi casa' };
   if (config.search_radius_km > 0) {
     return {
       en: `${label.en} · within ${config.search_radius_km} km of ${from.en}`,
       fr: `${label.fr} · ${config.search_radius_km} km autour ${from.fr}`,
+      de: `${label.de} · ${config.search_radius_km} km um ${from.de}`,
+      es: `${label.es} · a ${config.search_radius_km} km de ${from.es}`,
     };
   }
   return {
     en: `${label.en} · postal code ${config.postal_code}`,
     fr: `${label.fr} · code postal ${config.postal_code}`,
+    de: `${label.de} · Postleitzahl ${config.postal_code}`,
+    es: `${label.es} · código postal ${config.postal_code}`,
   };
 }
 
@@ -264,6 +324,8 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
           text: {
             en: 'Set a postal code in the integration configuration to see the stations around you.',
             fr: 'Renseignez un code postal dans la configuration de l’intégration pour voir les stations proches.',
+            de: 'Geben Sie in der Konfiguration der Integration eine Postleitzahl ein, um die Tankstellen in Ihrer Nähe zu sehen.',
+            es: 'Introduzca un código postal en la configuración de la integración para ver las gasolineras cercanas.',
           },
         }),
       ],
@@ -275,9 +337,9 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
     .filter((station) => Number.isFinite(station.prices?.[fuel]))
     .sort((a, b) => a.prices[fuel] - b.prices[fuel]);
 
-  // Every text carries both languages and the core picks the reader's own:
+  // Every text carries every language and the core picks the reader's own:
   // `language` only decides the separators of the numbers we format ourselves.
-  const label = { en: fuelLabel(fuel, 'en'), fr: fuelLabel(fuel, 'fr') };
+  const label = inEveryLanguage((lang) => fuelLabel(fuel, lang));
 
   if (stations.length === 0) {
     return buildContent(
@@ -288,10 +350,14 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
               ? {
                   en: `None of your stations publishes a ${label.en} price.`,
                   fr: `Aucune de vos stations ne publie de prix ${label.fr}.`,
+                  de: `Keine Ihrer Tankstellen veröffentlicht einen Preis für ${label.de}.`,
+                  es: `Ninguna de sus gasolineras publica un precio de ${label.es}.`,
                 }
               : {
                   en: `No ${label.en} price found around ${config.postal_code}. Try a wider search radius.`,
                   fr: `Aucun prix ${label.fr} trouvé autour de ${config.postal_code}. Essayez un rayon de recherche plus large.`,
+                  de: `Kein Preis für ${label.de} um ${config.postal_code} gefunden. Versuchen Sie einen größeren Suchradius.`,
+                  es: `No se ha encontrado ningún precio de ${label.es} alrededor de ${config.postal_code}. Pruebe con un radio de búsqueda mayor.`,
                 },
         }),
       ],
@@ -316,7 +382,7 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
     [
       text({ variant: 'heading', text: buildHeading({ config, scope, label, source, houseName }) }),
       valueTile({
-        label: { en: 'Cheapest', fr: 'Moins cher' },
+        label: { en: 'Cheapest', fr: 'Moins cher', de: 'Am günstigsten', es: 'Más barato' },
         // TEXT, not a number: the front formats an inline number with
         // `maximumFractionDigits: 2`, so 1,699 € reached the card as "1,7" —
         // the third decimal of a pump price is exactly what tells two stations
@@ -327,7 +393,7 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
         color: COLOR.SUCCESS,
       }),
       valueTile({
-        label: { en: 'Average', fr: 'Moyenne' },
+        label: { en: 'Average', fr: 'Moyenne', de: 'Durchschnitt', es: 'Media' },
         // Same, and rounded to the pump's own precision on the way: an average
         // of prices ending in .699 is not more precise than the prices it
         // averages.
@@ -341,7 +407,12 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
       readAt
         ? text({
             variant: 'caption',
-            text: { en: `Prices read on ${readAt}`, fr: `Prix relevés le ${readAt}` },
+            text: {
+              en: `Prices read on ${readAt}`,
+              fr: `Prix relevés le ${readAt}`,
+              de: `Preise abgefragt am ${readAt}`,
+              es: `Precios leídos el ${readAt}`,
+            },
           })
         : null,
       curve,
@@ -371,7 +442,12 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
       ),
       mapUrl
         ? button({
-            label: { en: 'See the map', fr: 'Voir la carte' },
+            label: {
+              en: 'See the map',
+              fr: 'Voir la carte',
+              de: 'Karte anzeigen',
+              es: 'Ver el mapa',
+            },
             icon: 'map',
             link: { url: mapUrl },
           })
@@ -382,7 +458,7 @@ export async function getContent(_gladys, context, { settings, language = 'en' }
       curve
         ? null
         : button({
-            label: { en: 'Refresh', fr: 'Rafraîchir' },
+            label: { en: 'Refresh', fr: 'Rafraîchir', de: 'Aktualisieren', es: 'Actualizar' },
             icon: 'refresh-cw',
             action: { key: 'refresh' },
           }),
@@ -406,14 +482,24 @@ function buildTrendTile(history, { config, fuel, scope }) {
     // day one, and says plainly that a week of history does not exist yet
     // rather than claiming the price did not move.
     return valueTile({
-      label: { en: `Over ${TREND_DAYS} days`, fr: `Sur ${TREND_DAYS} jours` },
+      label: {
+        en: `Over ${TREND_DAYS} days`,
+        fr: `Sur ${TREND_DAYS} jours`,
+        de: `Über ${TREND_DAYS} Tage`,
+        es: `En ${TREND_DAYS} días`,
+      },
       value: '—',
       color: COLOR.NEUTRAL,
     });
   }
   const cents = Number((trend * 100).toFixed(1));
   return valueTile({
-    label: { en: `Over ${TREND_DAYS} days`, fr: `Sur ${TREND_DAYS} jours` },
+    label: {
+      en: `Over ${TREND_DAYS} days`,
+      fr: `Sur ${TREND_DAYS} jours`,
+      de: `Über ${TREND_DAYS} Tage`,
+      es: `En ${TREND_DAYS} días`,
+    },
     value: cents,
     unit: 'ct',
     icon: cents > 0 ? 'trending-up' : 'trending-down',
@@ -476,7 +562,12 @@ function buildChart(history, { config, fuel, label, scope, cheapest }) {
 
   return chart({
     chartType: 'area',
-    title: { en: 'Last 30 days', fr: '30 derniers jours' },
+    title: {
+      en: 'Last 30 days',
+      fr: '30 derniers jours',
+      de: 'Letzte 30 Tage',
+      es: 'Últimos 30 días',
+    },
     unit: PRICE_UNIT,
     series: [{ name: label, points }],
   });

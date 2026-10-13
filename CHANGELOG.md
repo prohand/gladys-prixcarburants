@@ -6,6 +6,10 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- German and Spanish translations (configuration screen, messages, widgets, documentation).
+
 ## [2.4.0] - 2026-10-12
 
 ### Changed

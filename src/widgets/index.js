@@ -61,6 +61,8 @@ function warmingContent() {
         text: {
           en: 'Reading the open data feed… this card fills itself in a few seconds.',
           fr: 'Lecture du flux open data… cette carte se remplit dans quelques secondes.',
+          de: 'Der Open-Data-Feed wird abgefragt… Diese Karte füllt sich in wenigen Sekunden.',
+          es: 'Leyendo el flujo de datos abiertos… esta tarjeta se completará en unos segundos.',
         },
       }),
     ],
@@ -181,7 +183,12 @@ export async function runWidgetAction(gladys, { store }, key, actionKey) {
   }
   store.invalidate();
   logger.info(`Widget "${key}": prices invalidated, the next read will hit the feed`);
-  return { en: 'Prices refreshed.', fr: 'Prix rafraîchis.' };
+  return {
+    en: 'Prices refreshed.',
+    fr: 'Prix rafraîchis.',
+    de: 'Preise aktualisiert.',
+    es: 'Precios actualizados.',
+  };
 }
 
 /**
