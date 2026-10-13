@@ -109,13 +109,15 @@ const BRAND_COLUMN_PATTERN = /marque|brand|enseigne/i;
 
 export const france = {
   code: 'FR',
-  label: { en: 'France', fr: 'France' },
+  label: { en: 'France', fr: 'France', de: 'Frankreich', es: 'Francia' },
   // Shown as the postal code placeholder in the Configuration screen docs.
   postalCodeExample: '35000',
   fuels: FUEL_KEYS,
   attribution: {
     en: 'Data: prix-carburants.gouv.fr open data (Etalab licence).',
     fr: 'Données : open data prix-carburants.gouv.fr (licence Etalab).',
+    de: 'Daten: Open Data von prix-carburants.gouv.fr (Etalab-Lizenz).',
+    es: 'Datos: datos abiertos de prix-carburants.gouv.fr (licencia Etalab).',
   },
   // The official national map, offered as a link at the bottom of the
   // "cheapest around me" widget: the card ranks, the map locates.

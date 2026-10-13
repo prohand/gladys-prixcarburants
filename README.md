@@ -83,7 +83,7 @@ Three decisions worth knowing before reading the code:
 │  └─ devices/
 │     ├─ index.js                    #   discovery: search -> devices -> publish
 │     └─ fuelStation.js              #   the station device type (features, poll)
-├─ docs/en.md, docs/fr.md            # user documentation, re-hosted by Gladys
+├─ docs/{en,fr,de,es}.md             # user documentation, re-hosted by Gladys
 ├─ gladys-assistant-integration.json # manifest (config schema, actions, image)
 ├─ Dockerfile                        # Node 24 Alpine, read-only rootfs ready
 └─ .github/workflows/                # CI + UI-driven release + multi-arch build

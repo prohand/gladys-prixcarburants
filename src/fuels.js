@@ -13,17 +13,33 @@
 /**
  * @typedef {Object} Fuel
  * @property {string} key    stable identifier, used in external ids
- * @property {{ en: string, fr: string }} label human readable name
+ * @property {{ en: string, fr: string, de: string, es: string }} label human readable name
  */
 
 /** @type {Record<string, Fuel>} */
 export const FUELS = {
-  gazole: { key: 'gazole', label: { en: 'Diesel', fr: 'Gazole' } },
-  sp95: { key: 'sp95', label: { en: 'SP95', fr: 'SP95' } },
-  sp98: { key: 'sp98', label: { en: 'SP98', fr: 'SP98' } },
-  e10: { key: 'e10', label: { en: 'E10 (SP95-E10)', fr: 'E10 (SP95-E10)' } },
-  e85: { key: 'e85', label: { en: 'E85 (Superethanol)', fr: 'E85 (Superéthanol)' } },
-  gplc: { key: 'gplc', label: { en: 'LPG', fr: 'GPLc' } },
+  gazole: { key: 'gazole', label: { en: 'Diesel', fr: 'Gazole', de: 'Diesel', es: 'Gasóleo' } },
+  sp95: { key: 'sp95', label: { en: 'SP95', fr: 'SP95', de: 'SP95', es: 'SP95' } },
+  sp98: { key: 'sp98', label: { en: 'SP98', fr: 'SP98', de: 'SP98', es: 'SP98' } },
+  e10: {
+    key: 'e10',
+    label: {
+      en: 'E10 (SP95-E10)',
+      fr: 'E10 (SP95-E10)',
+      de: 'E10 (SP95-E10)',
+      es: 'E10 (SP95-E10)',
+    },
+  },
+  e85: {
+    key: 'e85',
+    label: {
+      en: 'E85 (Superethanol)',
+      fr: 'E85 (Superéthanol)',
+      de: 'E85 (Superethanol)',
+      es: 'E85 (Superetanol)',
+    },
+  },
+  gplc: { key: 'gplc', label: { en: 'LPG', fr: 'GPLc', de: 'Autogas (LPG)', es: 'GLP' } },
 };
 
 export const FUEL_KEYS = Object.keys(FUELS);
@@ -32,10 +48,11 @@ export const FUEL_KEYS = Object.keys(FUELS);
  * Human readable label of a fuel, with a safe fallback for an unknown key
  * (a device added with a key removed from a later version keeps a usable name).
  * @param {string} key
- * @param {'en'|'fr'} [lang]
+ * @param {string} [lang] ISO 639-1; `en` for a language the catalog does not speak
  */
 export function fuelLabel(key, lang = 'en') {
-  return FUELS[key]?.label[lang] ?? key.toUpperCase();
+  const label = FUELS[key]?.label;
+  return label ? (label[lang] ?? label.en) : key.toUpperCase();
 }
 
 /**

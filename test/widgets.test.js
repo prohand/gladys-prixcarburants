@@ -41,9 +41,12 @@ import {
   ROW_LABEL_MAX,
   ROW_LABEL_WIDEST,
   buildRowLabels,
+  formatDistance,
+  formatPrice,
   formatShortDate,
   shortenStationName,
 } from '../src/widgets/format.js';
+import { LANGUAGES } from '../src/i18n.js';
 import { zonedParts } from '../src/text.js';
 import { createFakeGladys, createFakeProvider, createStation } from './helpers/fakeGladys.js';
 
@@ -962,6 +965,12 @@ test('the declared date is shortened to the day, in the reader language', () => 
   assert.equal(formatShortDate('2026-09-22T06:12:00+02:00', 'en', now), 'today');
   assert.equal(formatShortDate('2026-09-21T23:50:00+02:00', 'fr', now), 'hier');
   assert.equal(formatShortDate('2026-09-21T23:50:00+02:00', 'en', now), 'yest.');
+  assert.equal(formatShortDate('2026-09-22T06:12:00+02:00', 'de', now), 'heute');
+  assert.equal(formatShortDate('2026-09-21T23:50:00+02:00', 'de', now), 'gest.');
+  assert.equal(formatShortDate('2026-09-22T06:12:00+02:00', 'es', now), 'hoy');
+  assert.equal(formatShortDate('2026-09-21T23:50:00+02:00', 'es', now), 'ayer');
+  // A language the integration does not write falls back on English.
+  assert.equal(formatShortDate('2026-09-22T06:12:00+02:00', 'it', now), 'today');
   // Inside the year, the year is implied; beyond it, it is not.
   assert.equal(formatShortDate('2026-08-06T07:12:00+02:00', 'fr', now), '06/08');
   assert.equal(formatShortDate('2025-12-31T07:12:00+02:00', 'fr', now), '31/12/25');
@@ -1383,5 +1392,72 @@ test('every card is rendered by the core exactly as sent', async () => {
   for (const [key, request] of pulls) {
     const content = await getWidgetContent(gladys, context, key, request);
     assert.deepEqual(validateWidgetContent(content), [], `${key} ${JSON.stringify(request)}`);
+  }
+});
+
+test('the numbers we format ourselves use the separator of the reader language', () => {
+  // Only English writes a decimal point: French, German and Spanish read 1,699.
+  assert.equal(formatPrice(1.699, 'en'), '1.699');
+  for (const language of ['fr', 'de', 'es']) {
+    assert.equal(formatPrice(1.699, language), '1,699', language);
+    assert.equal(formatDistance(2.34, language), '2,3 km', language);
+  }
+  assert.equal(formatDistance(2.34, 'en'), '2.3 km');
+  assert.equal(formatPrice(1.699, 'it'), '1.699', 'an unknown language keeps the fallback');
+});
+
+/** Every multi-language object of a card, with its path. */
+function multiLanguageTexts(node, path = 'content') {
+  if (Array.isArray(node)) {
+    return node.flatMap((item, index) => multiLanguageTexts(item, `${path}[${index}]`));
+  }
+  if (node === null || typeof node !== 'object') {
+    return [];
+  }
+  const keys = Object.keys(node);
+  if (keys.length > 0 && keys.every((key) => /^[a-z]{2}$/.test(key))) {
+    return [[path, node]];
+  }
+  return keys.flatMap((key) => multiLanguageTexts(node[key], `${path}.${key}`));
+}
+
+test('every text of every card is written in every language of Gladys', async () => {
+  // The core picks the reader's language in each text, else English: a text
+  // missing one of them reads English in the middle of a German card.
+  const station = createStation({ prices: { gazole: 1.699, sp98: 1.879 } });
+  const history = historyWith([
+    { daysAgo: 8, price: 1.65 },
+    { daysAgo: 1, price: 1.62 },
+  ]);
+  const { context } = contextWith([station], { history });
+  const gladys = createFakeGladys();
+  const target = { country: 'FR', stationId: station.id, fuel: 'gazole' };
+  const missing = { country: 'FR', stationId: station.id, fuel: 'e85' };
+  gladys.devices = [{ external_id: deviceExternalId(gladys, target), name: 'Ma station' }];
+
+  const pulls = [
+    ['best_prices', { settings: { fuel: 'gazole' }, language: 'de' }],
+    ['best_prices', { settings: { fuel: 'gazole', scope: 'tracked' }, language: 'es' }],
+    ['best_prices', { settings: { fuel: 'e85' }, language: 'de' }],
+    ['station', { settings: { device: deviceExternalId(gladys, target) }, language: 'es' }],
+    ['station', { settings: { device: deviceExternalId(gladys, missing) }, language: 'de' }],
+    ['station', { settings: {}, language: 'es' }],
+  ];
+  for (const [key, request] of pulls) {
+    const content = await getWidgetContent(gladys, context, key, request);
+    const texts = multiLanguageTexts(content);
+    assert.ok(texts.length > 0, `${key} carries texts`);
+    for (const [path, value] of texts) {
+      assert.deepEqual(Object.keys(value).sort(), [...LANGUAGES].sort(), `${key} ${path}`);
+    }
+  }
+  const unready = await getWidgetContent(
+    gladys,
+    { ...context, config: normalizeConfig({}) },
+    'best_prices',
+    { language: 'es' },
+  );
+  for (const [path, value] of multiLanguageTexts(unready)) {
+    assert.deepEqual(Object.keys(value).sort(), [...LANGUAGES].sort(), `unready ${path}`);
   }
 });

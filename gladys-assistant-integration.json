@@ -4,7 +4,9 @@
   "name": "Prix carburants",
   "description": {
     "en": "Follow the price of your fuel at the petrol stations near you, from official open data.",
-    "fr": "Suivez le prix de votre carburant dans les stations-service proches de chez vous."
+    "fr": "Suivez le prix de votre carburant dans les stations-service proches de chez vous.",
+    "de": "Verfolge den Kraftstoffpreis an den Tankstellen in deiner Nähe, aus offiziellen Open Data.",
+    "es": "Siga el precio de su carburante en las gasolineras cercanas, con datos abiertos oficiales."
   },
   "version": "2.4.0",
   "docker_image": "ghcr.io/prohand/gladys-prixcarburants:2.4.0",
@@ -19,25 +21,33 @@
       "type": "section",
       "label": {
         "en": "How it works",
-        "fr": "Comment ça marche"
+        "fr": "Comment ça marche",
+        "de": "So funktioniert es",
+        "es": "Cómo funciona"
       },
       "description": {
-        "en": "Choose your country, your postal code and the fuel you use, then open the Discovery tab: the petrol stations around you appear there with their current price. Add the ones you want to follow, delete them when you no longer need them. Data comes from the official open data, no account and no API key needed.",
-        "fr": "Choisissez votre pays, votre code postal et votre carburant, puis ouvrez l'onglet Découverte : les stations-service proches y apparaissent avec leur prix actuel. Ajoutez celles que vous voulez suivre, supprimez-les quand vous n'en avez plus besoin. Les données viennent de l'open data officiel, sans compte ni clé d'API."
+        "en": "Choose your country, your postal code and the fuel you use, then open the Discover tab: the petrol stations around you appear there with their current price. Add the ones you want to follow, delete them when you no longer need them. Data comes from the official open data, no account and no API key needed.",
+        "fr": "Choisissez votre pays, votre code postal et votre carburant, puis ouvrez l'onglet Découverte : les stations-service proches y apparaissent avec leur prix actuel. Ajoutez celles que vous voulez suivre, supprimez-les quand vous n'en avez plus besoin. Les données viennent de l'open data officiel, sans compte ni clé d'API.",
+        "de": "Wähle dein Land, deine Postleitzahl und deinen Kraftstoff und öffne dann den Tab „Entdecken“: Die Tankstellen in deiner Nähe erscheinen dort mit ihrem aktuellen Preis. Füge diejenigen hinzu, die du verfolgen möchtest, und lösche sie, wenn du sie nicht mehr brauchst. Die Daten stammen aus den offiziellen Open Data, ohne Konto und ohne API-Schlüssel.",
+        "es": "Elija su país, su código postal y su carburante, y abra después la pestaña «Descubrir»: allí aparecen las gasolineras cercanas con su precio actual. Añada las que quiera seguir y elimínelas cuando ya no las necesite. Los datos proceden de los datos abiertos oficiales, sin cuenta ni clave de API."
       },
       "links": [
         {
           "url": "https://www.prix-carburants.gouv.fr/rubrique/opendata/",
           "label": {
             "en": "France: prix-carburants.gouv.fr open data",
-            "fr": "France : open data prix-carburants.gouv.fr"
+            "fr": "France : open data prix-carburants.gouv.fr",
+            "de": "Frankreich: Open Data von prix-carburants.gouv.fr",
+            "es": "Francia: datos abiertos de prix-carburants.gouv.fr"
           }
         },
         {
           "url": "https://data.economie.gouv.fr/explore/dataset/prix-des-carburants-en-france-flux-instantane-v2/",
           "label": {
             "en": "France: the dataset queried by this integration",
-            "fr": "France : le jeu de données interrogé par cette intégration"
+            "fr": "France : le jeu de données interrogé par cette intégration",
+            "de": "Frankreich: der von dieser Integration abgefragte Datensatz",
+            "es": "Francia: el conjunto de datos que consulta esta integración"
           }
         }
       ]
@@ -47,11 +57,15 @@
       "type": "select",
       "label": {
         "en": "Country",
-        "fr": "Pays"
+        "fr": "Pays",
+        "de": "Land",
+        "es": "País"
       },
       "description": {
         "en": "Country whose open data is queried. More countries will be added in future versions.",
-        "fr": "Pays dont l'open data est interrogé. D'autres pays seront ajoutés dans de prochaines versions."
+        "fr": "Pays dont l'open data est interrogé. D'autres pays seront ajoutés dans de prochaines versions.",
+        "de": "Land, dessen Open Data abgefragt werden. Weitere Länder folgen in künftigen Versionen.",
+        "es": "País cuyos datos abiertos se consultan. Se añadirán más países en próximas versiones."
       },
       "required": true,
       "default": "FR",
@@ -60,7 +74,9 @@
           "value": "FR",
           "label": {
             "en": "France",
-            "fr": "France"
+            "fr": "France",
+            "de": "Frankreich",
+            "es": "Francia"
           }
         }
       ]
@@ -70,16 +86,22 @@
       "type": "string",
       "label": {
         "en": "Postal code",
-        "fr": "Code postal"
+        "fr": "Code postal",
+        "de": "Postleitzahl",
+        "es": "Código postal"
       },
       "description": {
         "en": "Stations are searched around this postal code. In France, 5 digits.",
-        "fr": "Les stations sont recherchées autour de ce code postal. En France, 5 chiffres."
+        "fr": "Les stations sont recherchées autour de ce code postal. En France, 5 chiffres.",
+        "de": "Die Tankstellen werden rund um diese Postleitzahl gesucht. In Frankreich 5 Ziffern.",
+        "es": "Las gasolineras se buscan alrededor de este código postal. En Francia, 5 cifras."
       },
       "required": true,
       "placeholder": {
         "en": "35000",
-        "fr": "35000"
+        "fr": "35000",
+        "de": "35000",
+        "es": "35000"
       }
     },
     {
@@ -87,11 +109,15 @@
       "type": "select",
       "label": {
         "en": "Measure distances from",
-        "fr": "Mesurer les distances depuis"
+        "fr": "Mesurer les distances depuis",
+        "de": "Entfernungen messen ab",
+        "es": "Medir las distancias desde"
       },
       "description": {
         "en": "Your Gladys house is used when it has coordinates (the integration asks Gladys for them, and shows them nowhere). Otherwise the centre of the postal code area is used.",
-        "fr": "Votre maison Gladys est utilisée si elle a des coordonnées (l'intégration les demande à Gladys et ne les affiche nulle part). Sinon, c'est le centre de la zone du code postal."
+        "fr": "Votre maison Gladys est utilisée si elle a des coordonnées (l'intégration les demande à Gladys et ne les affiche nulle part). Sinon, c'est le centre de la zone du code postal.",
+        "de": "Dein Gladys-Zuhause wird verwendet, wenn es Koordinaten hat (die Integration fragt Gladys danach und zeigt sie nirgends an). Andernfalls wird die Mitte des Postleitzahlgebiets verwendet.",
+        "es": "Se usa su vivienda de Gladys cuando tiene coordenadas (la integración se las pide a Gladys y no las muestra en ningún sitio). Si no, se usa el centro de la zona del código postal."
       },
       "required": false,
       "default": "house",
@@ -100,14 +126,18 @@
           "value": "house",
           "label": {
             "en": "My Gladys house",
-            "fr": "Ma maison Gladys"
+            "fr": "Ma maison Gladys",
+            "de": "Mein Gladys-Zuhause",
+            "es": "Mi vivienda de Gladys"
           }
         },
         {
           "value": "postal_code",
           "label": {
             "en": "The postal code",
-            "fr": "Le code postal"
+            "fr": "Le code postal",
+            "de": "Die Postleitzahl",
+            "es": "El código postal"
           }
         }
       ]
@@ -118,11 +148,15 @@
       "source": "houses",
       "label": {
         "en": "Which house",
-        "fr": "Quelle maison"
+        "fr": "Quelle maison",
+        "de": "Welches Zuhause",
+        "es": "Qué vivienda"
       },
       "description": {
         "en": "Only useful if Gladys holds several houses: the one distances start from. Left empty, the first house that has coordinates is used.",
-        "fr": "Utile seulement si Gladys contient plusieurs maisons : celle depuis laquelle les distances sont mesurées. Laissée vide, c'est la première maison qui a des coordonnées."
+        "fr": "Utile seulement si Gladys contient plusieurs maisons : celle depuis laquelle les distances sont mesurées. Laissée vide, c'est la première maison qui a des coordonnées.",
+        "de": "Nur nützlich, wenn Gladys mehrere Zuhause enthält: dasjenige, ab dem die Entfernungen gemessen werden. Bleibt das Feld leer, wird das erste Zuhause mit Koordinaten verwendet.",
+        "es": "Solo es útil si Gladys contiene varias viviendas: aquella desde la que se miden las distancias. Si se deja vacío, se usa la primera vivienda que tenga coordenadas."
       },
       "required": false
     },
@@ -131,11 +165,15 @@
       "type": "number",
       "label": {
         "en": "Search radius (km)",
-        "fr": "Rayon de recherche (km)"
+        "fr": "Rayon de recherche (km)",
+        "de": "Suchradius (km)",
+        "es": "Radio de búsqueda (km)"
       },
       "description": {
         "en": "Also look for stations around the postal code. 0 keeps only the stations of the postal code itself.",
-        "fr": "Cherche aussi des stations autour du code postal. 0 ne garde que les stations du code postal lui-même."
+        "fr": "Cherche aussi des stations autour du code postal. 0 ne garde que les stations du code postal lui-même.",
+        "de": "Sucht auch Tankstellen rund um die Postleitzahl. 0 behält nur die Tankstellen der Postleitzahl selbst.",
+        "es": "Busca también gasolineras alrededor del código postal. 0 conserva solo las gasolineras del propio código postal."
       },
       "required": false,
       "default": 10,
@@ -147,11 +185,15 @@
       "type": "multi_select",
       "label": {
         "en": "Fuel type",
-        "fr": "Type de carburant"
+        "fr": "Type de carburant",
+        "de": "Kraftstoffart",
+        "es": "Tipo de carburante"
       },
       "description": {
         "en": "One device is offered per station AND per selected fuel, so you can follow several fuels at the same station. A station only appears for the fuels it actually sells: many stations (TotalEnergies in particular) replaced SP95 with E10 (SP95-E10), so tick E10 if the SP95 of your station is nowhere to be found.",
-        "fr": "Un appareil est proposé par station ET par carburant sélectionné, ce qui permet de suivre plusieurs carburants dans la même station. Une station n'apparaît que pour les carburants qu'elle vend vraiment : beaucoup de stations (TotalEnergies notamment) ont remplacé le SP95 par le E10 (SP95-E10), cochez donc E10 si le SP95 de votre station reste introuvable."
+        "fr": "Un appareil est proposé par station ET par carburant sélectionné, ce qui permet de suivre plusieurs carburants dans la même station. Une station n'apparaît que pour les carburants qu'elle vend vraiment : beaucoup de stations (TotalEnergies notamment) ont remplacé le SP95 par le E10 (SP95-E10), cochez donc E10 si le SP95 de votre station reste introuvable.",
+        "de": "Pro Tankstelle UND pro gewähltem Kraftstoff wird ein Gerät angeboten, sodass du mehrere Kraftstoffe an derselben Tankstelle verfolgen kannst. Eine Tankstelle erscheint nur für die Kraftstoffe, die sie tatsächlich verkauft: Viele Tankstellen (insbesondere TotalEnergies) haben SP95 durch E10 (SP95-E10) ersetzt. Wähle also E10, wenn das SP95 deiner Tankstelle nicht zu finden ist.",
+        "es": "Se ofrece un dispositivo por gasolinera Y por carburante seleccionado, así que puede seguir varios carburantes en la misma gasolinera. Una gasolinera solo aparece para los carburantes que realmente vende: muchas gasolineras (TotalEnergies en particular) han sustituido el SP95 por el E10 (SP95-E10), así que marque E10 si no encuentra el SP95 de su gasolinera."
       },
       "required": true,
       "default": ["gazole"],
@@ -160,42 +202,54 @@
           "value": "gazole",
           "label": {
             "en": "Diesel",
-            "fr": "Gazole"
+            "fr": "Gazole",
+            "de": "Diesel",
+            "es": "Gasóleo"
           }
         },
         {
           "value": "sp95",
           "label": {
             "en": "SP95",
-            "fr": "SP95"
+            "fr": "SP95",
+            "de": "SP95",
+            "es": "SP95"
           }
         },
         {
           "value": "sp98",
           "label": {
             "en": "SP98",
-            "fr": "SP98"
+            "fr": "SP98",
+            "de": "SP98",
+            "es": "SP98"
           }
         },
         {
           "value": "e10",
           "label": {
             "en": "E10 (SP95-E10)",
-            "fr": "E10 (SP95-E10)"
+            "fr": "E10 (SP95-E10)",
+            "de": "E10 (SP95-E10)",
+            "es": "E10 (SP95-E10)"
           }
         },
         {
           "value": "e85",
           "label": {
             "en": "E85 (Superethanol)",
-            "fr": "E85 (Superéthanol)"
+            "fr": "E85 (Superéthanol)",
+            "de": "E85 (Superethanol)",
+            "es": "E85 (Superetanol)"
           }
         },
         {
           "value": "gplc",
           "label": {
             "en": "LPG",
-            "fr": "GPLc"
+            "fr": "GPLc",
+            "de": "Autogas (LPG)",
+            "es": "GLP"
           }
         }
       ]
@@ -205,11 +259,15 @@
       "type": "number",
       "label": {
         "en": "Maximum number of stations",
-        "fr": "Nombre maximum de stations"
+        "fr": "Nombre maximum de stations",
+        "de": "Maximale Anzahl an Tankstellen",
+        "es": "Número máximo de gasolineras"
       },
       "description": {
-        "en": "How many stations the Discovery tab may list. Lower it in a dense city, raise it in the countryside.",
-        "fr": "Nombre de stations que l'onglet Découverte peut lister. Baissez-le en ville dense, augmentez-le à la campagne."
+        "en": "How many stations the Discover tab may list. Lower it in a dense city, raise it in the countryside.",
+        "fr": "Nombre de stations que l'onglet Découverte peut lister. Baissez-le en ville dense, augmentez-le à la campagne.",
+        "de": "Wie viele Tankstellen der Tab „Entdecken“ auflisten darf. Senke den Wert in einer dichten Stadt, erhöhe ihn auf dem Land.",
+        "es": "Cuántas gasolineras puede listar la pestaña «Descubrir». Redúzcalo en una ciudad densa y auméntelo en el campo."
       },
       "required": false,
       "default": 20,
@@ -221,11 +279,15 @@
       "type": "number",
       "label": {
         "en": "Refresh interval (s)",
-        "fr": "Intervalle de rafraîchissement (s)"
+        "fr": "Intervalle de rafraîchissement (s)",
+        "de": "Aktualisierungsintervall (s)",
+        "es": "Intervalo de actualización (s)"
       },
       "description": {
         "en": "How often the price of each added station is refreshed. The French feed is updated about every 10 minutes; once an hour is plenty.",
-        "fr": "Fréquence de rafraîchissement du prix de chaque station ajoutée. Le flux français est mis à jour environ toutes les 10 minutes ; une fois par heure suffit largement."
+        "fr": "Fréquence de rafraîchissement du prix de chaque station ajoutée. Le flux français est mis à jour environ toutes les 10 minutes ; une fois par heure suffit largement.",
+        "de": "Wie oft der Preis jeder hinzugefügten Tankstelle aktualisiert wird. Der französische Datenfeed wird etwa alle 10 Minuten aktualisiert; einmal pro Stunde reicht völlig.",
+        "es": "Con qué frecuencia se actualiza el precio de cada gasolinera añadida. El flujo francés se actualiza cada 10 minutos aproximadamente; una vez por hora es más que suficiente."
       },
       "required": false,
       "default": 3600,
@@ -238,7 +300,9 @@
       "key": "search_stations",
       "label": {
         "en": "Preview the nearby stations",
-        "fr": "Prévisualiser les stations proches"
+        "fr": "Prévisualiser les stations proches",
+        "de": "Tankstellen in der Nähe anzeigen",
+        "es": "Ver las gasolineras cercanas"
       },
       "timeout_seconds": 30
     },
@@ -246,7 +310,9 @@
       "key": "refresh_prices",
       "label": {
         "en": "Refresh the prices now",
-        "fr": "Rafraîchir les prix maintenant"
+        "fr": "Rafraîchir les prix maintenant",
+        "de": "Preise jetzt aktualisieren",
+        "es": "Actualizar los precios ahora"
       },
       "timeout_seconds": 60
     }
@@ -256,11 +322,15 @@
       "key": "best_prices",
       "label": {
         "en": "Cheapest around me",
-        "fr": "Les moins chers"
+        "fr": "Les moins chers",
+        "de": "Am günstigsten in der Nähe",
+        "es": "Lo más barato cerca"
       },
       "description": {
         "en": "The cheapest stations for one fuel, with the trend of the last 30 days.",
-        "fr": "Les stations les moins chères pour un carburant, avec la tendance sur 30 jours."
+        "fr": "Les stations les moins chères pour un carburant, avec la tendance sur 30 jours.",
+        "de": "Die günstigsten Tankstellen für einen Kraftstoff, mit dem Trend der letzten 30 Tage.",
+        "es": "Las gasolineras más baratas para un carburante, con la tendencia de los últimos 30 días."
       },
       "icon": "trending-down",
       "settings": [
@@ -269,11 +339,15 @@
           "type": "select",
           "label": {
             "en": "Fuel",
-            "fr": "Carburant"
+            "fr": "Carburant",
+            "de": "Kraftstoff",
+            "es": "Carburante"
           },
           "description": {
             "en": "The fuel this card ranks the stations for.",
-            "fr": "Le carburant pour lequel cette carte classe les stations."
+            "fr": "Le carburant pour lequel cette carte classe les stations.",
+            "de": "Der Kraftstoff, für den diese Karte die Tankstellen sortiert.",
+            "es": "El carburante para el que esta tarjeta clasifica las gasolineras."
           },
           "default": "gazole",
           "options": [
@@ -281,42 +355,54 @@
               "value": "gazole",
               "label": {
                 "en": "Diesel",
-                "fr": "Gazole"
+                "fr": "Gazole",
+                "de": "Diesel",
+                "es": "Gasóleo"
               }
             },
             {
               "value": "sp95",
               "label": {
                 "en": "SP95",
-                "fr": "SP95"
+                "fr": "SP95",
+                "de": "SP95",
+                "es": "SP95"
               }
             },
             {
               "value": "sp98",
               "label": {
                 "en": "SP98",
-                "fr": "SP98"
+                "fr": "SP98",
+                "de": "SP98",
+                "es": "SP98"
               }
             },
             {
               "value": "e10",
               "label": {
                 "en": "E10 (SP95-E10)",
-                "fr": "E10 (SP95-E10)"
+                "fr": "E10 (SP95-E10)",
+                "de": "E10 (SP95-E10)",
+                "es": "E10 (SP95-E10)"
               }
             },
             {
               "value": "e85",
               "label": {
                 "en": "E85 (Superethanol)",
-                "fr": "E85 (Superéthanol)"
+                "fr": "E85 (Superéthanol)",
+                "de": "E85 (Superethanol)",
+                "es": "E85 (Superetanol)"
               }
             },
             {
               "value": "gplc",
               "label": {
                 "en": "LPG",
-                "fr": "GPLc"
+                "fr": "GPLc",
+                "de": "Autogas (LPG)",
+                "es": "GLP"
               }
             }
           ]
@@ -326,11 +412,15 @@
           "type": "select",
           "label": {
             "en": "Stations",
-            "fr": "Stations"
+            "fr": "Stations",
+            "de": "Tankstellen",
+            "es": "Gasolineras"
           },
           "description": {
             "en": "Search around you (the house or the postal code, as set in the configuration), or rank only the stations you added.",
-            "fr": "Chercher autour de vous (la maison ou le code postal, selon la configuration), ou classer seulement les stations que vous avez ajoutées."
+            "fr": "Chercher autour de vous (la maison ou le code postal, selon la configuration), ou classer seulement les stations que vous avez ajoutées.",
+            "de": "In deiner Umgebung suchen (Zuhause oder Postleitzahl, je nach Konfiguration) oder nur die von dir hinzugefügten Tankstellen sortieren.",
+            "es": "Buscar a su alrededor (la vivienda o el código postal, según la configuración) o clasificar solo las gasolineras que ha añadido."
           },
           "default": "around",
           "options": [
@@ -338,14 +428,18 @@
               "value": "around",
               "label": {
                 "en": "Around the house or postal code",
-                "fr": "Autour de la maison ou du code postal"
+                "fr": "Autour de la maison ou du code postal",
+                "de": "Um das Zuhause oder die Postleitzahl",
+                "es": "Cerca de la vivienda o del código postal"
               }
             },
             {
               "value": "tracked",
               "label": {
                 "en": "My stations only",
-                "fr": "Mes stations seulement"
+                "fr": "Mes stations seulement",
+                "de": "Nur meine Tankstellen",
+                "es": "Solo mis gasolineras"
               }
             }
           ]
@@ -355,7 +449,9 @@
           "type": "select",
           "label": {
             "en": "Stations shown",
-            "fr": "Stations affichées"
+            "fr": "Stations affichées",
+            "de": "Angezeigte Tankstellen",
+            "es": "Gasolineras mostradas"
           },
           "default": "5",
           "options": [
@@ -363,21 +459,27 @@
               "value": "3",
               "label": {
                 "en": "3",
-                "fr": "3"
+                "fr": "3",
+                "de": "3",
+                "es": "3"
               }
             },
             {
               "value": "5",
               "label": {
                 "en": "5",
-                "fr": "5"
+                "fr": "5",
+                "de": "5",
+                "es": "5"
               }
             },
             {
               "value": "8",
               "label": {
                 "en": "8",
-                "fr": "8"
+                "fr": "8",
+                "de": "8",
+                "es": "8"
               }
             }
           ]
@@ -387,11 +489,15 @@
           "type": "select",
           "label": {
             "en": "Station name length",
-            "fr": "Longueur des noms"
+            "fr": "Longueur des noms",
+            "de": "Länge der Namen",
+            "es": "Longitud de los nombres"
           },
           "description": {
             "en": "Characters a station name may use. Longer is easier to read on a wide screen; on a narrow one, the date of the price may get cut.",
-            "fr": "Nombre de caractères pour le nom d’une station. Plus long se lit mieux sur un grand écran ; sur un petit écran, la date du prix risque d’être coupée."
+            "fr": "Nombre de caractères pour le nom d’une station. Plus long se lit mieux sur un grand écran ; sur un petit écran, la date du prix risque d’être coupée.",
+            "de": "Anzahl der Zeichen für den Namen einer Tankstelle. Länger liest sich auf einem breiten Bildschirm besser; auf einem schmalen kann das Datum des Preises abgeschnitten werden.",
+            "es": "Número de caracteres para el nombre de una gasolinera. Más largo se lee mejor en una pantalla ancha; en una estrecha, la fecha del precio puede quedar cortada."
           },
           "default": "24",
           "options": [
@@ -399,35 +505,45 @@
               "value": "24",
               "label": {
                 "en": "24 characters (phone)",
-                "fr": "24 caractères (téléphone)"
+                "fr": "24 caractères (téléphone)",
+                "de": "24 Zeichen (Smartphone)",
+                "es": "24 caracteres (móvil)"
               }
             },
             {
               "value": "28",
               "label": {
                 "en": "28 characters",
-                "fr": "28 caractères"
+                "fr": "28 caractères",
+                "de": "28 Zeichen",
+                "es": "28 caracteres"
               }
             },
             {
               "value": "32",
               "label": {
                 "en": "32 characters",
-                "fr": "32 caractères"
+                "fr": "32 caractères",
+                "de": "32 Zeichen",
+                "es": "32 caracteres"
               }
             },
             {
               "value": "36",
               "label": {
                 "en": "36 characters",
-                "fr": "36 caractères"
+                "fr": "36 caractères",
+                "de": "36 Zeichen",
+                "es": "36 caracteres"
               }
             },
             {
               "value": "40",
               "label": {
                 "en": "40 characters",
-                "fr": "40 caractères"
+                "fr": "40 caractères",
+                "de": "40 Zeichen",
+                "es": "40 caracteres"
               }
             }
           ]
@@ -438,11 +554,15 @@
           "source": "houses",
           "label": {
             "en": "House",
-            "fr": "Maison"
+            "fr": "Maison",
+            "de": "Zuhause",
+            "es": "Vivienda"
           },
           "description": {
             "en": "Rank the stations around this house instead of the one of the configuration (it needs coordinates in Gladys).",
-            "fr": "Classer les stations autour de cette maison plutôt que celle de la configuration (elle doit avoir des coordonnées dans Gladys)."
+            "fr": "Classer les stations autour de cette maison plutôt que celle de la configuration (elle doit avoir des coordonnées dans Gladys).",
+            "de": "Die Tankstellen um dieses Zuhause statt um das der Konfiguration sortieren (es braucht Koordinaten in Gladys).",
+            "es": "Clasificar las gasolineras alrededor de esta vivienda en lugar de la de la configuración (necesita coordenadas en Gladys)."
           }
         }
       ],
@@ -452,11 +572,15 @@
       "key": "station",
       "label": {
         "en": "My station",
-        "fr": "Ma station"
+        "fr": "Ma station",
+        "de": "Meine Tankstelle",
+        "es": "Mi gasolinera"
       },
       "description": {
         "en": "The prices of one station you follow, with its address.",
-        "fr": "Les prix d’une station que vous suivez, avec son adresse."
+        "fr": "Les prix d’une station que vous suivez, avec son adresse.",
+        "de": "Die Preise einer Tankstelle, die du verfolgst, mit ihrer Adresse.",
+        "es": "Los precios de una gasolinera que sigue, con su dirección."
       },
       "icon": "map-pin",
       "settings": [
@@ -466,11 +590,15 @@
           "source": "devices",
           "label": {
             "en": "Station",
-            "fr": "Station"
+            "fr": "Station",
+            "de": "Tankstelle",
+            "es": "Gasolinera"
           },
           "description": {
-            "en": "One of the stations you added from the Discovery tab.",
-            "fr": "Une des stations que vous avez ajoutées depuis l’onglet Découverte."
+            "en": "One of the stations you added from the Discover tab.",
+            "fr": "Une des stations que vous avez ajoutées depuis l’onglet Découverte.",
+            "de": "Eine der Tankstellen, die du über den Tab „Entdecken“ hinzugefügt hast.",
+            "es": "Una de las gasolineras que ha añadido desde la pestaña «Descubrir»."
           }
         },
         {
@@ -478,11 +606,15 @@
           "type": "select",
           "label": {
             "en": "Fuels shown",
-            "fr": "Carburants affichés"
+            "fr": "Carburants affichés",
+            "de": "Angezeigte Kraftstoffe",
+            "es": "Carburantes mostrados"
           },
           "description": {
             "en": "The fuel of the chosen device always comes first.",
-            "fr": "Le carburant de l’appareil choisi est toujours affiché en premier."
+            "fr": "Le carburant de l’appareil choisi est toujours affiché en premier.",
+            "de": "Der Kraftstoff des gewählten Geräts steht immer an erster Stelle.",
+            "es": "El carburante del dispositivo elegido siempre aparece primero."
           },
           "default": "configured",
           "options": [
@@ -490,21 +622,27 @@
               "value": "configured",
               "label": {
                 "en": "My fuels (configuration)",
-                "fr": "Mes carburants (configuration)"
+                "fr": "Mes carburants (configuration)",
+                "de": "Meine Kraftstoffe (Konfiguration)",
+                "es": "Mis carburantes (configuración)"
               }
             },
             {
               "value": "device",
               "label": {
                 "en": "Only the device’s fuel",
-                "fr": "Seulement celui de l’appareil"
+                "fr": "Seulement celui de l’appareil",
+                "de": "Nur der Kraftstoff des Geräts",
+                "es": "Solo el del dispositivo"
               }
             },
             {
               "value": "all",
               "label": {
                 "en": "Every fuel of the station",
-                "fr": "Tous ceux de la station"
+                "fr": "Tous ceux de la station",
+                "de": "Alle Kraftstoffe der Tankstelle",
+                "es": "Todos los de la gasolinera"
               }
             }
           ]
@@ -514,11 +652,15 @@
           "type": "select",
           "label": {
             "en": "Details",
-            "fr": "Détails"
+            "fr": "Détails",
+            "de": "Details",
+            "es": "Detalles"
           },
           "description": {
             "en": "Compact keeps the prices and their date only.",
-            "fr": "Compact ne garde que les prix et leur date."
+            "fr": "Compact ne garde que les prix et leur date.",
+            "de": "Kompakt behält nur die Preise und ihr Datum.",
+            "es": "Compacto conserva solo los precios y su fecha."
           },
           "default": "full",
           "options": [
@@ -526,14 +668,18 @@
               "value": "full",
               "label": {
                 "en": "Full (address, distance, directions)",
-                "fr": "Complet (adresse, distance, itinéraire)"
+                "fr": "Complet (adresse, distance, itinéraire)",
+                "de": "Vollständig (Adresse, Entfernung, Route)",
+                "es": "Completo (dirección, distancia, ruta)"
               }
             },
             {
               "value": "compact",
               "label": {
                 "en": "Compact (prices only)",
-                "fr": "Compact (prix seulement)"
+                "fr": "Compact (prix seulement)",
+                "de": "Kompakt (nur Preise)",
+                "es": "Compacto (solo precios)"
               }
             }
           ]
@@ -547,11 +693,15 @@
       "key": "price_updated",
       "label": {
         "en": "A fuel price changed",
-        "fr": "Un prix de carburant a changé"
+        "fr": "Un prix de carburant a changé",
+        "de": "Ein Kraftstoffpreis hat sich geändert",
+        "es": "Ha cambiado un precio de carburante"
       },
       "description": {
         "en": "A station you follow declared a new price. The event carries the previous price and the difference, which a device feature alone cannot give.",
-        "fr": "Une station que vous suivez a déclaré un nouveau prix. L'événement porte l'ancien prix et l'écart, ce qu'une donnée d'appareil seule ne peut pas donner."
+        "fr": "Une station que vous suivez a déclaré un nouveau prix. L'événement porte l'ancien prix et l'écart, ce qu'une donnée d'appareil seule ne peut pas donner.",
+        "de": "Eine Tankstelle, die du verfolgst, hat einen neuen Preis gemeldet. Das Ereignis enthält den vorherigen Preis und die Differenz, was eine Gerätefunktion allein nicht liefern kann.",
+        "es": "Una gasolinera que sigue ha declarado un precio nuevo. El evento incluye el precio anterior y la diferencia, algo que una característica de dispositivo sola no puede dar."
       },
       "fields": [
         {
@@ -560,11 +710,15 @@
           "source": "devices",
           "label": {
             "en": "Station",
-            "fr": "Station"
+            "fr": "Station",
+            "de": "Tankstelle",
+            "es": "Gasolinera"
           },
           "description": {
             "en": "Leave empty to react to every station you follow.",
-            "fr": "Laissez vide pour réagir à toutes les stations que vous suivez."
+            "fr": "Laissez vide pour réagir à toutes les stations que vous suivez.",
+            "de": "Leer lassen, um auf alle Tankstellen zu reagieren, die du verfolgst.",
+            "es": "Déjelo vacío para reaccionar a todas las gasolineras que sigue."
           }
         },
         {
@@ -572,53 +726,69 @@
           "type": "select",
           "label": {
             "en": "Fuel",
-            "fr": "Carburant"
+            "fr": "Carburant",
+            "de": "Kraftstoff",
+            "es": "Carburante"
           },
           "description": {
             "en": "Leave empty for any fuel.",
-            "fr": "Laissez vide pour tous les carburants."
+            "fr": "Laissez vide pour tous les carburants.",
+            "de": "Leer lassen für alle Kraftstoffe.",
+            "es": "Déjelo vacío para cualquier carburante."
           },
           "options": [
             {
               "value": "gazole",
               "label": {
                 "en": "Diesel",
-                "fr": "Gazole"
+                "fr": "Gazole",
+                "de": "Diesel",
+                "es": "Gasóleo"
               }
             },
             {
               "value": "sp95",
               "label": {
                 "en": "SP95",
-                "fr": "SP95"
+                "fr": "SP95",
+                "de": "SP95",
+                "es": "SP95"
               }
             },
             {
               "value": "sp98",
               "label": {
                 "en": "SP98",
-                "fr": "SP98"
+                "fr": "SP98",
+                "de": "SP98",
+                "es": "SP98"
               }
             },
             {
               "value": "e10",
               "label": {
                 "en": "E10 (SP95-E10)",
-                "fr": "E10 (SP95-E10)"
+                "fr": "E10 (SP95-E10)",
+                "de": "E10 (SP95-E10)",
+                "es": "E10 (SP95-E10)"
               }
             },
             {
               "value": "e85",
               "label": {
                 "en": "E85 (Superethanol)",
-                "fr": "E85 (Superéthanol)"
+                "fr": "E85 (Superéthanol)",
+                "de": "E85 (Superethanol)",
+                "es": "E85 (Superetanol)"
               }
             },
             {
               "value": "gplc",
               "label": {
                 "en": "LPG",
-                "fr": "GPLc"
+                "fr": "GPLc",
+                "de": "Autogas (LPG)",
+                "es": "GLP"
               }
             }
           ]
@@ -628,25 +798,33 @@
           "type": "select",
           "label": {
             "en": "Direction",
-            "fr": "Sens"
+            "fr": "Sens",
+            "de": "Richtung",
+            "es": "Sentido"
           },
           "description": {
             "en": "Leave empty for both.",
-            "fr": "Laissez vide pour les deux."
+            "fr": "Laissez vide pour les deux.",
+            "de": "Leer lassen für beide.",
+            "es": "Déjelo vacío para ambos."
           },
           "options": [
             {
               "value": "down",
               "label": {
                 "en": "The price went down",
-                "fr": "Le prix a baissé"
+                "fr": "Le prix a baissé",
+                "de": "Der Preis ist gesunken",
+                "es": "El precio ha bajado"
               }
             },
             {
               "value": "up",
               "label": {
                 "en": "The price went up",
-                "fr": "Le prix a augmenté"
+                "fr": "Le prix a augmenté",
+                "de": "Der Preis ist gestiegen",
+                "es": "El precio ha subido"
               }
             }
           ]
@@ -658,7 +836,9 @@
           "type": "string",
           "label": {
             "en": "Station name",
-            "fr": "Nom de la station"
+            "fr": "Nom de la station",
+            "de": "Name der Tankstelle",
+            "es": "Nombre de la gasolinera"
           }
         },
         {
@@ -666,7 +846,9 @@
           "type": "string",
           "label": {
             "en": "City",
-            "fr": "Ville"
+            "fr": "Ville",
+            "de": "Ort",
+            "es": "Localidad"
           }
         },
         {
@@ -674,7 +856,9 @@
           "type": "string",
           "label": {
             "en": "Fuel key",
-            "fr": "Clé du carburant"
+            "fr": "Clé du carburant",
+            "de": "Kraftstoffschlüssel",
+            "es": "Clave del carburante"
           }
         },
         {
@@ -682,7 +866,9 @@
           "type": "string",
           "label": {
             "en": "Fuel",
-            "fr": "Carburant"
+            "fr": "Carburant",
+            "de": "Kraftstoff",
+            "es": "Carburante"
           }
         },
         {
@@ -690,7 +876,9 @@
           "type": "number",
           "label": {
             "en": "New price (EUR/L)",
-            "fr": "Nouveau prix (EUR/L)"
+            "fr": "Nouveau prix (EUR/L)",
+            "de": "Neuer Preis (EUR/L)",
+            "es": "Precio nuevo (EUR/L)"
           }
         },
         {
@@ -698,7 +886,9 @@
           "type": "number",
           "label": {
             "en": "Previous price (EUR/L)",
-            "fr": "Prix précédent (EUR/L)"
+            "fr": "Prix précédent (EUR/L)",
+            "de": "Vorheriger Preis (EUR/L)",
+            "es": "Precio anterior (EUR/L)"
           }
         },
         {
@@ -706,7 +896,9 @@
           "type": "number",
           "label": {
             "en": "Difference (EUR/L)",
-            "fr": "Écart (EUR/L)"
+            "fr": "Écart (EUR/L)",
+            "de": "Differenz (EUR/L)",
+            "es": "Diferencia (EUR/L)"
           }
         },
         {
@@ -714,7 +906,9 @@
           "type": "string",
           "label": {
             "en": "Direction (down/up)",
-            "fr": "Sens (down/up)"
+            "fr": "Sens (down/up)",
+            "de": "Richtung (down/up)",
+            "es": "Sentido (down/up)"
           }
         },
         {
@@ -722,7 +916,9 @@
           "type": "string",
           "label": {
             "en": "Declared on",
-            "fr": "Déclaré le"
+            "fr": "Déclaré le",
+            "de": "Gemeldet am",
+            "es": "Declarado el"
           }
         }
       ]
@@ -731,11 +927,15 @@
       "key": "cheapest_station_changed",
       "label": {
         "en": "The cheapest station changed",
-        "fr": "La station la moins chère a changé"
+        "fr": "La station la moins chère a changé",
+        "de": "Die günstigste Tankstelle hat sich geändert",
+        "es": "Ha cambiado la gasolinera más barata"
       },
       "description": {
         "en": "Among the stations you follow, another one is now the cheapest for a fuel. Needs at least two stations followed for that fuel.",
-        "fr": "Parmi les stations que vous suivez, une autre est désormais la moins chère pour un carburant. Il faut suivre au moins deux stations pour ce carburant."
+        "fr": "Parmi les stations que vous suivez, une autre est désormais la moins chère pour un carburant. Il faut suivre au moins deux stations pour ce carburant.",
+        "de": "Unter den Tankstellen, die du verfolgst, ist jetzt eine andere die günstigste für einen Kraftstoff. Dafür musst du mindestens zwei Tankstellen für diesen Kraftstoff verfolgen.",
+        "es": "Entre las gasolineras que sigue, otra es ahora la más barata para un carburante. Hay que seguir al menos dos gasolineras para ese carburante."
       },
       "fields": [
         {
@@ -743,53 +943,69 @@
           "type": "select",
           "label": {
             "en": "Fuel",
-            "fr": "Carburant"
+            "fr": "Carburant",
+            "de": "Kraftstoff",
+            "es": "Carburante"
           },
           "description": {
             "en": "Leave empty for any fuel.",
-            "fr": "Laissez vide pour tous les carburants."
+            "fr": "Laissez vide pour tous les carburants.",
+            "de": "Leer lassen für alle Kraftstoffe.",
+            "es": "Déjelo vacío para cualquier carburante."
           },
           "options": [
             {
               "value": "gazole",
               "label": {
                 "en": "Diesel",
-                "fr": "Gazole"
+                "fr": "Gazole",
+                "de": "Diesel",
+                "es": "Gasóleo"
               }
             },
             {
               "value": "sp95",
               "label": {
                 "en": "SP95",
-                "fr": "SP95"
+                "fr": "SP95",
+                "de": "SP95",
+                "es": "SP95"
               }
             },
             {
               "value": "sp98",
               "label": {
                 "en": "SP98",
-                "fr": "SP98"
+                "fr": "SP98",
+                "de": "SP98",
+                "es": "SP98"
               }
             },
             {
               "value": "e10",
               "label": {
                 "en": "E10 (SP95-E10)",
-                "fr": "E10 (SP95-E10)"
+                "fr": "E10 (SP95-E10)",
+                "de": "E10 (SP95-E10)",
+                "es": "E10 (SP95-E10)"
               }
             },
             {
               "value": "e85",
               "label": {
                 "en": "E85 (Superethanol)",
-                "fr": "E85 (Superéthanol)"
+                "fr": "E85 (Superéthanol)",
+                "de": "E85 (Superethanol)",
+                "es": "E85 (Superetanol)"
               }
             },
             {
               "value": "gplc",
               "label": {
                 "en": "LPG",
-                "fr": "GPLc"
+                "fr": "GPLc",
+                "de": "Autogas (LPG)",
+                "es": "GLP"
               }
             }
           ]
@@ -801,7 +1017,9 @@
           "type": "string",
           "label": {
             "en": "New cheapest station",
-            "fr": "Nouvelle station la moins chère"
+            "fr": "Nouvelle station la moins chère",
+            "de": "Neue günstigste Tankstelle",
+            "es": "Nueva gasolinera más barata"
           }
         },
         {
@@ -809,7 +1027,9 @@
           "type": "string",
           "label": {
             "en": "City",
-            "fr": "Ville"
+            "fr": "Ville",
+            "de": "Ort",
+            "es": "Localidad"
           }
         },
         {
@@ -817,7 +1037,9 @@
           "type": "string",
           "label": {
             "en": "Fuel key",
-            "fr": "Clé du carburant"
+            "fr": "Clé du carburant",
+            "de": "Kraftstoffschlüssel",
+            "es": "Clave del carburante"
           }
         },
         {
@@ -825,7 +1047,9 @@
           "type": "string",
           "label": {
             "en": "Fuel",
-            "fr": "Carburant"
+            "fr": "Carburant",
+            "de": "Kraftstoff",
+            "es": "Carburante"
           }
         },
         {
@@ -833,7 +1057,9 @@
           "type": "number",
           "label": {
             "en": "Its price (EUR/L)",
-            "fr": "Son prix (EUR/L)"
+            "fr": "Son prix (EUR/L)",
+            "de": "Ihr Preis (EUR/L)",
+            "es": "Su precio (EUR/L)"
           }
         },
         {
@@ -841,7 +1067,9 @@
           "type": "string",
           "label": {
             "en": "Previous cheapest station",
-            "fr": "Précédente station la moins chère"
+            "fr": "Précédente station la moins chère",
+            "de": "Vorherige günstigste Tankstelle",
+            "es": "Gasolinera más barata anterior"
           }
         },
         {
@@ -849,7 +1077,9 @@
           "type": "number",
           "label": {
             "en": "Its last known price (EUR/L)",
-            "fr": "Son dernier prix connu (EUR/L)"
+            "fr": "Son dernier prix connu (EUR/L)",
+            "de": "Ihr letzter bekannter Preis (EUR/L)",
+            "es": "Su último precio conocido (EUR/L)"
           }
         },
         {
@@ -857,7 +1087,9 @@
           "type": "number",
           "label": {
             "en": "Difference (EUR/L)",
-            "fr": "Écart (EUR/L)"
+            "fr": "Écart (EUR/L)",
+            "de": "Differenz (EUR/L)",
+            "es": "Diferencia (EUR/L)"
           }
         },
         {
@@ -865,7 +1097,9 @@
           "type": "number",
           "label": {
             "en": "Stations compared",
-            "fr": "Stations comparées"
+            "fr": "Stations comparées",
+            "de": "Verglichene Tankstellen",
+            "es": "Gasolineras comparadas"
           }
         }
       ]
@@ -874,11 +1108,15 @@
       "key": "feed_status_changed",
       "label": {
         "en": "The open data feed became reachable / unreachable",
-        "fr": "Le flux open data est devenu joignable / injoignable"
+        "fr": "Le flux open data est devenu joignable / injoignable",
+        "de": "Der Open-Data-Feed ist erreichbar / nicht erreichbar geworden",
+        "es": "El flujo de datos abiertos está accesible / inaccesible"
       },
       "description": {
         "en": "Every station of a refresh failed, or the feed answers again after a failure. The transition is fired once, not at every refresh.",
-        "fr": "Toutes les stations d'un rafraîchissement ont échoué, ou le flux répond de nouveau après une panne. La transition est émise une fois, pas à chaque rafraîchissement."
+        "fr": "Toutes les stations d'un rafraîchissement ont échoué, ou le flux répond de nouveau après une panne. La transition est émise une fois, pas à chaque rafraîchissement.",
+        "de": "Alle Tankstellen einer Aktualisierung sind fehlgeschlagen, oder der Feed antwortet nach einem Ausfall wieder. Der Übergang wird einmal ausgelöst, nicht bei jeder Aktualisierung.",
+        "es": "Todas las gasolineras de una actualización han fallado, o el flujo vuelve a responder tras un fallo. La transición se emite una vez, no en cada actualización."
       },
       "fields": [
         {
@@ -886,25 +1124,33 @@
           "type": "select",
           "label": {
             "en": "Status",
-            "fr": "État"
+            "fr": "État",
+            "de": "Status",
+            "es": "Estado"
           },
           "description": {
             "en": "Leave empty for both.",
-            "fr": "Laissez vide pour les deux."
+            "fr": "Laissez vide pour les deux.",
+            "de": "Leer lassen für beide.",
+            "es": "Déjelo vacío para ambos."
           },
           "options": [
             {
               "value": "unavailable",
               "label": {
                 "en": "The feed stopped answering",
-                "fr": "Le flux ne répond plus"
+                "fr": "Le flux ne répond plus",
+                "de": "Der Feed antwortet nicht mehr",
+                "es": "El flujo ha dejado de responder"
               }
             },
             {
               "value": "available",
               "label": {
                 "en": "The feed answers again",
-                "fr": "Le flux répond de nouveau"
+                "fr": "Le flux répond de nouveau",
+                "de": "Der Feed antwortet wieder",
+                "es": "El flujo vuelve a responder"
               }
             }
           ]
@@ -916,7 +1162,9 @@
           "type": "string",
           "label": {
             "en": "Status (available/unavailable)",
-            "fr": "État (available/unavailable)"
+            "fr": "État (available/unavailable)",
+            "de": "Status (available/unavailable)",
+            "es": "Estado (available/unavailable)"
           }
         },
         {
@@ -924,7 +1172,9 @@
           "type": "string",
           "label": {
             "en": "Error",
-            "fr": "Erreur"
+            "fr": "Erreur",
+            "de": "Fehler",
+            "es": "Error"
           }
         },
         {
@@ -932,7 +1182,9 @@
           "type": "string",
           "label": {
             "en": "Last successful read",
-            "fr": "Dernière lecture réussie"
+            "fr": "Dernière lecture réussie",
+            "de": "Letzte erfolgreiche Abfrage",
+            "es": "Última lectura correcta"
           }
         }
       ]
@@ -943,11 +1195,15 @@
       "key": "refresh_prices",
       "label": {
         "en": "Refresh the fuel prices",
-        "fr": "Rafraîchir les prix des carburants"
+        "fr": "Rafraîchir les prix des carburants",
+        "de": "Kraftstoffpreise aktualisieren",
+        "es": "Actualizar los precios de los carburantes"
       },
       "description": {
         "en": "Read the open data feed now, so the next steps of the scene do not act on an hour-old price.",
-        "fr": "Lit le flux open data maintenant, pour que la suite de la scène ne travaille pas sur un prix vieux d'une heure."
+        "fr": "Lit le flux open data maintenant, pour que la suite de la scène ne travaille pas sur un prix vieux d'une heure.",
+        "de": "Fragt den Open-Data-Feed jetzt ab, damit die nächsten Schritte der Szene nicht mit einem eine Stunde alten Preis arbeiten.",
+        "es": "Lee el flujo de datos abiertos ahora, para que los siguientes pasos de la escena no trabajen con un precio de hace una hora."
       },
       "timeout_seconds": 60,
       "outputs": [
@@ -956,7 +1212,9 @@
           "type": "number",
           "label": {
             "en": "Stations read",
-            "fr": "Stations lues"
+            "fr": "Stations lues",
+            "de": "Abgefragte Tankstellen",
+            "es": "Gasolineras leídas"
           }
         },
         {
@@ -964,7 +1222,9 @@
           "type": "number",
           "label": {
             "en": "Prices updated",
-            "fr": "Prix mis à jour"
+            "fr": "Prix mis à jour",
+            "de": "Aktualisierte Preise",
+            "es": "Precios actualizados"
           }
         },
         {
@@ -972,7 +1232,9 @@
           "type": "number",
           "label": {
             "en": "Stations that failed",
-            "fr": "Stations en échec"
+            "fr": "Stations en échec",
+            "de": "Fehlgeschlagene Tankstellen",
+            "es": "Gasolineras con error"
           }
         }
       ]
@@ -981,11 +1243,15 @@
       "key": "cheapest_station",
       "label": {
         "en": "Find the cheapest station",
-        "fr": "Trouver la station la moins chère"
+        "fr": "Trouver la station la moins chère",
+        "de": "Günstigste Tankstelle finden",
+        "es": "Buscar la gasolinera más barata"
       },
       "description": {
         "en": "Compares the stations you follow for one fuel and returns the cheapest one. Answers found = false when you follow none for that fuel.",
-        "fr": "Compare les stations que vous suivez pour un carburant et renvoie la moins chère. Renvoie found = false si vous n'en suivez aucune pour ce carburant."
+        "fr": "Compare les stations que vous suivez pour un carburant et renvoie la moins chère. Renvoie found = false si vous n'en suivez aucune pour ce carburant.",
+        "de": "Vergleicht die Tankstellen, die du für einen Kraftstoff verfolgst, und gibt die günstigste zurück. Antwortet found = false, wenn du für diesen Kraftstoff keine verfolgst.",
+        "es": "Compara las gasolineras que sigue para un carburante y devuelve la más barata. Responde found = false si no sigue ninguna para ese carburante."
       },
       "timeout_seconds": 60,
       "fields": [
@@ -994,7 +1260,9 @@
           "type": "select",
           "label": {
             "en": "Fuel",
-            "fr": "Carburant"
+            "fr": "Carburant",
+            "de": "Kraftstoff",
+            "es": "Carburante"
           },
           "required": true,
           "default": "gazole",
@@ -1003,42 +1271,54 @@
               "value": "gazole",
               "label": {
                 "en": "Diesel",
-                "fr": "Gazole"
+                "fr": "Gazole",
+                "de": "Diesel",
+                "es": "Gasóleo"
               }
             },
             {
               "value": "sp95",
               "label": {
                 "en": "SP95",
-                "fr": "SP95"
+                "fr": "SP95",
+                "de": "SP95",
+                "es": "SP95"
               }
             },
             {
               "value": "sp98",
               "label": {
                 "en": "SP98",
-                "fr": "SP98"
+                "fr": "SP98",
+                "de": "SP98",
+                "es": "SP98"
               }
             },
             {
               "value": "e10",
               "label": {
                 "en": "E10 (SP95-E10)",
-                "fr": "E10 (SP95-E10)"
+                "fr": "E10 (SP95-E10)",
+                "de": "E10 (SP95-E10)",
+                "es": "E10 (SP95-E10)"
               }
             },
             {
               "value": "e85",
               "label": {
                 "en": "E85 (Superethanol)",
-                "fr": "E85 (Superéthanol)"
+                "fr": "E85 (Superéthanol)",
+                "de": "E85 (Superethanol)",
+                "es": "E85 (Superetanol)"
               }
             },
             {
               "value": "gplc",
               "label": {
                 "en": "LPG",
-                "fr": "GPLc"
+                "fr": "GPLc",
+                "de": "Autogas (LPG)",
+                "es": "GLP"
               }
             }
           ]
@@ -1048,11 +1328,15 @@
           "type": "boolean",
           "label": {
             "en": "Read the prices before comparing",
-            "fr": "Lire les prix avant de comparer"
+            "fr": "Lire les prix avant de comparer",
+            "de": "Preise vor dem Vergleich abfragen",
+            "es": "Leer los precios antes de comparar"
           },
           "description": {
             "en": "Slower, but never compares prices from the previous refresh.",
-            "fr": "Plus lent, mais ne compare jamais des prix du rafraîchissement précédent."
+            "fr": "Plus lent, mais ne compare jamais des prix du rafraîchissement précédent.",
+            "de": "Langsamer, vergleicht aber nie Preise der vorherigen Aktualisierung.",
+            "es": "Más lento, pero nunca compara precios de la actualización anterior."
           },
           "default": false
         }
@@ -1063,7 +1347,9 @@
           "type": "boolean",
           "label": {
             "en": "A station was found",
-            "fr": "Une station a été trouvée"
+            "fr": "Une station a été trouvée",
+            "de": "Eine Tankstelle wurde gefunden",
+            "es": "Se ha encontrado una gasolinera"
           }
         },
         {
@@ -1071,7 +1357,9 @@
           "type": "string",
           "label": {
             "en": "Station name",
-            "fr": "Nom de la station"
+            "fr": "Nom de la station",
+            "de": "Name der Tankstelle",
+            "es": "Nombre de la gasolinera"
           }
         },
         {
@@ -1079,7 +1367,9 @@
           "type": "string",
           "label": {
             "en": "City",
-            "fr": "Ville"
+            "fr": "Ville",
+            "de": "Ort",
+            "es": "Localidad"
           }
         },
         {
@@ -1087,7 +1377,9 @@
           "type": "string",
           "label": {
             "en": "Address",
-            "fr": "Adresse"
+            "fr": "Adresse",
+            "de": "Adresse",
+            "es": "Dirección"
           }
         },
         {
@@ -1095,7 +1387,9 @@
           "type": "number",
           "label": {
             "en": "Price (EUR/L)",
-            "fr": "Prix (EUR/L)"
+            "fr": "Prix (EUR/L)",
+            "de": "Preis (EUR/L)",
+            "es": "Precio (EUR/L)"
           }
         },
         {
@@ -1103,7 +1397,9 @@
           "type": "number",
           "label": {
             "en": "Distance (km)",
-            "fr": "Distance (km)"
+            "fr": "Distance (km)",
+            "de": "Entfernung (km)",
+            "es": "Distancia (km)"
           }
         },
         {
@@ -1111,7 +1407,9 @@
           "type": "string",
           "label": {
             "en": "Price declared on",
-            "fr": "Prix déclaré le"
+            "fr": "Prix déclaré le",
+            "de": "Preis gemeldet am",
+            "es": "Precio declarado el"
           }
         },
         {
@@ -1119,7 +1417,9 @@
           "type": "number",
           "label": {
             "en": "Stations compared",
-            "fr": "Stations comparées"
+            "fr": "Stations comparées",
+            "de": "Verglichene Tankstellen",
+            "es": "Gasolineras comparadas"
           }
         }
       ]
@@ -1128,11 +1428,15 @@
       "key": "price_report",
       "label": {
         "en": "Prepare a price summary",
-        "fr": "Préparer un résumé des prix"
+        "fr": "Préparer un résumé des prix",
+        "de": "Preisübersicht erstellen",
+        "es": "Preparar un resumen de precios"
       },
       "description": {
         "en": "One line of text listing the stations you follow, cheapest first, ready to send in a notification.",
-        "fr": "Une ligne de texte listant les stations que vous suivez, la moins chère d'abord, prête à envoyer dans une notification."
+        "fr": "Une ligne de texte listant les stations que vous suivez, la moins chère d'abord, prête à envoyer dans une notification.",
+        "de": "Eine Textzeile mit den Tankstellen, die du verfolgst, die günstigste zuerst, bereit zum Versand in einer Benachrichtigung.",
+        "es": "Una línea de texto con las gasolineras que sigue, la más barata primero, lista para enviar en una notificación."
       },
       "timeout_seconds": 30,
       "fields": [
@@ -1141,7 +1445,9 @@
           "type": "select",
           "label": {
             "en": "Fuel",
-            "fr": "Carburant"
+            "fr": "Carburant",
+            "de": "Kraftstoff",
+            "es": "Carburante"
           },
           "required": true,
           "default": "gazole",
@@ -1150,42 +1456,54 @@
               "value": "gazole",
               "label": {
                 "en": "Diesel",
-                "fr": "Gazole"
+                "fr": "Gazole",
+                "de": "Diesel",
+                "es": "Gasóleo"
               }
             },
             {
               "value": "sp95",
               "label": {
                 "en": "SP95",
-                "fr": "SP95"
+                "fr": "SP95",
+                "de": "SP95",
+                "es": "SP95"
               }
             },
             {
               "value": "sp98",
               "label": {
                 "en": "SP98",
-                "fr": "SP98"
+                "fr": "SP98",
+                "de": "SP98",
+                "es": "SP98"
               }
             },
             {
               "value": "e10",
               "label": {
                 "en": "E10 (SP95-E10)",
-                "fr": "E10 (SP95-E10)"
+                "fr": "E10 (SP95-E10)",
+                "de": "E10 (SP95-E10)",
+                "es": "E10 (SP95-E10)"
               }
             },
             {
               "value": "e85",
               "label": {
                 "en": "E85 (Superethanol)",
-                "fr": "E85 (Superéthanol)"
+                "fr": "E85 (Superéthanol)",
+                "de": "E85 (Superethanol)",
+                "es": "E85 (Superetanol)"
               }
             },
             {
               "value": "gplc",
               "label": {
                 "en": "LPG",
-                "fr": "GPLc"
+                "fr": "GPLc",
+                "de": "Autogas (LPG)",
+                "es": "GLP"
               }
             }
           ]
@@ -1195,11 +1513,15 @@
           "type": "number",
           "label": {
             "en": "Stations listed",
-            "fr": "Stations listées"
+            "fr": "Stations listées",
+            "de": "Aufgeführte Tankstellen",
+            "es": "Gasolineras listadas"
           },
           "description": {
             "en": "How many stations the summary names.",
-            "fr": "Nombre de stations nommées dans le résumé."
+            "fr": "Nombre de stations nommées dans le résumé.",
+            "de": "Wie viele Tankstellen die Übersicht nennt.",
+            "es": "Cuántas gasolineras nombra el resumen."
           },
           "required": false,
           "default": 5,
@@ -1213,7 +1535,9 @@
           "type": "string",
           "label": {
             "en": "Summary",
-            "fr": "Résumé"
+            "fr": "Résumé",
+            "de": "Übersicht",
+            "es": "Resumen"
           }
         },
         {
@@ -1221,7 +1545,9 @@
           "type": "number",
           "label": {
             "en": "Stations followed",
-            "fr": "Stations suivies"
+            "fr": "Stations suivies",
+            "de": "Verfolgte Tankstellen",
+            "es": "Gasolineras seguidas"
           }
         },
         {
@@ -1229,7 +1555,9 @@
           "type": "number",
           "label": {
             "en": "Cheapest price (EUR/L)",
-            "fr": "Prix le plus bas (EUR/L)"
+            "fr": "Prix le plus bas (EUR/L)",
+            "de": "Niedrigster Preis (EUR/L)",
+            "es": "Precio más bajo (EUR/L)"
           }
         }
       ]

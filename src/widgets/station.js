@@ -67,10 +67,12 @@ const DETAILS = { FULL: 'full', COMPACT: 'compact' };
  */
 export const DECLARATION = {
   key: KEY,
-  label: { en: 'My station', fr: 'Ma station' },
+  label: { en: 'My station', fr: 'Ma station', de: 'Meine Tankstelle', es: 'Mi gasolinera' },
   description: {
     en: 'The prices of one station you follow, with its address.',
     fr: 'Les prix d’une station que vous suivez, avec son adresse.',
+    de: 'Die Preise einer Tankstelle, die du verfolgst, mit ihrer Adresse.',
+    es: 'Los precios de una gasolinera que sigue, con su dirección.',
   },
   icon: 'map-pin',
   settings: [
@@ -82,10 +84,12 @@ export const DECLARATION = {
       // `external_id`, from which the country, the station and the fuel are
       // read back (the id carries all three, see devices/fuelStation.js).
       source: 'devices',
-      label: { en: 'Station', fr: 'Station' },
+      label: { en: 'Station', fr: 'Station', de: 'Tankstelle', es: 'Gasolinera' },
       description: {
-        en: 'One of the stations you added from the Discovery tab.',
+        en: 'One of the stations you added from the Discover tab.',
         fr: 'Une des stations que vous avez ajoutées depuis l’onglet Découverte.',
+        de: 'Eine der Tankstellen, die du über den Tab „Entdecken“ hinzugefügt hast.',
+        es: 'Una de las gasolineras que ha añadido desde la pestaña «Descubrir».',
       },
     },
     {
@@ -93,24 +97,46 @@ export const DECLARATION = {
       // follow one: by default it keeps to the fuels of the configuration.
       key: 'fuels',
       type: 'select',
-      label: { en: 'Fuels shown', fr: 'Carburants affichés' },
+      label: {
+        en: 'Fuels shown',
+        fr: 'Carburants affichés',
+        de: 'Angezeigte Kraftstoffe',
+        es: 'Carburantes mostrados',
+      },
       description: {
         en: 'The fuel of the chosen device always comes first.',
         fr: 'Le carburant de l’appareil choisi est toujours affiché en premier.',
+        de: 'Der Kraftstoff des gewählten Geräts steht immer an erster Stelle.',
+        es: 'El carburante del dispositivo elegido siempre aparece primero.',
       },
       default: FUELS_SHOWN.CONFIGURED,
       options: [
         {
           value: FUELS_SHOWN.CONFIGURED,
-          label: { en: 'My fuels (configuration)', fr: 'Mes carburants (configuration)' },
+          label: {
+            en: 'My fuels (configuration)',
+            fr: 'Mes carburants (configuration)',
+            de: 'Meine Kraftstoffe (Konfiguration)',
+            es: 'Mis carburantes (configuración)',
+          },
         },
         {
           value: FUELS_SHOWN.DEVICE,
-          label: { en: 'Only the device’s fuel', fr: 'Seulement celui de l’appareil' },
+          label: {
+            en: 'Only the device’s fuel',
+            fr: 'Seulement celui de l’appareil',
+            de: 'Nur der Kraftstoff des Geräts',
+            es: 'Solo el del dispositivo',
+          },
         },
         {
           value: FUELS_SHOWN.ALL,
-          label: { en: 'Every fuel of the station', fr: 'Tous ceux de la station' },
+          label: {
+            en: 'Every fuel of the station',
+            fr: 'Tous ceux de la station',
+            de: 'Alle Kraftstoffe der Tankstelle',
+            es: 'Todos los de la gasolinera',
+          },
         },
       ],
     },
@@ -119,10 +145,12 @@ export const DECLARATION = {
       // with the prices only: no brand, no address, no distance, no directions.
       key: 'details',
       type: 'select',
-      label: { en: 'Details', fr: 'Détails' },
+      label: { en: 'Details', fr: 'Détails', de: 'Details', es: 'Detalles' },
       description: {
         en: 'Compact keeps the prices and their date only.',
         fr: 'Compact ne garde que les prix et leur date.',
+        de: 'Kompakt behält nur die Preise und ihr Datum.',
+        es: 'Compacto conserva solo los precios y su fecha.',
       },
       default: DETAILS.FULL,
       options: [
@@ -131,11 +159,18 @@ export const DECLARATION = {
           label: {
             en: 'Full (address, distance, directions)',
             fr: 'Complet (adresse, distance, itinéraire)',
+            de: 'Vollständig (Adresse, Entfernung, Route)',
+            es: 'Completo (dirección, distancia, ruta)',
           },
         },
         {
           value: DETAILS.COMPACT,
-          label: { en: 'Compact (prices only)', fr: 'Compact (prix seulement)' },
+          label: {
+            en: 'Compact (prices only)',
+            fr: 'Compact (prix seulement)',
+            de: 'Kompakt (nur Preise)',
+            es: 'Compacto (solo precios)',
+          },
         },
       ],
     },
@@ -150,7 +185,7 @@ export const DECLARATION = {
  * @param {{ config: object, store: object }} context
  * @param {{ settings?: object, language?: string }} request `language` only
  *   decides the decimal separator of the prices we format ourselves; every
- *   text of the card carries both languages and the core picks the right one
+ *   text of the card carries every language and the core picks the right one
  */
 export async function getContent(
   gladys,
@@ -166,6 +201,8 @@ export async function getContent(
           text: {
             en: 'Pick one of your stations in the settings of this widget.',
             fr: 'Choisissez une de vos stations dans les réglages de ce widget.',
+            de: 'Wähle in den Einstellungen dieses Widgets eine deiner Tankstellen.',
+            es: 'Elija una de sus gasolineras en la configuración de este widget.',
           },
         }),
       ],
@@ -181,6 +218,8 @@ export async function getContent(
           text: {
             en: 'This station is not published by the open data feed right now.',
             fr: 'Cette station n’est pas publiée par le flux open data en ce moment.',
+            de: 'Diese Tankstelle wird derzeit nicht vom Open-Data-Feed veröffentlicht.',
+            es: 'Esta gasolinera no aparece en el flujo de datos abiertos en este momento.',
           },
         }),
       ],
@@ -221,13 +260,13 @@ export async function getContent(
       ),
       url
         ? button({
-            label: { en: 'Directions', fr: 'Itinéraire' },
+            label: { en: 'Directions', fr: 'Itinéraire', de: 'Route', es: 'Cómo llegar' },
             icon: 'navigation',
             link: { url },
           })
         : null,
       button({
-        label: { en: 'Refresh', fr: 'Rafraîchir' },
+        label: { en: 'Refresh', fr: 'Rafraîchir', de: 'Aktualisieren', es: 'Actualizar' },
         icon: 'refresh-cw',
         action: { key: 'refresh' },
       }),
@@ -374,14 +413,24 @@ function missingPriceRow(station, fuel) {
     return {
       label,
       value: since
-        ? { en: `Out of stock since ${since}`, fr: `En rupture depuis le ${since}` }
-        : { en: 'Out of stock', fr: 'En rupture' },
+        ? {
+            en: `Out of stock since ${since}`,
+            fr: `En rupture depuis le ${since}`,
+            de: `Ausverkauft seit ${since}`,
+            es: `Agotado desde el ${since}`,
+          }
+        : { en: 'Out of stock', fr: 'En rupture', de: 'Ausverkauft', es: 'Agotado' },
       color: COLOR.WARNING,
     };
   }
   return {
     label,
-    value: { en: 'No price published today', fr: 'Aucun prix publié aujourd’hui' },
+    value: {
+      en: 'No price published today',
+      fr: 'Aucun prix publié aujourd’hui',
+      de: 'Heute kein Preis veröffentlicht',
+      es: 'Hoy no se ha publicado ningún precio',
+    },
     color: COLOR.WARNING,
   };
 }
@@ -408,11 +457,17 @@ function nameCarriesBrand(name, brand) {
 function buildRows(station, { target, missing, compact, postalCode, source, houseName, distance }) {
   const rows = missing.map((fuel) => missingPriceRow(station, fuel));
   if (!compact && station.brand && !nameCarriesBrand(station.name, station.brand)) {
-    rows.push({ label: { en: 'Brand', fr: 'Marque' }, value: station.brand });
+    rows.push({
+      label: { en: 'Brand', fr: 'Marque', de: 'Marke', es: 'Marca' },
+      value: station.brand,
+    });
   }
   const address = compact ? null : stationAddress(station);
   if (address) {
-    rows.push({ label: { en: 'Address', fr: 'Adresse' }, value: address });
+    rows.push({
+      label: { en: 'Address', fr: 'Adresse', de: 'Adresse', es: 'Dirección' },
+      value: address,
+    });
   }
   if (Number.isFinite(distance)) {
     // Say WHERE it is measured from, because there are two possible origins:
@@ -421,21 +476,27 @@ function buildRows(station, { target, missing, compact, postalCode, source, hous
     // centre of the postal code area otherwise. "2,3 km" alone would let the
     // reader assume the wrong one.
     rows.push({
-      label: { en: 'Distance', fr: 'Distance' },
+      label: { en: 'Distance', fr: 'Distance', de: 'Entfernung', es: 'Distancia' },
       value:
         source === 'house'
           ? houseName
             ? {
                 en: `${formatDistance(distance, 'en')} from ${houseName}`,
                 fr: `${formatDistance(distance, 'fr')} de ${houseName}`,
+                de: `${formatDistance(distance, 'de')} von ${houseName}`,
+                es: `${formatDistance(distance, 'es')} de ${houseName}`,
               }
             : {
                 en: `${formatDistance(distance, 'en')} from home`,
                 fr: `${formatDistance(distance, 'fr')} de la maison`,
+                de: `${formatDistance(distance, 'de')} von zu Hause`,
+                es: `${formatDistance(distance, 'es')} de casa`,
               }
           : {
               en: `${formatDistance(distance, 'en')} from ${postalCode}`,
               fr: `${formatDistance(distance, 'fr')} du ${postalCode}`,
+              de: `${formatDistance(distance, 'de')} von ${postalCode}`,
+              es: `${formatDistance(distance, 'es')} de ${postalCode}`,
             },
     });
   }
@@ -445,7 +506,12 @@ function buildRows(station, { target, missing, compact, postalCode, source, hous
   const declaredAt = formatDateTime(station.updatedAt?.[target.fuel]);
   if (declaredAt) {
     rows.push({
-      label: { en: 'Last price update', fr: 'Dernier relevé' },
+      label: {
+        en: 'Last price update',
+        fr: 'Dernier relevé',
+        de: 'Letzte Preisänderung',
+        es: 'Última actualización del precio',
+      },
       value: declaredAt,
       color: COLOR.NEUTRAL,
     });

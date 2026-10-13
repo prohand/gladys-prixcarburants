@@ -12,6 +12,7 @@ import { ACTIONS } from '../src/actions.js';
 import { DEFAULT_CONFIG, normalizeConfig } from '../src/config.js';
 import { COUNTRIES } from '../src/countries/index.js';
 import { FUEL_KEYS } from '../src/fuels.js';
+import { LANGUAGES } from '../src/i18n.js';
 import { WIDGET_KEYS, buildWidgetManifest } from '../src/widgets/index.js';
 import { FEED_STATUSES, PRICE_DIRECTIONS, SCENE_TRIGGER_CONTRACT } from '../src/sceneEvents.js';
 import { REPORT_LIMITS, SCENE_ACTIONS, SCENE_ACTION_CONTRACT } from '../src/sceneActions.js';
@@ -21,6 +22,57 @@ const manifest = JSON.parse(
 );
 
 const field = (key) => manifest.config_schema.find((f) => f.key === key);
+
+/** Is this multi-language text written in every language Gladys speaks? */
+const speaksEveryLanguage = (text) => LANGUAGES.every((lang) => Boolean(text?.[lang]));
+
+/**
+ * Every multi-language object of the manifest, wherever it lives, with its
+ * path: an object whose keys are all ISO 639-1 codes.
+ */
+function multiLanguageTexts(node, path = 'manifest') {
+  if (Array.isArray(node)) {
+    return node.flatMap((item, index) => multiLanguageTexts(item, `${path}[${index}]`));
+  }
+  if (node === null || typeof node !== 'object') {
+    return [];
+  }
+  const keys = Object.keys(node);
+  if (keys.length > 0 && keys.every((key) => /^[a-z]{2}$/.test(key))) {
+    return [[path, node]];
+  }
+  return keys.flatMap((key) => multiLanguageTexts(node[key], `${path}.${key}`));
+}
+
+test('every text of the manifest is written in every language of Gladys', () => {
+  // The core renders `text[userLanguage]`, else `en`: a text missing German or
+  // Spanish reaches those readers in English, in the middle of a translated
+  // screen.
+  const texts = multiLanguageTexts(manifest);
+  assert.ok(texts.length > 100, 'the walk found the texts');
+  for (const [path, text] of texts) {
+    assert.deepEqual(Object.keys(text), LANGUAGES, `${path} must carry ${LANGUAGES.join(', ')}`);
+    for (const lang of LANGUAGES) {
+      assert.equal(typeof text[lang], 'string', `${path}.${lang}`);
+      assert.ok(text[lang].trim().length > 0, `${path}.${lang} is empty`);
+    }
+  }
+});
+
+test('the texts of the manifest stay within the store bounds, in every language', () => {
+  // The store validates each language on its own: one German sentence too long
+  // rejects the whole manifest.
+  for (const lang of LANGUAGES) {
+    const description = manifest.description[lang];
+    assert.ok(
+      description.length >= 10 && description.length <= 100,
+      `catalog description (${lang}) must be 10-100 characters, got ${description.length}`,
+    );
+    for (const section of manifest.config_schema.filter((f) => f.type === 'section')) {
+      assert.ok(section.description[lang].length <= 1000, `section "${section.key}" (${lang})`);
+    }
+  }
+});
 
 test('every manifest action has a registered handler', () => {
   for (const action of manifest.actions ?? []) {
@@ -63,11 +115,10 @@ test('the fuel select offers exactly the fuels of the catalog', () => {
   );
 });
 
-test('every select option is labelled in both languages', () => {
+test('every select option is labelled in every language', () => {
   for (const f of manifest.config_schema) {
     for (const option of f.options ?? []) {
-      assert.ok(option.label?.en, `option "${option.value}" needs an English label`);
-      assert.ok(option.label?.fr, `option "${option.value}" needs a French label`);
+      assert.ok(speaksEveryLanguage(option.label), `option "${option.value}" needs every label`);
     }
   }
 });
@@ -206,7 +257,7 @@ test('widget declarations stay within the bounds the core validates', () => {
         `widget "${widget.key}" ${lang} label must be 3-30 characters`,
       );
     }
-    assert.ok(widget.label.en && widget.label.fr, `widget "${widget.key}" needs both languages`);
+    assert.ok(speaksEveryLanguage(widget.label), `widget "${widget.key}" needs every language`);
     for (const [lang, description] of Object.entries(widget.description ?? {})) {
       assert.ok(description.length <= 100, `widget "${widget.key}" ${lang} description ≤ 100`);
     }
@@ -232,13 +283,9 @@ test('widget settings use the restricted config_schema grammar', () => {
         ALLOWED.includes(setting.type),
         `setting "${setting.key}" has type ${setting.type}`,
       );
-      assert.ok(setting.label?.en, `setting "${setting.key}" needs an English label`);
-      assert.ok(setting.label?.fr, `setting "${setting.key}" needs a French label`);
+      assert.ok(speaksEveryLanguage(setting.label), `setting "${setting.key}" needs every label`);
       for (const option of setting.options ?? []) {
-        assert.ok(
-          option.label?.en && option.label?.fr,
-          `option "${option.value}" needs both labels`,
-        );
+        assert.ok(speaksEveryLanguage(option.label), `option "${option.value}" needs every label`);
       }
       if (setting.source !== undefined) {
         // `houses` came with Gladys 5.2, pinned by the gladys_version test above.
@@ -368,12 +415,12 @@ test('the scene triggers stay within the limits the core validates', () => {
   assert.ok(manifest.scene_triggers.length >= 1 && manifest.scene_triggers.length <= 20);
   for (const trigger of manifest.scene_triggers) {
     assert.match(trigger.key, /^[a-z0-9_]{1,40}$/, `trigger key "${trigger.key}"`);
-    assert.ok(trigger.label?.en && trigger.label?.fr, `"${trigger.key}" needs both labels`);
+    assert.ok(speaksEveryLanguage(trigger.label), `"${trigger.key}" needs every label`);
     assert.ok((trigger.fields ?? []).length <= 10, `"${trigger.key}" has too many filters`);
     assert.ok((trigger.variables ?? []).length <= 20, `"${trigger.key}" has too many variables`);
     for (const field of trigger.fields ?? []) {
       assert.match(field.key, /^[a-z0-9_]+$/);
-      assert.ok(field.label?.en && field.label?.fr, `filter "${field.key}" needs both labels`);
+      assert.ok(speaksEveryLanguage(field.label), `filter "${field.key}" needs every label`);
       // A trigger filter has no boolean (a toggle could never mean "any"), and
       // no secret: a scene's JSON is readable by every Gladys user.
       assert.ok(
@@ -381,13 +428,13 @@ test('the scene triggers stay within the limits the core validates', () => {
         `filter "${field.key}" has a type no scene trigger accepts`,
       );
       for (const option of field.options ?? []) {
-        assert.ok(option.label?.en && option.label?.fr, `option "${option.value}"`);
+        assert.ok(speaksEveryLanguage(option.label), `option "${option.value}"`);
       }
     }
     for (const variable of trigger.variables ?? []) {
       assert.match(variable.key, /^[a-z0-9_]+$/);
       assert.ok(['string', 'number', 'boolean'].includes(variable.type), 'scalars only');
-      assert.ok(variable.label?.en && variable.label?.fr, `variable "${variable.key}"`);
+      assert.ok(speaksEveryLanguage(variable.label), `variable "${variable.key}"`);
     }
   }
 });
@@ -460,7 +507,7 @@ test('the scene actions stay within the limits the core validates', () => {
   assert.ok(manifest.scene_actions.length >= 1 && manifest.scene_actions.length <= 20);
   for (const action of manifest.scene_actions) {
     assert.match(action.key, /^[a-z0-9_]{1,40}$/, `action key "${action.key}"`);
-    assert.ok(action.label?.en && action.label?.fr, `"${action.key}" needs both labels`);
+    assert.ok(speaksEveryLanguage(action.label), `"${action.key}" needs every label`);
     // The ack delay a scene grants the container: 5-120s, and ours read a
     // national open data API before answering.
     assert.ok(
@@ -473,7 +520,7 @@ test('the scene actions stay within the limits the core validates', () => {
     assert.ok((action.outputs ?? []).length <= 20, `"${action.key}" has too many outputs`);
     for (const field of action.fields ?? []) {
       assert.match(field.key, /^[a-z0-9_]+$/);
-      assert.ok(field.label?.en && field.label?.fr, `field "${field.key}" needs both labels`);
+      assert.ok(speaksEveryLanguage(field.label), `field "${field.key}" needs every label`);
       // An action parameter accepts `boolean` (a trigger filter does not), but
       // never a secret: a scene's JSON is readable by every Gladys user.
       assert.ok(
@@ -486,13 +533,13 @@ test('the scene actions stay within the limits the core validates', () => {
         assert.notEqual(field.default, undefined, `required field "${field.key}" needs a default`);
       }
       for (const option of field.options ?? []) {
-        assert.ok(option.label?.en && option.label?.fr, `option "${option.value}"`);
+        assert.ok(speaksEveryLanguage(option.label), `option "${option.value}"`);
       }
     }
     for (const output of action.outputs ?? []) {
       assert.match(output.key, /^[a-z0-9_]+$/);
       assert.ok(['string', 'number', 'boolean'].includes(output.type), 'scalars only');
-      assert.ok(output.label?.en && output.label?.fr, `output "${output.key}"`);
+      assert.ok(speaksEveryLanguage(output.label), `output "${output.key}"`);
     }
   }
 });

@@ -1,0 +1,427 @@
+# Precios de los carburantes
+
+Siga el precio del carburante que usa en las gasolineras cercanas, directamente
+en Gladys: un dispositivo por gasolinera, un historial de precios y escenas que
+pueden avisarle cuando merece la pena repostar.
+
+Los datos proceden de **datos abiertos oficiales**. Sin cuenta, sin clave de
+API, sin suscripción.
+
+| País    | Fuente                                                                                              |
+| ------- | --------------------------------------------------------------------------------------------------- |
+| Francia | [prix-carburants.gouv.fr](https://www.prix-carburants.gouv.fr/rubrique/opendata/) (licencia Etalab) |
+
+Se podrán añadir más países en próximas versiones: la integración está
+construida en torno a un «proveedor» por país.
+
+## Lo que obtiene
+
+Para **cada gasolinera que añade**, un dispositivo con dos características de
+solo lectura:
+
+- **Price** — el precio por litro del carburante elegido, en euros. Se conserva
+  el historial, así que Gladys traza la evolución del precio.
+- **Last price update** — cuándo declaró la gasolinera ese precio, mostrado
+  como `06/08/2026 à 07:12` en la hora local de la gasolinera. El flujo
+  nacional se actualiza cada 10 minutos aproximadamente, pero una gasolinera no
+  cambia sus precios todos los días: esta fecha le indica la antigüedad real del
+  precio de arriba. Se lee por gasolinera **y** por carburante, así que el
+  gasóleo y el SP98 de una misma gasolinera tienen cada uno su propia fecha.
+
+La dirección, la marca y las coordenadas GPS de la gasolinera se guardan en los
+parámetros del dispositivo. La distancia no: cuando se mide desde su vivienda,
+guardarla junto a la gasolinera delataría dónde vive. Se muestra en las
+tarjetas del panel. (En un dispositivo creado por una versión anterior, la
+distancia que se le dio se borra: el parámetro `distance_km` sigue existiendo,
+vacío.)
+
+### El dispositivo «Prix carburants - Mise à jour des données»
+
+Además de las gasolineras, la pestaña **«Descubrir»** ofrece **un único
+dispositivo, compartido por toda la integración**, con una característica:
+
+- **Dernière lecture des données** — la fecha y la hora, como
+  `08/08/2026 à 21:00`, de la última lectura **correcta** del flujo de datos
+  abiertos por parte de la integración. El dispositivo y su característica
+  tienen nombre en francés, como la fuente de datos de la que informan. La hora
+  sigue el reloj francés (Europe/Paris), sea cual sea el reloj del contenedor;
+  una instalación en otro lugar puede definir la variable de entorno `TZ` del
+  contenedor con su propia zona (`America/Martinique`).
+
+No es la misma información que el «Last price update» de una gasolinera: aquel
+le indica cuándo cambió la gasolinera sus precios (hace una semana es
+perfectamente normal), este le indica si la integración todavía llega a la API
+nacional. Una fecha que empieza a envejecer mientras su intervalo de
+actualización es de una hora significa que la fuente de datos ha dejado de
+responder.
+
+El dispositivo es opcional: si no lo añade, la integración funciona
+exactamente igual. Una vez añadido, se actualiza al final de cada pasada de
+actualización y permanece vacío hasta que una primera lectura haya tenido
+éxito.
+
+Un dispositivo recibe el nombre de la marca de la gasolinera y de su localidad,
+por ejemplo `Total Access - Oullins-Pierre-Bénite - SP98`. El flujo nacional de
+precios no publica esa marca, así que se lee de un conjunto de datos de
+referencia del mismo sistema de información; una gasolinera que ese conjunto de
+referencia no conoce recibe un nombre construido a partir de su calle.
+
+Cuando dos gasolineras de la misma marca están en la misma localidad, se añade
+su calle al nombre para poder distinguirlas: `TotalEnergies - 33 Av. Médéric -
+Noisy-le-Grand - Diesel`. En el raro caso de que incluso la calle sea la misma
+(los dos lados de un área de servicio de autopista), se añade el identificador
+nacional de la gasolinera. Los dispositivos ya creados conservan el nombre que
+recibieron: cámbieles el nombre en **«Dispositivos»**, o elimínelos y vuelva a
+añadirlos desde la pestaña **«Descubrir»** para obtener el nombre detallado (su
+historial de precios se pierde en el proceso).
+
+## Configuración
+
+1. Abra la pestaña **«Configuración»** de la integración.
+2. Elija su **país** (Francia, por ahora).
+3. Introduzca su **código postal** (5 cifras en Francia, por ejemplo `35000`).
+   Las gasolineras se buscan a su alrededor.
+4. Defina el **radio de búsqueda**: `0` conserva solo las gasolineras del
+   propio código postal, `10` km amplía la búsqueda a las localidades vecinas.
+   Un código postal sin gasolinera propia no es un problema: la búsqueda se
+   centra de todos modos en su localidad, así que aparecen los surtidores de la
+   siguiente.
+5. Marque el o los **tipos de carburante** que le interesan: Gasóleo, SP95,
+   SP98, E10, E85, GLP.
+6. Guarde.
+
+El botón **«Ver las gasolineras cercanas»** muestra al instante lo que devuelve
+la búsqueda, con los precios actuales: práctico para ajustar el código postal o
+el radio antes de añadir nada.
+
+## Añadir gasolineras
+
+Abra la pestaña **«Descubrir»**: allí aparecen las gasolineras encontradas, una
+entrada por gasolinera **y** por carburante seleccionado («TotalEnergies -
+Rennes - Diesel», «TotalEnergies - Rennes - SP98»…). Pulse **«Añadir a
+Gladys»** en las que quiera seguir. Añada una, varias o todas.
+
+Solo se ofrecen las combinaciones que existen de verdad: una gasolinera que no
+vende GLP nunca aparece en la lista de GLP.
+
+Una vez añadida, la gasolinera publica su precio inmediatamente y después en
+cada actualización (una vez por hora por defecto). El ritmo es el **intervalo
+de actualización** de la pestaña «Configuración»: la integración tiene su
+propio temporizador, así que el dispositivo no muestra ninguna opción de
+sondeo en el lado de Gladys. El botón **«Actualizar los precios ahora»** fuerza
+una lectura sin esperar.
+
+## Eliminar gasolineras
+
+En la pestaña **«Dispositivos»** de la integración, pulse **«Eliminar»**
+en el dispositivo. La integración deja de consultarlo inmediatamente. La
+gasolinera sigue visible en la pestaña **«Descubrir»** mientras coincida con su
+búsqueda, así que puede volver a añadirla más tarde.
+
+Eliminar un carburante de una gasolinera no afecta a los demás: «Rennes -
+Diesel» y «Rennes - SP98» son dos dispositivos independientes.
+
+## Cambiar el carburante más adelante
+
+Un dispositivo de Gladys conserva las características con las que se creó. El
+carburante forma parte, por tanto, de la identidad del dispositivo: marcar un
+carburante más en la configuración hace aparecer entradas **nuevas** en la
+pestaña «Descubrir», y sus dispositivos existentes siguen funcionando sin
+cambios. Elimine los que ya no necesite.
+
+## Los widgets del panel
+
+Además de los dispositivos, la integración ofrece **dos tarjetas** que puede
+colocar en un panel (**«Editar»**, luego **«Nuevo widget»**, y elija la tarjeta en la lista,
+bajo «Prix carburants»).
+
+### «Lo más barato cerca»
+
+La tarjeta responde a tres preguntas a la vez: dónde repostar, si hoy es un
+buen día y cuánto va a costar.
+
+- **Encabezado**: el carburante y la zona — `Gasóleo · a 10 km de mi casa` (o
+  `de 35000` cuando Gladys no sabe dónde está la vivienda). Cuando Gladys
+  contiene varias viviendas, el encabezado nombra la que se usa
+  (`Gasóleo · a 10 km de Casa de playa`).
+- **Tres mosaicos**: el precio más barato, la media de las gasolineras
+  encontradas y la **tendencia de 7 días** en céntimos (verde cuando baja, rojo
+  cuando sube). El mosaico está ahí desde el primer día y muestra `—` hasta que
+  exista una semana real de historial.
+- **La hora de lectura**: `Precios leídos el 19/09/2026 à 10:30`, porque un
+  precio solo vale lo que el momento en que se leyó.
+- **La curva de 30 días** del precio más barato de la zona.
+- **La clasificación** de las gasolineras con su precio **y el día en que la
+  gasolinera lo declaró** (`hoy`, `ayer`, `06/08`) — no confundir con la hora
+  de lectura de arriba: puede que una gasolinera no haya cambiado sus precios
+  en una semana. La fila se mantiene corta para que siga siendo legible en un
+  móvil: la fecha se reduce al día, la unidad `€/L` que ya muestran los
+  mosaicos de arriba no se repite en cada fila, y un nombre de gasolinera largo
+  se acorta en torno a lo que la distingue de las demás — la localidad se
+  conserva entera y la marca se acorta a su raíz (`Total Access - Lyon 7e`),
+  nunca por debajo del nombre de la propia cadena (`Carrefour`, no `Carre.`).
+  En cuanto varias gasolineras de la clasificación están en la MISMA localidad,
+  esa localidad deja de distinguirlas por sí sola, así que cada una de esas
+  filas muestra su calle: «Lyon» escrito tres veces dice dónde está la zona, no
+  dónde está el surtidor. La localidad se queda detrás de la calle siempre que
+  la fila pueda contener ambas, y la calle se acorta entonces a su nombre —
+  `Total - Garnier, Lyon`, `Total - Gerland, Lyon` —, ya que `Av.` y `Rue de`
+  los lleva también cualquier otra calle. Cuando ni siquiera eso cabe, o cuando
+  acortar dos calles haría que dos filas se leyeran igual, la localidad
+  desaparece y la calle se muestra tan entera como la fila lo permita
+  (`Total - Av. Tony Garnier`, `Carrefour - Peupliers`). Dos gasolineras de la
+  misma calle conservan su número (`Carrefour - 12 Ailes`,
+  `Carrefour - 85 Ailes`), y dos gasolineras declaradas exactamente en la misma
+  dirección terminan con las últimas cifras de su código de gasolinera
+  (`Carrefour - Ailes ·001`, `Carrefour - Ailes ·002`). El nombre completo, la
+  dirección completa y la fecha completa siguen en la página del dispositivo y
+  en la tarjeta «Mi gasolinera».
+- Un botón hacia el **mapa oficial** (prix-carburants.gouv.fr).
+
+La lista de gasolineras a su alrededor se vuelve a buscar como mucho cada cinco
+minutos, sea cual sea el número de paneles que muestran la tarjeta; los precios
+de las gasolineras que ha añadido son los de la última actualización, y el
+botón **«Actualizar los precios ahora»** inicia una nueva búsqueda.
+
+Cuatro ajustes: el carburante, cuántas gasolineras se muestran (3, 5 u 8), el
+ámbito — **cerca de la vivienda o del código postal** (como la pestaña
+«Descubrir», según lo que indique el ajuste «Medir las distancias desde»; no la
+posición del móvil) o **solo mis gasolineras** (las que ha añadido) — y la
+**longitud de los nombres**, de 24 caracteres (el valor por defecto, lo que
+cabe en un móvil junto al precio y su fecha) hasta 40. Gladys no le dice a la
+integración lo ancha que es la pantalla, así que elija el valor más ancho que
+muestren sus pantallas sin cortar la fecha: con 40,
+`Carrefour - Rue des Peupliers, Cusset` se escribe entero.
+
+#### De dónde sale la curva
+
+El flujo de datos abiertos publica los precios del momento, no los de ayer:
+nadie guarda «el precio más barato de su zona». Así que la integración lo
+registra ella misma, **como mucho una vez por hora**, y conserva 30 días en
+`/data`.
+
+- La curva se muestra **desde el primer día** y se completa sola después.
+  Siempre termina en el precio recién leído, así que **el eje nunca va más allá
+  de hoy**; crece hacia la izquierda hasta cubrir treinta días al cabo de un
+  mes.
+- El registro continúa **mientras nadie mira** el panel: el bucle de
+  actualización toma el relevo desde el momento en que la tarjeta existe en
+  algún sitio (una instalación sin widget no paga nada).
+- La **tendencia de 7 días** sí espera a tener una semana real de historial:
+  mostrar «0 ct» el primer día sería mentir.
+- Cambiar el código postal, el radio o la vivienda (campo «Qué vivienda»)
+  **inicia una curva nueva**, ya que deja de ser la misma zona.
+- Si `/data` no se puede escribir, todo sigue funcionando: solo la curva vuelve
+  a empezar tras un reinicio. Los registros de la integración lo indican una
+  vez, como advertencia («Price history cannot be written»).
+
+### «Mi gasolinera»
+
+El detalle de **una** gasolinera que sigue, elegida en los ajustes de la
+tarjeta:
+
+- un mosaico de precio para **sus carburantes** (los marcados en la
+  configuración, cuatro como máximo, el del dispositivo primero). El ajuste
+  **«Carburantes mostrados»** también puede conservar solo el carburante del
+  dispositivo, o mostrar todos los carburantes de la gasolinera;
+- el carburante de la gasolinera elegida aparece **siempre** primero, incluso
+  un día en que el flujo no publica ningún precio para él: el mosaico conserva
+  entonces el último precio que tiene Gladys, en naranja, y una fila explica
+  por qué («Agotado», «Hoy no se ha publicado ningún precio»);
+- un carburante suyo que la gasolinera vende pero que se ha **agotado** también
+  conserva su mosaico, en naranja con el último precio que tiene Gladys si ha
+  añadido su dispositivo, y una fila indica desde cuándo. Solo un carburante que
+  la gasolinera no vende se queda sin mosaico;
+- la marca (solo cuando el nombre de la gasolinera no la indica ya), la
+  dirección, la distancia y la fecha de la última actualización del precio;
+- un botón **«Cómo llegar»** y un botón **«Actualizar»**.
+
+El ajuste **«Detalles»** en **«Compacto»** conserva solo los precios y la fecha
+de la última actualización: sin marca, sin dirección, sin distancia, sin botón
+«Cómo llegar».
+
+Los precios se muestran con los **tres decimales** del surtidor (`1,699 €/L`).
+Los mosaicos estaban antes vinculados al dispositivo de Gladys para los
+carburantes que sigue, lo que los actualizaba en directo pero mostraba `1,7`:
+Gladys redondea un valor de dispositivo mostrado en un mosaico. El precio exacto
+vale más — la tarjeta sigue el bucle de actualización, así que de todos modos se
+actualiza en pocos segundos.
+
+#### Desde dónde se miden las distancias
+
+Desde su **vivienda de Gladys** por defecto. La integración pide a Gladys sus
+coordenadas (`Configuración → Viviendas`, campo de dirección): la casilla
+correspondiente se muestra en la instalación como una autorización, las
+coordenadas solo sirven para centrar la búsqueda y calcular las distancias, y no
+se muestran en ningún sitio.
+
+- Vivienda localizada → `2,3 km de casa` (o `2,3 km de Casa de playa` cuando
+  Gladys contiene varias viviendas), y la búsqueda se centra en ella.
+- Vivienda no localizada, o el ajuste **«Medir las distancias desde: El código
+  postal»** → `2,3 km de 35000`, medidos desde el centro de la zona del código
+  postal.
+
+**Si Gladys contiene varias viviendas**, elija la que quiera en la lista **«Qué
+vivienda»** de la configuración. Si se deja vacía, se usa la primera vivienda
+localizada — no necesariamente aquella en la que está usted: las dos tarjetas
+muestran su nombre para que pueda comprobarlo, y **«Ver las gasolineras
+cercanas»** nombra la vivienda en uso. Un nombre de vivienda escrito en este
+campo antes de la versión 2.4 sigue funcionando hasta que elija una en la
+lista.
+
+Cada tarjeta **«Lo más barato cerca»** también puede nombrar **su propia
+vivienda** (ajuste **«Vivienda»** de la tarjeta): una tarjeta por vivienda, cada
+una clasifica las gasolineras alrededor de su vivienda, mientras la
+configuración conserva la suya. La vivienda necesita coordenadas en Gladys
+(Configuración → Viviendas).
+
+La tarjeta **«Mi gasolinera»** es la excepción: mide desde la vivienda **más
+cercana a la gasolinera** y la nombra, así que una gasolinera cerca de su
+segunda residencia muestra su distancia desde esa vivienda.
+
+El código postal sigue siendo obligatorio en cualquier caso: es lo que consulta
+el conjunto de datos nacional.
+
+> La integración necesita **Gladys 5.2 o posterior**: los widgets y las escenas
+> llegaron con la 5.1, las listas de viviendas con la 5.2. En un Gladys más
+> antiguo simplemente no aparece en la tienda. Gladys 5.2 también dispone los
+> mosaicos de precio en una cuadrícula equilibrada: tres precios se quedan uno
+> al lado de otro incluso en una tarjeta estrecha, en lugar de dos mosaicos de
+> media anchura y uno de anchura completa debajo.
+
+## Ideas de escenas
+
+- Recibir una notificación cuando el precio del gasóleo de su gasolinera baje
+  de un umbral.
+- Comparar dos gasolineras en el panel antes de salir a repostar.
+- Seguir el precio medio mensual gracias al historial.
+
+## Disparadores de escena
+
+La integración añade tres disparadores a la categoría **«Integraciones»** del
+editor de escenas (Gladys 5.1 o posterior). Aparecen solos: no hay nada que
+configurar en el lado de la integración.
+
+| Disparador                                                  | Se activa cuando                                                                                         |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Ha cambiado un precio de carburante**                     | una gasolinera que sigue ha declarado un precio nuevo (filtros: gasolinera, carburante, subida o bajada) |
+| **Ha cambiado la gasolinera más barata**                    | otra de sus gasolineras es ahora la más barata para un carburante (tiene que seguir al menos dos)        |
+| **El flujo de datos abiertos está accesible / inaccesible** | todas las gasolineras de una actualización han fallado, o el flujo vuelve a responder                    |
+
+Cada disparador transmite información a sus acciones: el nombre de la
+gasolinera, la localidad, el carburante, el precio nuevo, el precio anterior y
+la diferencia. Una notificación dice entonces algo como «El gasóleo cuesta ahora
+1,659 EUR en Station du Centre (-0,040)».
+
+Un filtro vacío significa «cualquiera»: sin gasolinera elegida, el disparador
+reacciona a todas las gasolineras que sigue.
+
+Dos cosas que conviene saber:
+
+- **un precio que no se ha movido no dispara nada**, aunque la integración
+  actualice cada hora: solo se envía un cambio real;
+- tras un reinicio del contenedor, la primera actualización sirve de referencia
+  y no dispara nada.
+
+Para un umbral simple («avísame por debajo de 1,70»), no use estos
+disparadores: el disparador de Gladys **«Cambio de estado del dispositivo»**
+sobre la característica de precio de la gasolinera ya hace exactamente eso.
+
+## Acciones de escena
+
+En la misma categoría **«Integraciones»**, la integración añade tres acciones
+que una escena puede ejecutar.
+
+| Acción                                        | Qué hace                                                                        |
+| --------------------------------------------- | ------------------------------------------------------------------------------- |
+| **Actualizar los precios de los carburantes** | lee el flujo ahora, para que el resto de la escena trabaje con un precio fresco |
+| **Buscar la gasolinera más barata**           | compara sus gasolineras para un carburante y devuelve la más barata             |
+| **Preparar un resumen de precios**            | la misma comparación en una línea de texto, lista para enviar                   |
+
+Lo que devuelve una acción se puede reutilizar en los pasos siguientes de la
+escena (precio, nombre de la gasolinera, localidad, dirección, distancia, fecha
+del precio…).
+
+Una escena de ejemplo, cada mañana a las 7:
+
+1. **Buscar la gasolinera más barata** (carburante: Gasóleo, leer los precios
+   antes de comparar: sí);
+2. **«Condición sobre variables»**: continuar solo si el resultado `found` es
+   verdadero;
+3. **«Enviar mensaje»**: «Repostaje más barato: {{ station name }} a
+   {{ price }}».
+
+O, en un solo paso: **Preparar un resumen de precios** y después enviar el
+texto que devuelve.
+
+Conviene saber: «Buscar la gasolinera más barata» nunca hace fallar la escena
+cuando no sigue ninguna gasolinera para ese carburante — responde
+`found = false`, y le corresponde a usted comprobar ese resultado.
+
+## Solución de problemas
+
+**Ninguna gasolinera en la pestaña «Descubrir».** Compruebe el código postal (5
+cifras en Francia) y aumente el radio de búsqueda. El botón **«Ver las
+gasolineras cercanas»** muestra el mensaje de error exacto.
+
+**Una actualización falló una vez y funcionó en el siguiente intento.** Cada
+petición a las API de datos abiertos se repite una vez, un segundo después,
+cuando el servidor responde «demasiadas peticiones» o un error de servidor, o
+no responde en absoluto. Solo un fallo que persiste llega a los registros y a
+los botones.
+
+**El precio ha dejado de actualizarse.** Una gasolinera puede desaparecer
+temporalmente del flujo nacional (obras, cierre). El último precio conocido
+sigue mostrándose; los registros de la integración listan las gasolineras que
+faltan.
+
+**Un precio vacío.** La gasolinera no está declarando ese carburante en este
+momento. La integración conserva el último valor conocido en lugar de dejar un
+hueco en el gráfico.
+
+**Una gasolinera sin existencias.** Cuando la gasolinera declara una ruptura
+temporal, sí vende ese carburante, simplemente no le queda. El dispositivo
+sigue ofreciéndose en la pestaña «Descubrir», el último precio conocido sigue
+mostrándose y la característica «Last price update» indica «En rupture depuis
+le 18/09/2026 à 08:09» hasta que el carburante vuelve. El botón **«Ver las
+gasolineras cercanas»** escribe entonces «SP98: agotado», y reserva «SP98: no se
+vende» para un carburante que la gasolinera realmente no vende (sin surtidor, o
+una ruptura definitiva).
+
+A veces el flujo no dice nada en absoluto sobre un carburante — la gasolinera
+ha levantado su ruptura pero todavía no ha vuelto a introducir su precio. La
+integración mira entonces los últimos 30 días del historial de precios: un
+carburante al que la gasolinera puso precio en ese periodo se muestra como
+«agotado» (la característica «Last price update» indica simplemente «En
+rupture»), no como «no se vende».
+
+**Falta el SP95 de una gasolinera mientras que su SP98 sí está.** Esa
+gasolinera no vende SP95, y no es un error: muchas marcas (TotalEnergies en
+particular) lo han sustituido por el **E10 (SP95-E10)**. Marque E10 en la
+configuración y la gasolinera vuelve a aparecer en la pestaña «Descubrir». El
+botón **«Ver las gasolineras cercanas»** lo indica gasolinera por gasolinera:
+«SP95: no se vende».
+
+**Número limitado de gasolineras.** El ajuste **«Número máximo de
+gasolineras»** limita la lista de detección (20 por defecto, 50 como máximo).
+En una ciudad densa, redúzcalo y disminuya el radio.
+
+**Falta una gasolinera concreta.** La lista conserva las gasolineras MÁS
+CERCANAS, hasta ese máximo: en una ciudad caben veinte en un par de kilómetros,
+así que una gasolinera a 5 km se queda fuera incluso con un radio de 10 km.
+Aumente **«Número máximo de gasolineras»** en lugar del radio. Una gasolinera
+que no vende el carburante marcado tampoco se ofrece, ya que el dispositivo no
+tendría nada que publicar — una gasolinera simplemente sin existencias sí se
+sigue ofreciendo.
+
+## Datos y licencia
+
+Los datos franceses los publica el Ministerio de Economía bajo la
+[licencia abierta Etalab](https://www.etalab.gouv.fr/licence-ouverte-open-licence).
+La integración consulta el
+[conjunto de datos «flux instantané»](https://data.economie.gouv.fr/explore/dataset/prix-des-carburants-en-france-flux-instantane-v2/)
+y solo obtiene las gasolineras alrededor de su código postal. Cuando ese
+conjunto de datos no conoce ninguna gasolinera en su código postal, la posición
+de su localidad se lee de la [Base Adresse Nationale](https://adresse.data.gouv.fr/),
+el servicio oficial francés de direcciones — el código postal es lo único que
+se le envía.

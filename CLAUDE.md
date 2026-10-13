@@ -372,10 +372,13 @@ and a scripted 5xx is consumed twice.
 fuel selects must list exactly what the code implements, and numeric bounds must match the
 clamps in `normalizeConfig`. Change both sides together.
 
-Action handlers return a `{ en, fr }` object displayed under the button (a thrown error is
-displayed too), so every user-facing string in `src/actions.js` is bilingual. User docs live
-in `docs/en.md` and `docs/fr.md` and are re-hosted by Gladys — keep them in sync with
-behaviour changes.
+Action handlers return a `{ en, fr, de, es }` object displayed under the button (a thrown
+error is displayed too): user-facing text is `{ en, fr, de, es }` everywhere — manifest,
+action messages, connection status, widget texts — and `src/i18n.js` holds that list
+(`LANGUAGES`, `inEveryLanguage`); `test/manifest.test.js` fails on a text missing one. Device
+names, text states and scene outputs stay French, like the data source. User docs live in
+`docs/en.md`, `docs/fr.md`, `docs/de.md` and `docs/es.md`, re-hosted by Gladys — keep the four
+in sync with behaviour changes.
 
 ### Runtime constraints
 

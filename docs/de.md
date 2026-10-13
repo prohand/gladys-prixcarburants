@@ -1,0 +1,428 @@
+# Kraftstoffpreise
+
+Verfolge den Preis deines Kraftstoffs an den Tankstellen in deiner Nähe,
+direkt in Gladys: ein Gerät pro Tankstelle, ein Preisverlauf und Szenen, die
+dich benachrichtigen können, wenn sich das Tanken lohnt.
+
+Die Daten stammen aus **offiziellen Open Data**. Kein Konto, kein
+API-Schlüssel, kein Abonnement.
+
+| Land       | Quelle                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------- |
+| Frankreich | [prix-carburants.gouv.fr](https://www.prix-carburants.gouv.fr/rubrique/opendata/) (Etalab-Lizenz) |
+
+Weitere Länder können in künftigen Versionen hinzukommen: Die Integration ist
+um einen „Provider“ pro Land herum aufgebaut.
+
+## Was du erhältst
+
+Für **jede Tankstelle, die du hinzufügst**, ein Gerät mit zwei schreibgeschützten
+Funktionen:
+
+- **Price** — der Preis pro Liter des gewählten Kraftstoffs, in Euro. Der
+  Verlauf wird gespeichert, sodass Gladys den Preis über die Zeit als Diagramm
+  darstellt.
+- **Last price update** — wann die Tankstelle diesen Preis gemeldet hat,
+  angezeigt als `06/08/2026 à 07:12` in der Ortszeit der Tankstelle. Der
+  nationale Feed wird etwa alle 10 Minuten aktualisiert, aber eine Tankstelle
+  ändert ihre Preise nicht jeden Tag: Dieses Datum sagt dir, wie alt der Preis
+  darüber wirklich ist. Es wird pro Tankstelle **und** pro Kraftstoff gelesen,
+  sodass Diesel und SP98 derselben Tankstelle jeweils ihr eigenes Datum haben.
+
+Adresse, Marke und GPS-Koordinaten der Tankstelle werden in den
+Geräteparametern gespeichert. Die Entfernung nicht: Wenn sie ab deinem Zuhause
+gemessen wird, würde sie neben der Tankstelle gespeichert dein Zuhause verraten.
+Sie wird stattdessen auf den Dashboard-Karten angezeigt. (Bei einem Gerät, das
+von einer früheren Version erstellt wurde, wird die ihm gegebene Entfernung
+gelöscht: Der Parameter `distance_km` bleibt bestehen, aber leer.)
+
+### Das Gerät „Prix carburants - Mise à jour des données“
+
+Neben den Tankstellen bietet der Tab **„Entdecken“** **ein einziges Gerät für
+die gesamte Integration** an, mit einer Funktion:
+
+- **Dernière lecture des données** — Datum und Uhrzeit, als
+  `08/08/2026 à 21:00`, der letzten **erfolgreichen** Abfrage des
+  Open-Data-Feeds durch die Integration. Das Gerät und seine Funktion haben
+  französische Namen, wie die Datenquelle, über die sie berichten. Die Uhrzeit
+  folgt der französischen Uhr (Europe/Paris), unabhängig von der Uhr des
+  Containers; eine Installation anderswo kann die Umgebungsvariable `TZ` des
+  Containers auf ihre eigene Zone setzen (`America/Martinique`).
+
+Das ist nicht dieselbe Information wie das „Last price update“ einer
+Tankstelle: Jenes sagt dir, wann die Tankstelle ihre Preise geändert hat (vor
+einer Woche ist völlig normal), dieses sagt dir, ob die Integration die
+nationale API noch erreicht. Ein Datum, das zu altern beginnt, während dein
+Aktualisierungsintervall eine Stunde beträgt, bedeutet, dass die Datenquelle
+nicht mehr antwortet.
+
+Das Gerät ist optional: Lass es weg, und die Integration verhält sich
+genau gleich. Hinzugefügt wird es am Ende jedes Aktualisierungsdurchlaufs
+aktualisiert und bleibt leer, bis eine erste Abfrage erfolgreich war.
+
+Ein Gerät wird nach der Marke der Tankstelle und ihrem Ort benannt, z. B.
+`Total Access - Oullins-Pierre-Bénite - SP98`. Der nationale Preisfeed
+veröffentlicht diese Marke nicht, daher wird sie aus einem Referenzdatensatz
+desselben Informationssystems gelesen; eine Tankstelle, die dieser
+Referenzdatensatz nicht kennt, erhält einen aus ihrer Straße gebildeten Namen.
+
+Wenn zwei Tankstellen derselben Marke im selben Ort liegen, wird ihre Straße zum
+Namen hinzugefügt, damit du sie unterscheiden kannst: `TotalEnergies - 33 Av.
+Médéric - Noisy-le-Grand - Diesel`. Im seltenen Fall, dass sogar die Straße
+dieselbe ist (beide Seiten einer Autobahnraststätte), wird die nationale ID der
+Tankstelle angehängt. Bereits erstellte Geräte behalten den Namen, den sie
+erhalten haben: Benenne sie unter **„Geräte“** um, oder lösche sie und
+füge sie über den Tab **„Entdecken“** erneut hinzu, um den detaillierten
+Namen zu erhalten (ihr Preisverlauf geht dabei verloren).
+
+## Konfiguration
+
+1. Öffne den Tab **„Konfiguration“** der Integration.
+2. Wähle dein **Land** (vorerst Frankreich).
+3. Gib deine **Postleitzahl** ein (in Frankreich 5 Ziffern, z. B.
+   `35000`). Die Tankstellen werden rund um sie gesucht.
+4. Lege den **Suchradius** fest: `0` behält nur die Tankstellen der
+   Postleitzahl selbst, `10` km erweitert die Suche auf die Nachbarorte. Eine
+   Postleitzahl ohne eigene Tankstelle ist kein Problem: Die Suche ist ohnehin
+   auf deinen Ort zentriert, sodass die Zapfsäulen des nächsten Ortes erscheinen.
+5. Wähle die **Kraftstoffart(en)**, die dich interessieren: Diesel, SP95,
+   SP98, E10, E85, Autogas (LPG).
+6. Speichere.
+
+Die Schaltfläche **„Tankstellen in der Nähe anzeigen“** zeigt sofort, was die
+Suche liefert, mit den aktuellen Preisen — praktisch, um Postleitzahl oder
+Radius anzupassen, bevor du etwas hinzufügst.
+
+## Tankstellen hinzufügen
+
+Öffne den Tab **„Entdecken“**: Die gefundenen Tankstellen erscheinen dort,
+ein Eintrag pro Tankstelle **und** pro gewähltem Kraftstoff („TotalEnergies -
+Rennes - Diesel“, „TotalEnergies - Rennes - SP98“…). Klicke bei denen, die
+du verfolgen möchtest, auf **„Zu Gladys hinzufügen“**. Füge eine, mehrere
+oder alle hinzu.
+
+Es werden nur Kombinationen angeboten, die es wirklich gibt: Eine Tankstelle,
+die kein Autogas verkauft, erscheint nie in der Autogas-Liste.
+
+Nach dem Hinzufügen veröffentlicht die Tankstelle sofort ihren Preis, dann bei
+jeder Aktualisierung (standardmäßig einmal pro Stunde). Der Takt ist das
+**Aktualisierungsintervall** im Tab „Konfiguration“: Die Integration betreibt
+ihren eigenen Timer, daher zeigt das Gerät auf Gladys-Seite keine
+Abfrageoption. Die Schaltfläche **„Preise jetzt aktualisieren“** erzwingt eine
+Abfrage, ohne zu warten.
+
+## Tankstellen entfernen
+
+Klicke im Tab **„Geräte“** der Integration beim Gerät auf **„Löschen“**.
+Die Integration fragt es sofort nicht mehr ab. Die Tankstelle bleibt im Tab
+**„Entdecken“** sichtbar, solange sie zu deiner Suche passt, sodass du sie
+später wieder hinzufügen kannst.
+
+Das Entfernen eines Kraftstoffs einer Tankstelle beeinflusst die anderen nicht:
+„Rennes - Diesel“ und „Rennes - SP98“ sind zwei unabhängige Geräte.
+
+## Den Kraftstoff später ändern
+
+Ein Gladys-Gerät behält die Funktionen, mit denen es erstellt wurde. Der
+Kraftstoff ist daher Teil der Geräteidentität: Wenn du in der Konfiguration
+einen zusätzlichen Kraftstoff wählst, erscheinen **neue** Einträge im Tab
+„Entdecken“, und deine bestehenden Geräte funktionieren unverändert weiter.
+Lösche diejenigen, die du nicht mehr brauchst.
+
+## Die Dashboard-Widgets
+
+Über die Geräte hinaus stellt die Integration **zwei Karten** bereit, die du
+auf einem Dashboard ablegen kannst (**„Bearbeiten“**, dann **„Neues Widget“**
+und die Karte in der Liste unter „Prix carburants“ auswählen).
+
+### „Am günstigsten in der Nähe“
+
+Die Karte beantwortet drei Fragen auf einmal: wo tanken, ist heute ein guter
+Tag und wie viel wird es kosten.
+
+- **Überschrift**: der Kraftstoff und das Gebiet — `Diesel · 10 km um mein
+Zuhause` (oder `um 35000`, wenn Gladys nicht weiß, wo das Zuhause liegt).
+  Wenn Gladys mehrere Zuhause enthält, nennt die Überschrift das verwendete
+  (`Diesel · 10 km um Strandhaus`).
+- **Drei Kacheln**: der günstigste Preis, der Durchschnitt der gefundenen
+  Tankstellen und der **7-Tage-Trend** in Cent (grün, wenn er sinkt, rot, wenn
+  er steigt). Die Kachel ist vom ersten Tag an da und zeigt `—`, bis eine echte
+  Woche Verlauf existiert.
+- **Der Abfragezeitpunkt**: `Preise abgefragt am 19/09/2026 à 10:30`, denn ein
+  Preis ist nur so gut wie der Moment, in dem er gelesen wurde.
+- **Die 30-Tage-Kurve** des günstigsten Preises im Gebiet.
+- **Die Rangliste** der Tankstellen mit ihrem Preis **und dem Tag, an dem die
+  Tankstelle ihn gemeldet hat** (`heute`, `gest.`, `06/08`) — nicht zu
+  verwechseln mit dem Abfragezeitpunkt darüber: Eine Tankstelle hat ihre Preise
+  vielleicht seit einer Woche nicht geändert. Die Zeile wird kurz gehalten,
+  damit sie auf einem Smartphone lesbar bleibt: Das Datum wird auf den Tag
+  reduziert, die Einheit `€/L`, die die Kacheln darüber bereits zeigen, wird
+  nicht in jeder Zeile wiederholt, und ein langer Tankstellenname wird um das
+  herum gekürzt, was sie von den anderen unterscheidet — der Ort bleibt
+  vollständig und die Marke wird auf ihren Stamm gekürzt
+  (`Total Access - Lyon 7e`), nie unter den Namen der Kette selbst
+  (`Carrefour`, nicht `Carre.`). Sobald mehrere Tankstellen der Rangliste im
+  SELBEN Ort liegen, unterscheidet dieser Ort sie nicht mehr allein, also zeigt
+  jede dieser Zeilen ihre Straße: Dreimal „Lyon“ sagt, wo das Gebiet liegt,
+  nicht wo die Zapfsäule steht. Der Ort bleibt hinter der Straße, wann immer die
+  Zeile beides fassen kann, und die Straße wird dann auf ihren Namen gekürzt —
+  `Total - Garnier, Lyon`, `Total - Gerland, Lyon` —, denn `Av.` und `Rue de`
+  trägt jede andere Straße auch. Wenn selbst das nicht passt oder wenn das
+  Kürzen zweier Straßen zwei Zeilen gleich aussehen ließe, entfällt der Ort und
+  die Straße wird so vollständig gezeigt, wie die Zeile es erlaubt
+  (`Total - Av. Tony Garnier`, `Carrefour - Peupliers`). Zwei Tankstellen in
+  derselben Straße behalten ihre Hausnummer (`Carrefour - 12 Ailes`,
+  `Carrefour - 85 Ailes`), und zwei Tankstellen, die unter genau derselben
+  Adresse gemeldet sind, enden auf den letzten Ziffern ihres Tankstellencodes
+  (`Carrefour - Ailes ·001`, `Carrefour - Ailes ·002`). Der vollständige Name,
+  die vollständige Adresse und der vollständige Zeitstempel stehen weiterhin
+  auf der Geräteseite und auf der Karte „Meine Tankstelle“.
+- Eine Schaltfläche zur **offiziellen Karte** (prix-carburants.gouv.fr).
+
+Die Liste der Tankstellen in deiner Nähe wird höchstens alle fünf Minuten neu
+gesucht, unabhängig von der Anzahl der Dashboards, die die Karte zeigen; die
+Preise der hinzugefügten Tankstellen sind die der letzten Aktualisierung, und
+die Schaltfläche **„Preise jetzt aktualisieren“** startet eine neue Suche.
+
+Vier Einstellungen: der Kraftstoff, wie viele Tankstellen angezeigt werden (3,
+5 oder 8), der Bereich — **um das Zuhause oder die Postleitzahl** (wie der Tab
+„Entdecken“, wie es die Einstellung „Entfernungen messen ab“ festlegt; nicht die
+Position des Smartphones) oder **nur meine Tankstellen** (die von dir
+hinzugefügten) — und die **Länge der Namen**, von 24 Zeichen (Standard, was ein
+Smartphone neben Preis und Datum fasst) bis 40. Gladys teilt der Integration
+nicht mit, wie breit der Bildschirm ist, wähle also den breitesten Wert,
+den deine Bildschirme zeigen, ohne das Datum abzuschneiden: Bei 40 wird
+`Carrefour - Rue des Peupliers, Cusset` vollständig geschrieben.
+
+#### Woher die Kurve kommt
+
+Der Open-Data-Feed veröffentlicht die Preise des Augenblicks, nicht die von
+gestern: Niemand speichert „den günstigsten Preis deines Gebiets“. Also erfasst
+die Integration ihn selbst, **höchstens einmal pro Stunde**, und behält 30 Tage
+in `/data`.
+
+- Die Kurve wird **ab dem ersten Tag** angezeigt und füllt sich danach selbst.
+  Sie endet immer auf dem gerade gelesenen Preis, daher **reicht die Achse nie
+  über heute hinaus**; sie wächst nach links, bis sie nach einem Monat dreißig
+  Tage abdeckt.
+- Die Erfassung läuft weiter, **während niemand** auf das Dashboard schaut: Die
+  Aktualisierungsschleife übernimmt, sobald die Karte irgendwo existiert (eine
+  Installation ohne Widget zahlt nichts).
+- Der **7-Tage-Trend** wartet auf eine echte Woche Verlauf: Am ersten Tag
+  „0 ct“ anzuzeigen, wäre eine Lüge.
+- Eine Änderung der Postleitzahl, des Radius oder des Zuhauses (Feld „Welches
+  Zuhause“) **beginnt eine neue Kurve**, da es nicht mehr dasselbe Gebiet ist.
+- Wenn `/data` nicht beschreibbar ist, funktioniert alles weiter: Nur die
+  Kurve beginnt nach einem Neustart von vorn. Die Protokolle der Integration
+  sagen das einmal, als Warnung („Price history cannot be written“).
+
+### „Meine Tankstelle“
+
+Die Details **einer** Tankstelle, die du verfolgst, gewählt in den
+Einstellungen der Karte:
+
+- eine Preiskachel für **deine Kraftstoffe** (die in der Konfiguration
+  gewählten, höchstens vier, der des Geräts zuerst). Die Einstellung
+  **„Angezeigte Kraftstoffe“** kann auch nur den Kraftstoff des Geräts behalten
+  oder jeden Kraftstoff der Tankstelle zeigen;
+- der Kraftstoff der gewählten Tankstelle steht **immer** an erster Stelle,
+  selbst an einem Tag, an dem der Feed keinen Preis dafür veröffentlicht: Die
+  Kachel behält dann den letzten Preis, den Gladys kennt, in Orange, und eine
+  Zeile sagt warum („Ausverkauft“, „Heute kein Preis veröffentlicht“);
+- ein Kraftstoff von dir, den die Tankstelle verkauft, der aber
+  **ausverkauft** ist, behält ebenfalls seine Kachel, in Orange mit dem letzten
+  Preis, den Gladys kennt, wenn du sein Gerät hinzugefügt hast, und eine Zeile
+  sagt, seit wann. Nur ein Kraftstoff, den die Tankstelle nicht verkauft, erhält
+  keine Kachel;
+- die Marke (nur wenn der Tankstellenname sie nicht schon nennt), die Adresse,
+  die Entfernung und das Datum der letzten Preisänderung;
+- eine Schaltfläche **„Route“** und eine Schaltfläche **„Aktualisieren“**.
+
+Die Einstellung **„Details“** auf **„Kompakt“** behält nur die Preise und das
+Datum der letzten Änderung: keine Marke, keine Adresse, keine Entfernung, keine
+Schaltfläche „Route“.
+
+Die Preise werden mit den **drei Nachkommastellen** der Zapfsäule angezeigt
+(`1,699 €/L`). Die Kacheln waren früher für die verfolgten Kraftstoffe an das
+Gladys-Gerät gebunden, was sie live aktualisierte, aber `1,7` anzeigte: Gladys
+rundet einen in einer Kachel angezeigten Gerätewert. Der genaue Preis ist mehr
+wert — die Karte folgt der Aktualisierungsschleife und aktualisiert sich ohnehin
+innerhalb von Sekunden.
+
+#### Wo die Entfernungen beginnen
+
+Standardmäßig ab deinem **Gladys-Zuhause**. Die Integration fragt Gladys nach
+seinen Koordinaten (`Einstellungen → Zuhause`, Adressfeld): Das entsprechende
+Kästchen wird bei der Installation als Berechtigung angezeigt, die Koordinaten
+dienen nur dazu, die Suche zu zentrieren und die Entfernungen zu berechnen, und
+sie werden nirgends angezeigt.
+
+- Zuhause verortet → `2,3 km von zu Hause` (oder `2,3 km von Strandhaus`, wenn
+  Gladys mehrere Zuhause enthält), und die Suche ist darauf zentriert.
+- Zuhause nicht verortet oder die Einstellung **„Entfernungen messen ab: Die
+  Postleitzahl“** → `2,3 km von 35000`, gemessen ab der Mitte des
+  Postleitzahlgebiets.
+
+**Wenn Gladys mehrere Zuhause enthält**, wähle das gewünschte in der Liste
+**„Welches Zuhause“** der Konfiguration. Bleibt sie leer, wird das erste
+verortete Zuhause verwendet — nicht unbedingt das, in dem du dich befindest:
+Beide Karten zeigen seinen Namen, damit du es prüfen kannst, und **„Tankstellen
+in der Nähe anzeigen“** nennt das verwendete Zuhause. Ein vor Version 2.4 in
+dieses Feld eingegebener Name funktioniert weiter, bis du eines in der Liste
+auswählst.
+
+Jede Karte **„Am günstigsten in der Nähe“** kann auch **ihr eigenes Zuhause**
+nennen (Einstellung **„Zuhause“** der Karte): eine Karte pro Zuhause, jede
+sortiert die Tankstellen um ihr Zuhause, während die Konfiguration ihr eigenes
+behält. Das Zuhause braucht Koordinaten in Gladys (Einstellungen → Zuhause).
+
+Die Karte **„Meine Tankstelle“** ist die Ausnahme: Sie misst ab dem Zuhause,
+das **der Tankstelle am nächsten** liegt, und nennt es, sodass eine Tankstelle in
+der Nähe deines Zweitwohnsitzes ihre Entfernung von diesem Zuhause zeigt.
+
+Die Postleitzahl bleibt in jedem Fall erforderlich: Mit ihr wird der nationale
+Datensatz abgefragt.
+
+> Die Integration benötigt **Gladys 5.2 oder neuer**: Die Widgets und die
+> Szenen kamen mit 5.1, die Zuhause-Listen mit 5.2. Auf einem älteren Gladys
+> erscheint sie einfach nicht im Store. Gladys 5.2 ordnet die Preiskacheln
+> außerdem in einem ausgewogenen Raster an: Drei Preise bleiben selbst auf einer
+> schmalen Karte nebeneinander, statt zwei halbbreiter Kacheln und einer
+> vollbreiten darunter.
+
+## Ideen für Szenen
+
+- Eine Benachrichtigung erhalten, wenn der Dieselpreis deiner Tankstelle unter
+  einen Schwellenwert fällt.
+- Zwei Tankstellen auf dem Dashboard vergleichen, bevor du zum Tanken fährst.
+- Dank des Verlaufs den monatlichen Durchschnittspreis verfolgen.
+
+## Szenen-Auslöser
+
+Die Integration fügt der Kategorie **„Integrationen“** des Szenen-Editors drei
+Auslöser hinzu (Gladys 5.1 oder neuer). Sie erscheinen von selbst: Auf Seiten
+der Integration ist nichts zu konfigurieren.
+
+| Auslöser                                                          | Wird ausgelöst, wenn                                                                                                        |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **Ein Kraftstoffpreis hat sich geändert**                         | eine Tankstelle, die du verfolgst, einen neuen Preis gemeldet hat (Filter: Tankstelle, Kraftstoff, gestiegen oder gesunken) |
+| **Die günstigste Tankstelle hat sich geändert**                   | eine andere deiner Tankstellen jetzt die günstigste für einen Kraftstoff ist (du musst mindestens zwei davon verfolgen)     |
+| **Der Open-Data-Feed ist erreichbar / nicht erreichbar geworden** | alle Tankstellen einer Aktualisierung fehlgeschlagen sind oder der Feed wieder antwortet                                    |
+
+Jeder Auslöser gibt Informationen an deine Aktionen weiter: den Namen der
+Tankstelle, den Ort, den Kraftstoff, den neuen Preis, den vorherigen Preis und
+die Differenz. Eine Benachrichtigung lautet dann etwa „Diesel kostet jetzt
+1,659 EUR bei Station du Centre (-0,040)“.
+
+Ein leer gelassener Filter bedeutet „beliebig“: Ohne gewählte Tankstelle
+reagiert der Auslöser auf jede Tankstelle, die du verfolgst.
+
+Zwei Dinge sind gut zu wissen:
+
+- **Ein Preis, der sich nicht bewegt hat, löst nichts aus**, auch wenn die
+  Integration jede Stunde aktualisiert: Nur eine echte Änderung wird gesendet;
+- nach einem Neustart des Containers ist die erste Aktualisierung eine
+  Referenz und löst nichts aus.
+
+Für einen einfachen Schwellenwert („warne mich unter 1,70“) verwende diese
+Auslöser nicht: Der Gladys-Auslöser **„Änderung von Gerätestatus“** auf der
+Preisfunktion der Tankstelle macht genau das bereits.
+
+## Szenen-Aktionen
+
+In derselben Kategorie **„Integrationen“** fügt die Integration drei Aktionen
+hinzu, die eine Szene ausführen kann.
+
+| Aktion                             | Was sie tut                                                                         |
+| ---------------------------------- | ----------------------------------------------------------------------------------- |
+| **Kraftstoffpreise aktualisieren** | fragt den Feed jetzt ab, damit der Rest der Szene mit einem frischen Preis arbeitet |
+| **Günstigste Tankstelle finden**   | vergleicht deine Tankstellen für einen Kraftstoff und gibt die günstigste zurück    |
+| **Preisübersicht erstellen**       | derselbe Vergleich als eine Textzeile, bereit zum Versand                           |
+
+Was eine Aktion zurückgibt, kann in den nächsten Schritten der Szene
+wiederverwendet werden (Preis, Name der Tankstelle, Ort, Adresse, Entfernung,
+Datum des Preises…).
+
+Eine Beispielszene, jeden Morgen um 7 Uhr:
+
+1. **Günstigste Tankstelle finden** (Kraftstoff: Diesel, Preise vor dem
+   Vergleich abfragen: ja);
+2. **„Nur fortsetzen, wenn“** das Ergebnis `found` wahr ist;
+3. **„Nachricht senden“**: „Günstigstes Tanken: {{ station name }} für
+   {{ price }}“.
+
+Oder in einem Schritt: **Preisübersicht erstellen**, dann den zurückgegebenen
+Text senden.
+
+Gut zu wissen: „Günstigste Tankstelle finden“ lässt die Szene nie scheitern,
+wenn du für diesen Kraftstoff keine Tankstelle verfolgst — sie antwortet
+`found = false`, und es liegt an dir, dieses Ergebnis zu prüfen.
+
+## Fehlerbehebung
+
+**Keine Tankstelle im Tab „Entdecken“.** Prüfe die Postleitzahl (5 Ziffern
+in Frankreich) und erhöhe den Suchradius. Die Schaltfläche **„Tankstellen
+in der Nähe anzeigen“** zeigt die genaue Fehlermeldung.
+
+**Eine Aktualisierung ist einmal fehlgeschlagen und hat beim nächsten Versuch
+funktioniert.** Jede Anfrage an die Open-Data-APIs wird eine Sekunde später
+einmal wiederholt, wenn der Server „zu viele Anfragen“ oder einen Serverfehler
+meldet oder gar nicht antwortet. Nur ein anhaltender Fehler erscheint in den
+Protokollen und unter den Schaltflächen.
+
+**Der Preis wird nicht mehr aktualisiert.** Eine Tankstelle kann vorübergehend
+aus dem nationalen Feed verschwinden (Bauarbeiten, Schließung). Der letzte
+bekannte Preis bleibt angezeigt; die Protokolle der Integration listen die
+fehlenden Tankstellen auf.
+
+**Ein leerer Preis.** Die Tankstelle meldet diesen Kraftstoff gerade nicht. Die
+Integration behält den letzten bekannten Wert, statt eine Lücke im Diagramm zu
+lassen.
+
+**Eine ausverkaufte Tankstelle.** Wenn die Tankstelle einen vorübergehenden
+Engpass meldet, verkauft sie diesen Kraftstoff durchaus, sie hat nur keinen
+mehr. Das Gerät wird im Tab „Entdecken“ weiter angeboten, der letzte bekannte
+Preis bleibt angezeigt, und die Funktion „Last price update“ zeigt „En rupture
+depuis le 18/09/2026 à 08:09“, bis der Kraftstoff wieder da ist. Die
+Schaltfläche **„Tankstellen in der Nähe anzeigen“** schreibt dann „SP98:
+ausverkauft“ und behält „SP98: nicht verkauft“ für einen Kraftstoff, den die
+Tankstelle wirklich nicht verkauft (keine Zapfsäule oder ein endgültiger
+Engpass).
+
+Der Feed sagt manchmal gar nichts über einen Kraftstoff — die Tankstelle hat
+ihren Engpass aufgehoben, aber ihren Preis noch nicht wieder eingetragen. Die
+Integration schaut dann auf die letzten 30 Tage des Preisverlaufs: Ein
+Kraftstoff, für den die Tankstelle in diesem Zeitraum einen Preis hatte, wird
+als „ausverkauft“ angezeigt (die Funktion „Last price update“ zeigt einfach
+„En rupture“), nicht als „nicht verkauft“.
+
+**Das SP95 einer Tankstelle fehlt, während ihr SP98 da ist.** Diese Tankstelle
+verkauft kein SP95, und das ist kein Fehler: Viele Marken (insbesondere
+TotalEnergies) haben es durch **E10 (SP95-E10)** ersetzt. Wähle E10 in der
+Konfiguration, und die Tankstelle erscheint wieder im Tab „Entdecken“. Die
+Schaltfläche **„Tankstellen in der Nähe anzeigen“** sagt es Tankstelle für
+Tankstelle: „SP95: nicht verkauft“.
+
+**Begrenzte Anzahl an Tankstellen.** Die Einstellung **„Maximale Anzahl an
+Tankstellen“** begrenzt die Liste der Erkennung (standardmäßig 20, höchstens
+50). Senke sie in einer dichten Stadt und verkleinere den Radius.
+
+**Eine bestimmte Tankstelle fehlt.** Die Liste behält die NÄCHSTEN Tankstellen,
+bis zu diesem Maximum: In einer Stadt passen zwanzig davon in ein paar
+Kilometer, sodass eine 5 km entfernte Tankstelle selbst bei einem Radius von
+10 km wegfällt. Erhöhe **„Maximale Anzahl an Tankstellen“** statt des
+Radius. Eine Tankstelle, die den gewählten Kraftstoff nicht verkauft, wird
+ebenfalls nicht angeboten, da das Gerät nichts zu veröffentlichen hätte — eine
+lediglich ausverkaufte Tankstelle wird weiter angeboten.
+
+## Daten und Lizenz
+
+Die französischen Daten werden vom Wirtschaftsministerium unter der
+[offenen Lizenz Etalab](https://www.etalab.gouv.fr/licence-ouverte-open-licence)
+veröffentlicht. Die Integration fragt den
+[Datensatz „flux instantané“](https://data.economie.gouv.fr/explore/dataset/prix-des-carburants-en-france-flux-instantane-v2/)
+ab und ruft nur die Tankstellen rund um deine Postleitzahl ab. Wenn dieser
+Datensatz keine Tankstelle in deiner Postleitzahl kennt, wird die Position deines
+Ortes aus der [Base Adresse Nationale](https://adresse.data.gouv.fr/) gelesen,
+dem offiziellen französischen Adressdienst — die Postleitzahl ist das Einzige,
+was dorthin gesendet wird.

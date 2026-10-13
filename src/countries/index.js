@@ -12,10 +12,10 @@
 // ---------------------------------------------------------------------------
 //  1. create `src/countries/<country>.js` exporting an object with:
 //       code               : ISO 3166-1 alpha-2 code, e.g. 'BE'
-//       label              : { en, fr } shown in the country select
+//       label              : { en, fr, de, es } shown in the country select
 //       postalCodeExample  : a valid postal code, used in the documentation
 //       fuels              : the fuel keys (src/fuels.js) this country serves
-//       attribution        : { en, fr } credit line required by the licence
+//       attribution        : { en, fr, de, es } credit line required by the licence
 //       mapUrl             : optional https link to the national map, shown as
 //                            a button on the "cheapest around me" widget
 //       isValidPostalCode(postalCode) -> boolean

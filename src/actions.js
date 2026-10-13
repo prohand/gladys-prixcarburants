@@ -10,6 +10,7 @@
 import { AVAILABILITY, fuelAvailability } from './availability.js';
 import { getProvider } from './countries/index.js';
 import { fuelLabel } from './fuels.js';
+import { inEveryLanguage } from './i18n.js';
 import { isConfigReady, preferredHouse } from './config.js';
 import { refreshAllDevices } from './refresh.js';
 
@@ -27,8 +28,18 @@ const PREVIEW_SIZE = 8;
 // that fuel. The feed says which is which (see src/availability.js), so the
 // preview says it too.
 const NO_PRICE = {
-  [AVAILABILITY.NOT_SOLD]: { en: 'not sold', fr: 'non vendu' },
-  [AVAILABILITY.OUT_OF_STOCK]: { en: 'out of stock', fr: 'en rupture' },
+  [AVAILABILITY.NOT_SOLD]: {
+    en: 'not sold',
+    fr: 'non vendu',
+    de: 'nicht verkauft',
+    es: 'no se vende',
+  },
+  [AVAILABILITY.OUT_OF_STOCK]: {
+    en: 'out of stock',
+    fr: 'en rupture',
+    de: 'ausverkauft',
+    es: 'agotado',
+  },
 };
 
 // Ticking a fuel nobody around sells looks exactly like a bug seen from the
@@ -39,6 +50,103 @@ const FUEL_HINTS = {
   sp95: {
     en: 'SP95 is being replaced by E10 (SP95-E10) in many stations: tick E10 to follow it.',
     fr: 'Le SP95 est remplacé par le E10 (SP95-E10) dans beaucoup de stations : cochez E10 pour le suivre.',
+    de: 'SP95 wird an vielen Tankstellen durch E10 (SP95-E10) ersetzt: Wähle E10, um es zu verfolgen.',
+    es: 'En muchas gasolineras el SP95 se está sustituyendo por el E10 (SP95-E10): marque E10 para seguirlo.',
+  },
+};
+
+// The sentences of the preview that depend on the language, one entry per
+// language of `LANGUAGES`. `colon` is the label/value separator of a price:
+// French puts a space before a colon, the other languages do not.
+const PREVIEW_TEXT = {
+  en: {
+    colon: ': ',
+    outOfStockEverywhere: (fuel) =>
+      `${fuel} is out of stock in every one of these stations: the devices are offered, the price will come back with the fuel.`,
+    soldNowhere: (fuel) => `None of these stations sells ${fuel}.`,
+    fromPostalCode: (code) => `Distances measured from the centre of ${code}.`,
+    noLocatedHouse: (code) =>
+      `No Gladys house has coordinates: distances measured from the centre of ${code}.`,
+    knownHouses: (names) => ` Houses Gladys knows: ${names}.`,
+    houseArea: (name) => `the house "${name}"`,
+    fromHouse: (name) => `Distances measured from the house "${name}".`,
+    noPostalCode: 'Fill in a postal code first.',
+    invalidPostalCode: (code, country, example) =>
+      `"${code}" is not a valid ${country} postal code (example: ${example}).`,
+    noStation: (area) => `No station found around ${area}. Try a wider search radius.`,
+    found: (count, area) => `${count} station(s) around ${area}:`,
+    addFromDiscovery: 'Add the ones you want from the Discover tab.',
+    noTrackedStation: 'No station added yet: add one from the Discover tab first.',
+    failed: (count) => ` (${count} failed)`,
+    refreshed: (updated, total, suffix) => `${updated}/${total} price(s) refreshed${suffix}.`,
+  },
+  fr: {
+    colon: ' : ',
+    outOfStockEverywhere: (fuel) =>
+      `Le ${fuel} est en rupture dans toutes ces stations : les appareils sont proposés, le prix reviendra avec le carburant.`,
+    soldNowhere: (fuel) => `Aucune de ces stations ne vend du ${fuel}.`,
+    fromPostalCode: (code) => `Distances mesurées depuis le centre du ${code}.`,
+    noLocatedHouse: (code) =>
+      `Aucune maison Gladys n'a de coordonnées : distances mesurées depuis le centre du ${code}.`,
+    knownHouses: (names) => ` Maisons connues de Gladys : ${names}.`,
+    houseArea: (name) => `la maison « ${name} »`,
+    fromHouse: (name) => `Distances mesurées depuis la maison « ${name} ».`,
+    noPostalCode: "Renseignez d'abord un code postal.",
+    invalidPostalCode: (code, country, example) =>
+      `« ${code} » n'est pas un code postal ${country} valide (exemple : ${example}).`,
+    noStation: (area) =>
+      `Aucune station trouvée autour de ${area}. Essayez un rayon de recherche plus large.`,
+    found: (count, area) => `${count} station(s) autour de ${area} :`,
+    addFromDiscovery: "Ajoutez celles que vous voulez depuis l'onglet Découverte.",
+    noTrackedStation: "Aucune station ajoutée : ajoutez-en une depuis l'onglet Découverte.",
+    failed: (count) => ` (${count} en échec)`,
+    refreshed: (updated, total, suffix) => `${updated}/${total} prix rafraîchi(s)${suffix}.`,
+  },
+  de: {
+    colon: ': ',
+    outOfStockEverywhere: (fuel) =>
+      `${fuel} ist an all diesen Tankstellen ausverkauft: Die Geräte werden angeboten, der Preis kommt mit dem Kraftstoff zurück.`,
+    soldNowhere: (fuel) => `Keine dieser Tankstellen verkauft ${fuel}.`,
+    fromPostalCode: (code) => `Entfernungen gemessen ab der Mitte von ${code}.`,
+    noLocatedHouse: (code) =>
+      `Kein Gladys-Zuhause hat Koordinaten: Entfernungen gemessen ab der Mitte von ${code}.`,
+    knownHouses: (names) => ` Zuhause, die Gladys kennt: ${names}.`,
+    houseArea: (name) => `das Zuhause „${name}“`,
+    fromHouse: (name) => `Entfernungen gemessen ab dem Zuhause „${name}“.`,
+    noPostalCode: 'Gib zuerst eine Postleitzahl ein.',
+    invalidPostalCode: (code, country, example) =>
+      `„${code}“ ist keine gültige Postleitzahl für ${country} (Beispiel: ${example}).`,
+    noStation: (area) =>
+      `Keine Tankstelle um ${area} gefunden. Versuche einen größeren Suchradius.`,
+    found: (count, area) => `${count} Tankstelle(n) um ${area}:`,
+    addFromDiscovery: 'Füge die gewünschten über den Tab „Entdecken“ hinzu.',
+    noTrackedStation:
+      'Noch keine Tankstelle hinzugefügt: Füge zuerst eine über den Tab „Entdecken“ hinzu.',
+    failed: (count) => ` (${count} fehlgeschlagen)`,
+    refreshed: (updated, total, suffix) => `${updated}/${total} Preis(e) aktualisiert${suffix}.`,
+  },
+  es: {
+    colon: ': ',
+    outOfStockEverywhere: (fuel) =>
+      `${fuel}: agotado en todas estas gasolineras. Los dispositivos se ofrecen y el precio volverá con el carburante.`,
+    soldNowhere: (fuel) => `Ninguna de estas gasolineras vende ${fuel}.`,
+    fromPostalCode: (code) => `Distancias medidas desde el centro de ${code}.`,
+    noLocatedHouse: (code) =>
+      `Ninguna vivienda de Gladys tiene coordenadas: distancias medidas desde el centro de ${code}.`,
+    knownHouses: (names) => ` Viviendas que conoce Gladys: ${names}.`,
+    houseArea: (name) => `la vivienda «${name}»`,
+    fromHouse: (name) => `Distancias medidas desde la vivienda «${name}».`,
+    noPostalCode: 'Introduzca primero un código postal.',
+    invalidPostalCode: (code, country, example) =>
+      `«${code}» no es un código postal válido de ${country} (ejemplo: ${example}).`,
+    noStation: (area) =>
+      `No se ha encontrado ninguna gasolinera alrededor de ${area}. Pruebe con un radio de búsqueda mayor.`,
+    found: (count, area) => `${count} gasolinera(s) alrededor de ${area}:`,
+    addFromDiscovery: 'Añada las que quiera desde la pestaña «Descubrir».',
+    noTrackedStation:
+      'Todavía no ha añadido ninguna gasolinera: añada una primero desde la pestaña «Descubrir».',
+    failed: (count) => ` (${count} con error)`,
+    refreshed: (updated, total, suffix) => `${updated}/${total} precio(s) actualizado(s)${suffix}.`,
   },
 };
 
@@ -46,7 +154,7 @@ const FUEL_HINTS = {
  * A price as the preview shows it, or why there is none.
  * @param {object} station
  * @param {string} fuel
- * @param {'en'|'fr'} lang
+ * @param {string} lang one of `LANGUAGES`
  */
 function formatPrice(station, fuel, lang) {
   const availability = fuelAvailability(station, fuel);
@@ -60,17 +168,18 @@ function formatPrice(station, fuel, lang) {
  * The first `PREVIEW_SIZE` stations, one line each, in one language.
  * @param {Array<object>} stations
  * @param {string[]} fuels
- * @param {'en'|'fr'} lang
+ * @param {string} lang one of `LANGUAGES`
  */
 function previewLines(stations, fuels, lang) {
   return stations.slice(0, PREVIEW_SIZE).map((station) => {
     const distance = Number.isFinite(station.distanceKm)
       ? ` (${station.distanceKm.toFixed(1)} km)`
       : '';
-    // French puts a space before a colon; the rest of the message already does.
-    const colon = lang === 'fr' ? ' : ' : ': ';
     const prices = fuels
-      .map((fuel) => `${fuelLabel(fuel, lang)}${colon}${formatPrice(station, fuel, lang)}`)
+      .map(
+        (fuel) =>
+          `${fuelLabel(fuel, lang)}${PREVIEW_TEXT[lang].colon}${formatPrice(station, fuel, lang)}`,
+      )
       .join(', ');
     return `• ${station.name}${distance} — ${prices}`;
   });
@@ -87,9 +196,10 @@ function previewLines(stations, fuels, lang) {
  *
  * @param {Array<object>} stations
  * @param {string[]} fuels
- * @param {'en'|'fr'} lang
+ * @param {string} lang one of `LANGUAGES`
  */
 function missingFuelNotes(stations, fuels, lang) {
+  const words = PREVIEW_TEXT[lang];
   return fuels
     .filter((fuel) =>
       stations.every((station) => fuelAvailability(station, fuel) !== AVAILABILITY.AVAILABLE),
@@ -99,14 +209,9 @@ function missingFuelNotes(stations, fuels, lang) {
         (station) => fuelAvailability(station, fuel) === AVAILABILITY.OUT_OF_STOCK,
       );
       if (soldSomewhere) {
-        return lang === 'fr'
-          ? `Le ${fuelLabel(fuel, 'fr')} est en rupture dans toutes ces stations : les appareils sont proposés, le prix reviendra avec le carburant.`
-          : `${fuelLabel(fuel, 'en')} is out of stock in every one of these stations: the devices are offered, the price will come back with the fuel.`;
+        return words.outOfStockEverywhere(fuelLabel(fuel, lang));
       }
-      const head =
-        lang === 'fr'
-          ? `Aucune de ces stations ne vend du ${fuelLabel(fuel, 'fr')}.`
-          : `None of these stations sells ${fuelLabel(fuel, 'en')}.`;
+      const head = words.soldNowhere(fuelLabel(fuel, lang));
       const hint = FUEL_HINTS[fuel]?.[lang];
       return hint ? `${head} ${hint}` : head;
     });
@@ -126,42 +231,35 @@ function missingFuelNotes(stations, fuels, lang) {
  *
  * @param {object} config normalized configuration
  * @param {{ get: Function, names: Function }} [house]
- * @returns {Promise<{ area: { en: string, fr: string }, en: string, fr: string }>}
+ * @returns {Promise<{ area: Record<string, string>, note: Record<string, string> }>}
+ *   one entry per language of `LANGUAGES` in each
  */
 async function centerNotes(config, house) {
   // `area` heads the message ("12 station(s) around …"): it names the same
   // centre as the note, since a head saying the postal code over a search
   // centred on the house sent a user looking for a bug that was not there.
-  const postalArea = { en: config.postal_code, fr: config.postal_code };
+  const postalArea = inEveryLanguage(() => config.postal_code);
   if (config.search_center !== 'house' || !house) {
     return {
       area: postalArea,
-      en: `Distances measured from the centre of ${config.postal_code}.`,
-      fr: `Distances mesurées depuis le centre du ${config.postal_code}.`,
+      note: inEveryLanguage((lang) => PREVIEW_TEXT[lang].fromPostalCode(config.postal_code)),
     };
   }
   const [used, names] = await Promise.all([house.get(preferredHouse(config)), house.names()]);
   if (!used) {
     return {
       area: postalArea,
-      en: `No Gladys house has coordinates: distances measured from the centre of ${config.postal_code}.`,
-      fr: `Aucune maison Gladys n'a de coordonnées : distances mesurées depuis le centre du ${config.postal_code}.`,
+      note: inEveryLanguage((lang) => PREVIEW_TEXT[lang].noLocatedHouse(config.postal_code)),
     };
   }
   // Only worth listing when there is a choice to make. The names come from the
   // user's own Gladys and never leave this message — no coordinate is printed,
   // here or anywhere else.
-  const others =
-    names.length > 1
-      ? {
-          en: ` Houses Gladys knows: ${names.join(', ')}.`,
-          fr: ` Maisons connues de Gladys : ${names.join(', ')}.`,
-        }
-      : { en: '', fr: '' };
+  const others = (lang) =>
+    names.length > 1 ? PREVIEW_TEXT[lang].knownHouses(names.join(', ')) : '';
   return {
-    area: { en: `the house "${used.name}"`, fr: `la maison « ${used.name} »` },
-    en: `Distances measured from the house "${used.name}".${others.en}`,
-    fr: `Distances mesurées depuis la maison « ${used.name} ».${others.fr}`,
+    area: inEveryLanguage((lang) => PREVIEW_TEXT[lang].houseArea(used.name)),
+    note: inEveryLanguage((lang) => `${PREVIEW_TEXT[lang].fromHouse(used.name)}${others(lang)}`),
   };
 }
 
@@ -173,26 +271,23 @@ async function centerNotes(config, house) {
  */
 export async function searchStations(gladys, { config, store, house }) {
   if (!isConfigReady(config)) {
-    return {
-      en: 'Fill in a postal code first.',
-      fr: "Renseignez d'abord un code postal.",
-    };
+    return inEveryLanguage((lang) => PREVIEW_TEXT[lang].noPostalCode);
   }
 
   const provider = getProvider(config.country);
   if (!provider.isValidPostalCode(config.postal_code)) {
-    return {
-      en: `"${config.postal_code}" is not a valid ${provider.label.en} postal code (example: ${provider.postalCodeExample}).`,
-      fr: `« ${config.postal_code} » n'est pas un code postal ${provider.label.fr} valide (exemple : ${provider.postalCodeExample}).`,
-    };
+    return inEveryLanguage((lang) =>
+      PREVIEW_TEXT[lang].invalidPostalCode(
+        config.postal_code,
+        provider.label[lang] ?? provider.label.en,
+        provider.postalCodeExample,
+      ),
+    );
   }
 
   const [stations, center] = await Promise.all([store.search(config), centerNotes(config, house)]);
   if (stations.length === 0) {
-    return {
-      en: `No station found around ${center.area.en}. Try a wider search radius.`,
-      fr: `Aucune station trouvée autour de ${center.area.fr}. Essayez un rayon de recherche plus large.`,
-    };
+    return inEveryLanguage((lang) => PREVIEW_TEXT[lang].noStation(center.area[lang]));
   }
 
   const shown = Math.min(stations.length, PREVIEW_SIZE);
@@ -202,10 +297,11 @@ export async function searchStations(gladys, { config, store, house }) {
     return lines.length > 0 ? `\n\n${lines.join('\n')}` : '';
   };
 
-  return {
-    en: `${stations.length} station(s) around ${center.area.en}:\n${previewLines(stations, config.fuel_type, 'en').join('\n')}${more}${notes('en')}\n\n${center.en}\n\nAdd the ones you want from the Discovery tab.`,
-    fr: `${stations.length} station(s) autour de ${center.area.fr} :\n${previewLines(stations, config.fuel_type, 'fr').join('\n')}${more}${notes('fr')}\n\n${center.fr}\n\nAjoutez celles que vous voulez depuis l'onglet Découverte.`,
-  };
+  return inEveryLanguage((lang) => {
+    const words = PREVIEW_TEXT[lang];
+    const lines = previewLines(stations, config.fuel_type, lang).join('\n');
+    return `${words.found(stations.length, center.area[lang])}\n${lines}${more}${notes(lang)}\n\n${center.note[lang]}\n\n${words.addFromDiscovery}`;
+  });
 }
 
 /**
@@ -227,17 +323,14 @@ export async function refreshPrices(gladys, { config, store, history, sceneEvent
   });
 
   if (total === 0) {
-    return {
-      en: 'No station added yet: add one from the Discovery tab first.',
-      fr: "Aucune station ajoutée : ajoutez-en une depuis l'onglet Découverte.",
-    };
+    return inEveryLanguage((lang) => PREVIEW_TEXT[lang].noTrackedStation);
   }
 
-  const failureSuffix = failures.length > 0 ? ` (${failures.length} failed)` : '';
-  return {
-    en: `${updated}/${total} price(s) refreshed${failureSuffix}.`,
-    fr: `${updated}/${total} prix rafraîchi(s)${failureSuffix}.`,
-  };
+  return inEveryLanguage((lang) => {
+    const words = PREVIEW_TEXT[lang];
+    const suffix = failures.length > 0 ? words.failed(failures.length) : '';
+    return words.refreshed(updated, total, suffix);
+  });
 }
 
 /** Action key -> handler, consumed by index.js and checked by the tests. */
