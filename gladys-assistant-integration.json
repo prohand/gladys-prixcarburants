@@ -8,8 +8,8 @@
     "de": "Verfolge den Kraftstoffpreis an den Tankstellen in deiner Nähe, aus offiziellen Open Data.",
     "es": "Siga el precio de su carburante en las gasolineras cercanas, con datos abiertos oficiales."
   },
-  "version": "2.5.0",
-  "docker_image": "ghcr.io/prohand/gladys-prixcarburants:2.5.0",
+  "version": "2.5.1",
+  "docker_image": "ghcr.io/prohand/gladys-prixcarburants:2.5.1",
   "gladys_version": ">=5.2.0",
   "location": true,
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-prixcarburants/main/cover.png",
