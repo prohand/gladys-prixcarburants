@@ -21,3 +21,9 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    # Stay on the Node major the image ships with (the current LTS): patch and
+    # minor releases, security fixes included, still come as PRs. A move to the
+    # next major is done by hand.
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
