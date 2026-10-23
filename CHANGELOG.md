@@ -6,6 +6,11 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+
+- Docker base image: `node:24-alpine` digest moved to Node 24.22.1, the
+  security release of 2026-10-20 (it was Node 24.21.0).
+
 ## [2.5.0] - 2026-10-13
 
 ### Added

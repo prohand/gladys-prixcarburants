@@ -27,8 +27,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
  */
 export function rollChangelog(text, version, date) {
   const heading = '## [Unreleased]';
-  const start = text.indexOf(heading);
-  if (start === -1 || text.includes(`## [${version}]`)) {
+  // The heading on a line of its own: a mention of it in the intro text
+  // (inline code) is not the section.
+  const start = text.search(/^## \[Unreleased\][ \t]*$/m);
+  if (start === -1 || new RegExp(`^## \\[${version.replaceAll('.', '\\.')}\\]`, 'm').test(text)) {
     return text;
   }
   const bodyStart = start + heading.length;
