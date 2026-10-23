@@ -18,6 +18,10 @@ on:
       - main
   pull_request:
 
+# The jobs only read the repository: the token gets no write access.
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
