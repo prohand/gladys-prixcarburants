@@ -282,9 +282,10 @@ segunda residencia muestra su distancia desde esa vivienda.
 El código postal sigue siendo obligatorio en cualquier caso: es lo que consulta
 el conjunto de datos nacional.
 
-> La integración necesita **Gladys 5.2 o posterior**: los widgets y las escenas
-> llegaron con la 5.1, las listas de viviendas con la 5.2. En un Gladys más
-> antiguo simplemente no aparece en la tienda. Gladys 5.2 también dispone los
+> La integración necesita **Gladys 5.3 o posterior**: los widgets y las escenas
+> llegaron con la 5.1, las listas de viviendas con la 5.2, las palabras clave de
+> búsqueda y el país del catálogo con la 5.3. En un Gladys más antiguo
+> simplemente no aparece en la tienda. Gladys 5.2 también dispone los
 > mosaicos de precio en una cuadrícula equilibrada: tres precios se quedan uno
 > al lado de otro incluso en una tarjeta estrecha, en lugar de dos mosaicos de
 > media anchura y uno de anchura completa debajo.

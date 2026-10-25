@@ -272,9 +272,10 @@ résidence secondaire donne sa distance depuis celle-ci.
 Le code postal reste obligatoire dans tous les cas : c'est lui qui sert à
 interroger le jeu de données national.
 
-> L'intégration demande **Gladys 5.2 ou plus récent** : les widgets et les
-> scènes sont arrivés avec la 5.1, les listes de maisons avec la 5.2. Sur un
-> Gladys plus ancien, elle n'apparaît simplement pas dans le magasin. Gladys 5.2
+> L'intégration demande **Gladys 5.3 ou plus récent** : les widgets et les
+> scènes sont arrivés avec la 5.1, les listes de maisons avec la 5.2, les mots-clés
+> de recherche et le pays du catalogue avec la 5.3. Sur un Gladys plus ancien,
+> elle n'apparaît simplement pas dans le magasin. Gladys 5.2
 > range aussi les cases de prix en grille équilibrée : trois prix restent côte à
 > côte même sur une carte étroite, au lieu de deux cases à mi-largeur et d'une
 > case pleine largeur en dessous.

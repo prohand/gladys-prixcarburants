@@ -6,6 +6,15 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Store catalog: the integration is now also on the "Transport" shelf, carries search keywords (gazole, SP95, SP98, E10, E85, GPL, prix-carburants.gouv.fr…) and is declared for France, so it is easier to find and is listed for French installations.
+
+### Changed
+
+- `@gladysassistant/integration-sdk` updated to 0.16.0.
+- Requires Gladys 5.3.0 (keywords and countries in the store catalog).
+
 ## [2.5.1] - 2026-10-23
 
 ### Security

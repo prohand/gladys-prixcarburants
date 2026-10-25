@@ -100,7 +100,8 @@ country behind a common interface:
    `fetchStationsByIds(ids)` — see [`france.js`](./src/countries/france.js) for
    a worked example;
 2. register it in [`src/countries/index.js`](./src/countries/index.js);
-3. add its option to the `country` field of the manifest `config_schema`.
+3. add its option to the `country` field of the manifest `config_schema`, and
+   its code to the manifest `countries`.
 
 Nothing else changes: device ids already carry the country code, so stations
 from two countries coexist, and `test/manifest.test.js` fails until the
@@ -140,14 +141,21 @@ consistency (`test/manifest.test.js`). They use fakes, never the network.
 
 ## Catalog categories
 
-The manifest declares `"categories": ["energy"]` — the shelf of the store
-catalog this integration sits on (without it, the integration would only show
-under "All" and in the search). One to three keys are allowed, among `climate`,
-`lighting`, `energy`, `security`, `multimedia`, `appliances`, `environment`,
-`protocols`, `network`, `notifications`, `assistants`, `services`. The field
-only exists since Gladys 4.86, and an older core rejects a manifest carrying
-unknown fields: `categories` and `"gladys_version": ">=4.86.0"` therefore move
-together, which `test/manifest.test.js` checks.
+The manifest declares `"categories": ["transport", "energy"]` — the shelves of
+the store catalog this integration sits on (without them, the integration would
+only show under "All" and in the search). One to three keys are allowed, among
+`climate`, `lighting`, `energy`, `security`, `multimedia`, `appliances`,
+`environment`, `protocols`, `network`, `notifications`, `assistants`,
+`services`, `transport`, `vehicles`, `servers`, `leisure`. The field only exists
+since Gladys 4.86, and an older core rejects a manifest carrying unknown fields:
+`categories` and `"gladys_version": ">=4.86.0"` therefore move together, which
+`test/manifest.test.js` checks.
+
+Since Gladys 5.3 the manifest also carries search `keywords` (fuel names, the
+official website) and `"countries": ["FR"]`: the catalog of an instance located
+elsewhere hides the integration from its browse views. Both need
+`"gladys_version": ">=5.3.0"`, and the test keeps `countries` equal to the
+countries `src/countries/` implements.
 
 ## Local / Cloud tag
 
@@ -199,11 +207,11 @@ Three things shape the code:
 
 Both cards need **Gladys 5.1**, the release that shipped
 [GladysAssistant/Gladys#3109](https://github.com/GladysAssistant/Gladys/pull/3109), and the
-manifest asks for **5.2**: the house lists (`source: "houses"`, the "Which house" field and
+manifest asks for **5.3** (search keywords and countries) and needed **5.2** already: the house lists (`source: "houses"`, the "Which house" field and
 the `house` setting of the cheapest card) came with it, and so did the balanced tile grid
 ([GladysAssistant/Gladys#3183](https://github.com/GladysAssistant/Gladys/pull/3183)) that
 keeps three prices side by side on a narrow card. `test/manifest.test.js` pins
-`">=5.2.0"` the same way it pins `categories` against 4.86. The handlers come from the SDK itself
+`">=5.3.0"` the same way it pins `categories` against 4.86. The handlers come from the SDK itself
 (`onWidgetGet`, `onWidgetAction`, `requestWidgetRefresh`, 0.14.0 and up): the
 bridge that answered those commands on the raw socket while the SDK was behind
 is gone.

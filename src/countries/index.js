@@ -22,7 +22,9 @@
 //       searchStations({ postalCode, radiusKm, limit }) -> Promise<Station[]>
 //       fetchStationsByIds(ids) -> Promise<Station[]>
 //  2. register it in COUNTRIES below;
-//  3. add its option to the `country` field of the manifest `config_schema`.
+//  3. add its option to the `country` field of the manifest `config_schema`,
+//     and its code to the manifest `countries` (the store catalog hides the
+//     integration from instances in an undeclared country).
 //
 // Nothing else changes: device ids already carry the country code
 // (`FR-35000005-gazole`), so stations from two countries can coexist.
