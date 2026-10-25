@@ -6,6 +6,8 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-10-25
+
 ### Added
 
 - Store catalog: the integration is now also on the "Transport" shelf, carries search keywords (gazole, SP95, SP98, E10, E85, GPL, prix-carburants.gouv.fr…) and is declared for France, so it is easier to find and is listed for French installations.
@@ -221,7 +223,8 @@ First public release.
 - Show the station brand in Discovery and in the preview
 - Fetch the station name, and unblock "Add to Gladys" (HTTP 422)
 
-[Unreleased]: https://github.com/prohand/gladys-prixcarburants/compare/v2.5.1...HEAD
+[Unreleased]: https://github.com/prohand/gladys-prixcarburants/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/prohand/gladys-prixcarburants/compare/v2.5.1...v2.6.0
 [2.5.1]: https://github.com/prohand/gladys-prixcarburants/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/prohand/gladys-prixcarburants/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/prohand/gladys-prixcarburants/compare/v2.3.0...v2.4.0
