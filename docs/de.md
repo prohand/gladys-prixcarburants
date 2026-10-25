@@ -283,9 +283,10 @@ der Nähe deines Zweitwohnsitzes ihre Entfernung von diesem Zuhause zeigt.
 Die Postleitzahl bleibt in jedem Fall erforderlich: Mit ihr wird der nationale
 Datensatz abgefragt.
 
-> Die Integration benötigt **Gladys 5.2 oder neuer**: Die Widgets und die
-> Szenen kamen mit 5.1, die Zuhause-Listen mit 5.2. Auf einem älteren Gladys
-> erscheint sie einfach nicht im Store. Gladys 5.2 ordnet die Preiskacheln
+> Die Integration benötigt **Gladys 5.3 oder neuer**: Die Widgets und die
+> Szenen kamen mit 5.1, die Zuhause-Listen mit 5.2, die Suchbegriffe und das
+> Land im Store-Katalog mit 5.3. Auf einem älteren Gladys erscheint sie einfach
+> nicht im Store. Gladys 5.2 ordnet die Preiskacheln
 > außerdem in einem ausgewogenen Raster an: Drei Preise bleiben selbst auf einer
 > schmalen Karte nebeneinander, statt zwei halbbreiter Kacheln und einer
 > vollbreiten darunter.

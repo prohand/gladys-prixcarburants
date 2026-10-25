@@ -160,6 +160,11 @@ test('the catalog categories stay within what Gladys knows, and require 4.86', (
     'notifications',
     'assistants',
     'services',
+    // Added to the store vocabulary in 2026-10.
+    'transport',
+    'vehicles',
+    'servers',
+    'leisure',
   ];
   assert.ok(Array.isArray(manifest.categories), 'categories must be an array');
   assert.ok(
@@ -363,6 +368,46 @@ function everyFormField() {
     ...(manifest.scene_actions ?? []).flatMap((a) => a.fields ?? []),
   ];
 }
+
+test('the search keywords are 1 to 10 unique terms of 2 to 30 characters', () => {
+  // Search-only terms of the store catalog: what a user types and the name and
+  // the description do not already say (fuel names, the official website).
+  const { keywords } = manifest;
+  assert.ok(Array.isArray(keywords), 'keywords must be an array');
+  assert.ok(keywords.length >= 1 && keywords.length <= 10, 'between 1 and 10 keywords');
+  const normalized = keywords.map((keyword) => keyword.trim().toLowerCase());
+  assert.equal(new Set(normalized).size, keywords.length, 'keywords must be unique');
+  for (const keyword of normalized) {
+    assert.ok(keyword.length >= 2 && keyword.length <= 30, `"${keyword}": 2 to 30 characters`);
+  }
+});
+
+test('the declared countries are exactly the countries the code implements', () => {
+  // The store catalog hides the integration, in its browse views, from an
+  // instance located elsewhere: a country added to src/countries/ must be
+  // added here too, or its users would never see the integration.
+  assert.ok(Array.isArray(manifest.countries), 'countries must be an array');
+  for (const country of manifest.countries) {
+    assert.match(country, /^[A-Z]{2}$/, 'ISO 3166-1 alpha-2, upper case');
+  }
+  assert.deepEqual([...manifest.countries].sort(), Object.keys(COUNTRIES).sort());
+});
+
+test('keywords, countries and music require Gladys 5.3 in gladys_version', () => {
+  // Same rule as the 5.1 fields above: the store indexer refuses these fields
+  // with a lower floor, and an older core rejects them as unknown.
+  const declared = ['keywords', 'countries', 'music'].filter((f) => manifest[f] !== undefined);
+  if (declared.length === 0) {
+    return;
+  }
+  const minimum = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\./);
+  assert.ok(minimum, 'gladys_version must declare a minimum version');
+  const [, major, minor] = minimum.map(Number);
+  assert.ok(
+    major > 5 || (major === 5 && minor >= 3),
+    `${declared.join(', ')} require gladys_version >= 5.3.0, got "${manifest.gladys_version}"`,
+  );
+});
 
 test('a `source: "houses"` field requires Gladys 5.2 in gladys_version', () => {
   // A core older than 5.2 rejects a dynamic source it does not know, and the

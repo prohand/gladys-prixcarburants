@@ -315,8 +315,9 @@ fuel) and `station` (one followed station, a price tile per fuel).
   `gladys.onWidgetGet(key, cb)` and `gladys.onWidgetAction(key, cb)`, and the core acks for
   us under its own 15 s deadline. An older core rejects the `widgets` field like any unknown
   one, so `gladys_version` carries at least `">=5.1.0"` — `test/manifest.test.js` fails if the
-  two ever drift apart, which is the same guard `categories` gets. It is `">=5.2.0"` since the
-  house lists (`source: "houses"`), pinned the same way.
+  two ever drift apart, which is the same guard `categories` gets. It was `">=5.2.0"` for the
+  house lists (`source: "houses"`), and is `">=5.3.0"` since the store `keywords` and
+  `countries` (`["FR"]`, kept equal to `COUNTRIES` by the test), pinned the same way.
 - **The core lays the tiles out, not us** (Gladys 5.2, GladysAssistant/Gladys#3183): a
   balanced grid whose column count it picks from the tile count and the card width — three
   tiles stay on one row, tightened on a narrow card; a wrapped tile keeps the width of the
@@ -331,8 +332,10 @@ Price open data is national, so each country is a module in `src/countries/` exp
 `code`, `label`, `postalCodeExample`, `fuels`, `attribution`, optional `mapUrl`
 (the national map, linked from the widget), `isValidPostalCode()`,
 `searchStations({ postalCode, radiusKm, limit })` and `fetchStationsByIds(ids)`. Register it
-in `src/countries/index.js` and add its option to the manifest `country` field — nothing else
-changes, since device ids already carry the country code.
+in `src/countries/index.js`, add its option to the manifest `country` field and its code to the
+manifest `countries` (the store catalog hides the integration from instances located in an
+undeclared country; `test/manifest.test.js` keeps both equal) — nothing else changes, since
+device ids already carry the country code.
 
 France (`france.js`) queries the Opendatasoft `explore/v2.1` API of the _flux instantané v2_
 dataset. Two quirks worth knowing: the parsing is deliberately tolerant (flat `gazole_prix`

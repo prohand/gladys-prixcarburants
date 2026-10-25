@@ -251,9 +251,10 @@ shows its distance from that home.
 The postal code stays required either way: it is what queries the national
 dataset.
 
-> The integration needs **Gladys 5.2 or newer**: the widgets and the scenes
-> came with 5.1, the house lists with 5.2. On an older Gladys it simply does not
-> show up in the store. Gladys 5.2 also lays the price tiles out in a balanced
+> The integration needs **Gladys 5.3 or newer**: the widgets and the scenes
+> came with 5.1, the house lists with 5.2, the store search keywords and the
+> country of the catalog with 5.3. On an older Gladys it simply does not show up
+> in the store. Gladys 5.2 also lays the price tiles out in a balanced
 > grid: three prices stay side by side even on a narrow card, instead of two
 > half-width tiles and a full-width one below.
 
