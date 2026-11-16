@@ -103,8 +103,9 @@ jobs:
           git commit -m "chore(release): ${VERSION}"
           git tag -a "v${VERSION}" -m "Release ${VERSION}"
 
-          git push origin "HEAD:${GITHUB_REF_NAME}"
-          git push origin "v${VERSION}"
+          # One atomic push: GitHub can reject a tag pushed separately right after
+          # its commit ("missing necessary objects"), leaving a version without tag.
+          git push --atomic origin "HEAD:${GITHUB_REF_NAME}" "v${VERSION}"
 
   # Build and publish the image for the version we just tagged.
   build:
