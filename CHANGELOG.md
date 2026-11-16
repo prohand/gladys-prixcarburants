@@ -6,6 +6,8 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+- Update `@gladysassistant/integration-sdk` to 0.16.1 (security update).
+
 ## [2.6.1] - 2026-11-16
 
 - Maintenance release, no functional change.
