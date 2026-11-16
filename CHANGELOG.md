@@ -6,6 +6,8 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.6.2] - 2026-11-16
+
 - Update `@gladysassistant/integration-sdk` to 0.16.1 (security update).
 
 ## [2.6.1] - 2026-11-16
@@ -229,7 +231,8 @@ First public release.
 - Show the station brand in Discovery and in the preview
 - Fetch the station name, and unblock "Add to Gladys" (HTTP 422)
 
-[Unreleased]: https://github.com/prohand/gladys-prixcarburants/compare/v2.6.1...HEAD
+[Unreleased]: https://github.com/prohand/gladys-prixcarburants/compare/v2.6.2...HEAD
+[2.6.2]: https://github.com/prohand/gladys-prixcarburants/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/prohand/gladys-prixcarburants/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/prohand/gladys-prixcarburants/compare/v2.5.1...v2.6.0
 [2.5.1]: https://github.com/prohand/gladys-prixcarburants/compare/v2.5.0...v2.5.1
